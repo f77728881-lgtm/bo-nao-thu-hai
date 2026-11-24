@@ -517,3 +517,11 @@ html[data-theme="dark"] .lesson-goal { color: var(--text); }
 .week h4 { margin: 14px 0 4px; display: flex; gap: 6px; align-items: center; }
 .lesson-meta { margin: 0; color: var(--muted); font-size: .85rem; }
 .today-trip .trip-status { font-size: .7rem; } .today-trip .trip-cover { min-width: 110px; }
+.place-tools { display: flex; flex-wrap: wrap; gap: 8px; }
+.place-hint { margin: -4px 0 0; min-height: 1em; }
+.place-map { height: min(65vh, 560px); border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); z-index: 0; }
+.dist { float: right; font-size: .8rem; font-weight: 700; color: var(--primary); margin-left: 8px; }
+.share-when { display: flex; flex-direction: column; gap: 8px; background: var(--surface-2); border-radius: 12px; padding: 12px; }
+.share-when input { padding: 9px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); font-size: 1rem; }
+.mini-f { display: inline-flex; align-items: center; gap: 6px; font-size: .9rem; color: var(--muted); }
+.mini-f input { width: 76px; }

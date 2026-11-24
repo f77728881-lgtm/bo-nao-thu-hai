@@ -6,6 +6,22 @@ import { openSheet, toast, errorToast, closeSheet } from './ui.js';
 import { openRecord } from './form.js';
 
 let tab = 'trips';
+let myPos = null; // { lat, lng, at }
+
+function distKm(a, b) {
+  const R = 6371, rad = (x) => (x * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+const fmtKm = (k) => (k < 1 ? `${Math.round(k * 1000)} m` : `${k.toFixed(k < 10 ? 1 : 0).replace('.', ',')} km`);
+
+function locate(rerender) {
+  if (!navigator.geolocation) { toast('Thiết bị không hỗ trợ định vị'); return; }
+  navigator.geolocation.getCurrentPosition((p) => { myPos = { lat: p.coords.latitude, lng: p.coords.longitude, at: Date.now() }; rerender(); },
+    (e) => toast(e.code === 1 ? 'Bạn chưa cho phép dùng vị trí' : 'Không lấy được vị trí', { kind: 'error' }),
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 120000 });
+}
 export const setTravelTab = (t) => { tab = t; };
 
 const STATUS_ICON = { 'Ý tưởng': '💭', 'Lên kế hoạch': '📝', 'Sẵn sàng': '🎒', 'Đang đi': '🚗', 'Đã đi': '📖' };
@@ -85,7 +101,17 @@ export function travelView() {
   const provinces = new Set([...been.map((p) => fold(p.tinh)).filter(Boolean), ...done.map((t) => fold((t.diem_den || '').split(',').pop())).filter(Boolean)]);
 
   let body;
-  if (tab === 'places' || tab === 'want') {
+  if (tab === 'near') {
+    const withPos = places.filter((p) => p.lat !== null && p.lat !== undefined && p.lng !== null);
+    if (!myPos) body = html`<p class="empty big">Đang lấy vị trí của bạn… <button class="link" data-locate>Thử lại</button></p>`;
+    else {
+      const list = withPos.map((p) => ({ p, d: distKm(myPos, p) })).sort((a, b) => a.d - b.d).slice(0, 50);
+      body = list.length ? html`<section class="card"><ul class="list">${list.map(({ p, d }) => html`${raw(placeRow(p).__raw.replace('<div class="row-main">', `<div class="row-main"><span class="dist">${fmtKm(d)}</span>`))}`)}</ul></section>`
+        : html`<p class="empty big">Chưa có địa điểm nào có toạ độ. Lưu địa điểm bằng link Google Maps hoặc nút "Vị trí hiện tại".</p>`;
+    }
+  } else if (tab === 'map') {
+    body = html`<div id="place-map" class="place-map"></div><p class="hint">Xanh lá: đã đến · Hồng: yêu thích · Cam: muốn đến · Chấm xanh: bạn đang ở đây</p>`;
+  } else if (tab === 'places' || tab === 'want') {
     const list = (tab === 'want' ? want : been).sort((a, b) => (b.danh_gia || 0) - (a.danh_gia || 0));
     const groups = {};
     list.forEach((p) => (groups[p.loai || 'Khác'] = groups[p.loai || 'Khác'] || []).push(p));
@@ -113,7 +139,7 @@ export function travelView() {
       <div class="stat stat-green"><b>${been.length}</b><span>nơi đã đến</span></div>
       <div class="stat"><b>${want.length}</b><span>muốn đến</span></div>
     </div>
-    <div class="seg" style="margin:14px 0">${[['trips', '✈️ Chuyến đi'], ['places', '📍 Đã đến'], ['want', '⭐ Muốn đến']].map(([k, l]) => html`<button class="${tab === k ? 'on' : ''}" data-travel-tab="${k}">${l}</button>`)}</div>
+    <div class="seg" style="margin:14px 0">${[['trips', 'Chuyến đi'], ['places', 'Đã đến'], ['want', 'Muốn đến'], ['near', 'Gần tôi'], ['map', 'Bản đồ']].map(([k, l]) => html`<button class="${tab === k ? 'on' : ''}" data-travel-tab="${k}">${l}</button>`)}</div>
     ${body}`;
 }
 
@@ -305,9 +331,47 @@ export function openTrip(id) {
 }
 
 export function bindTravel(root, rerender) {
-  root.querySelectorAll('[data-travel-tab]').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.travelTab; rerender(); }));
+  root.querySelectorAll('[data-travel-tab]').forEach((b) => b.addEventListener('click', () => {
+    tab = b.dataset.travelTab; rerender();
+    if ((tab === 'near' || tab === 'map') && (!myPos || Date.now() - myPos.at > 120000)) locate(rerender);
+  }));
+  root.querySelector('[data-locate]')?.addEventListener('click', () => locate(rerender));
+  if (tab === 'map') drawMap(root.querySelector('#place-map'));
   root.querySelector('[data-trip-new]')?.addEventListener('click', () => openRecord('chuyen_di', null, { trang_thai: 'Lên kế hoạch' }));
   root.querySelector('[data-place-new]')?.addEventListener('click', () => openRecord('dia_diem', null, { trang_thai: tab === 'want' ? 'Muốn đến' : 'Đã đến' }));
+}
+
+// ---------------- Bản đồ (Leaflet + OpenStreetMap, miễn phí, không cần khóa) ----------------
+let leafletReady = null;
+function loadLeaflet() {
+  if (window.L) return Promise.resolve();
+  if (leafletReady) return leafletReady;
+  leafletReady = new Promise((resolve, reject) => {
+    const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; document.head.appendChild(css);
+    const js = document.createElement('script'); js.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'; js.onload = resolve; js.onerror = () => reject(new Error('Không tải được bản đồ (mất mạng?)'));
+    document.head.appendChild(js);
+  });
+  return leafletReady;
+}
+
+async function drawMap(el) {
+  if (!el) return;
+  try { await loadLeaflet(); } catch (e) { el.innerHTML = `<p class="empty">${esc(e.message)}</p>`; return; }
+  const L = window.L;
+  const pts = store.all('dia_diem').filter((p) => p.lat !== null && p.lat !== undefined && p.lng !== null);
+  const map = L.map(el, { zoomControl: true, attributionControl: true });
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+  const color = { 'Đã đến': '#16a34a', 'Yêu thích': '#e11d48', 'Muốn đến': '#ea580c' };
+  const bounds = [];
+  pts.forEach((p) => {
+    const m = L.circleMarker([p.lat, p.lng], { radius: 9, weight: 2, color: '#fff', fillColor: color[p.trang_thai] || '#64748b', fillOpacity: .95 }).addTo(map);
+    m.bindPopup(`<b>${esc(p.ten)}</b><br>${esc(p.dia_chi || '')}<br><a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">Chỉ đường</a>`);
+    bounds.push([p.lat, p.lng]);
+  });
+  if (myPos) { L.circleMarker([myPos.lat, myPos.lng], { radius: 7, color: '#fff', weight: 3, fillColor: '#2563eb', fillOpacity: 1 }).addTo(map).bindPopup('Bạn đang ở đây'); bounds.push([myPos.lat, myPos.lng]); }
+  if (bounds.length > 1) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
+  else map.setView(bounds[0] || [21.3, 105.2], bounds.length ? 14 : 8);
+  setTimeout(() => map.invalidateSize(), 200);
 }
 
 export { esc, addDays };

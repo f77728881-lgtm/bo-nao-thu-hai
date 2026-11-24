@@ -1,5 +1,6 @@
 // Mở/sửa/tạo bản ghi bất kỳ bằng biểu mẫu sinh từ lược đồ máy chủ.
 import * as store from './store.js';
+import { call } from './api.js';
 import { html, raw, esc, fold, whenLabel, fmtDate } from './util.js';
 import { openSheet, label, TABLE_META, toast, errorToast, closeSheet } from './ui.js';
 
@@ -92,7 +93,7 @@ export function openRecord(table, id, defaults = {}) {
   const primary = (PRIMARY[table] || []).filter((k) => fields[k]);
   const rest = Object.keys(fields).filter((k) => !primary.includes(k) && !HIDDEN.has(k) && fields[k].type !== 'sys');
 
-  const extra = rec ? extraFor(table, rec) : '';
+  const extra = rec ? extraFor(table, rec) : table === 'dia_diem' ? placeTools(null) : '';
   const meta = rec ? html`<p class="meta">Nguồn: ${rec.nguon || '—'} · tạo ${fmtDate((rec.created_at || '').slice(0, 10), true)} · sửa ${whenLabel((rec.updated_at || '').slice(0, 10), { overdue: false })}${rec.cal_event_id ? ' · 📅 đã lên lịch' : ''}</p>` : '';
 
   const form = document.createElement('form');
@@ -138,10 +139,49 @@ export function openRecord(table, id, defaults = {}) {
     } catch (err) { errorToast(err); }
   });
   wireExtra(form, table, rec);
+  if (table === 'dia_diem') wirePlaceTools(form);
   return sheet;
 }
 
 // ---------------- Phần riêng theo bảng ----------------
+function placeTools(rec) {
+  return html`<div class="place-tools">
+    <button type="button" class="btn btn-ghost" data-gps>📍 Vị trí hiện tại</button>
+    <button type="button" class="btn btn-ghost" data-readlink>🔗 Đọc link Google Maps</button>
+    ${rec && rec.lat && rec.lng ? html`<a class="btn btn-ghost" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${rec.lat},${rec.lng}">🧭 Chỉ đường</a>` : ''}
+  </div><p class="hint place-hint"></p>`;
+}
+
+/** Nút GPS / đọc link cho biểu mẫu địa điểm (tạo mới hoặc sửa). */
+function wirePlaceTools(form) {
+  const set = (k, v, onlyEmpty = false) => { const el = form.elements[k]; if (el && v !== undefined && v !== null && v !== '' && (!onlyEmpty || !el.value)) el.value = v; };
+  const hint = form.querySelector('.place-hint');
+  form.querySelector('[data-gps]')?.addEventListener('click', () => {
+    if (!navigator.geolocation) { hint.textContent = 'Thiết bị không hỗ trợ định vị.'; return; }
+    hint.textContent = 'Đang lấy vị trí…';
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const lat = +pos.coords.latitude.toFixed(6), lng = +pos.coords.longitude.toFixed(6);
+      set('lat', lat); set('lng', lng);
+      hint.textContent = `Đã lấy toạ độ (sai số khoảng ${Math.round(pos.coords.accuracy)} m). Đang tra địa chỉ…`;
+      try { const a = await call('dia_chi_tu_toa_do', { lat, lng }); set('dia_chi', a.dia_chi, true); set('tinh', a.tinh, true); hint.textContent = a.dia_chi || 'Đã lấy toạ độ.'; }
+      catch { hint.textContent = 'Đã lấy toạ độ; chưa tra được địa chỉ (mất mạng?).'; }
+    }, (err) => { hint.textContent = err.code === 1 ? 'Bạn chưa cho phép app dùng vị trí (bật trong cài đặt trình duyệt).' : 'Không lấy được vị trí, thử lại ngoài trời.'; },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+  });
+  form.querySelector('[data-readlink]')?.addEventListener('click', async () => {
+    let url = form.elements.link_goc?.value.trim();
+    if (!url) { try { url = (await navigator.clipboard.readText()).trim(); } catch { /* không đọc được */ } }
+    if (!/^https?:\/\//.test(url || '')) { hint.textContent = 'Dán link Google Maps vào ô "Link gốc (Maps)" rồi bấm lại.'; form.elements.link_goc?.focus(); return; }
+    set('link_goc', url);
+    hint.textContent = 'Đang đọc link…';
+    try {
+      const { info } = await call('dia_diem_tu_link', { url, tao: false });
+      set('ten', info.ten, true); set('lat', info.lat); set('lng', info.lng); set('dia_chi', info.dia_chi, true); set('tinh', info.tinh, true);
+      hint.textContent = info.lat !== null ? `Đã đọc: ${info.ten || ''} ${info.dia_chi || ''}` : 'Link không chứa vị trí rõ ràng; bạn bổ sung tên/địa chỉ giúp.';
+    } catch (e) { hint.textContent = 'Không đọc được link: ' + e.message; }
+  });
+}
+
 function extraFor(table, rec) {
   if (table === 'van_ban') {
     const rows = store.all('theo_doi_dv').filter((r) => r.van_ban_id === rec.id);
@@ -167,9 +207,7 @@ function extraFor(table, rec) {
     return html`<section class="sub"><h4>Việc của dự án <span class="count">${done}/${tasks.length}</span> <button type="button" class="link" data-new-task>+ Thêm việc</button></h4>
       <ul class="mini">${tasks.map((t) => html`<li data-open="viec/${t.id}">${t.trang_thai === 'Xong' ? '✅' : '◻️'} ${t.ten}</li>`)}</ul></section>`;
   }
-  if (table === 'dia_diem' && rec.lat && rec.lng) {
-    return html`<p><a class="btn btn-ghost" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${rec.lat},${rec.lng}">🧭 Chỉ đường bằng Google Maps</a></p>`;
-  }
+  if (table === 'dia_diem') return placeTools(rec);
   if (table === 'inbox' && !rec.da_xu_ly) {
     return html`<section class="sub"><h4>Chuyển thành</h4><div class="chips">
       <button type="button" class="chip" data-convert="viec">✅ Việc</button>

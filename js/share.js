@@ -6,6 +6,8 @@ import { html, esc } from './util.js';
 import { openSheet, toast, errorToast } from './ui.js';
 import { icon } from './icons.js';
 import { MAIN_LABELS } from './notes.js';
+import { parse as parseQuick } from './quickadd.js';
+import { today } from './util.js';
 
 const PENDING = 'bnth.pendingShare';
 const MAPS_RE = /(maps\.app\.goo\.gl|goo\.gl\/maps|google\.[a-z.]+\/maps|maps\.google\.[a-z.]+)/i;
@@ -43,20 +45,43 @@ export function handlePendingShare() {
   if (!s) return;
   if (Date.now() - s.at > 24 * 3600e3) { localStorage.removeItem(PENDING); return; }
   const p = parseShare(s);
-  let target = p.isMaps ? 'place' : 'note:#0_Inbox';
+  // Đọc ngày giờ trong nội dung (vd "họp 14h ngày 28/11 tại phòng họp 3") để đề xuất lên lịch / nhắc nhở
+  const qa = parseQuick((p.textOnly || p.firstLine || '').replace(/\s+/g, ' ').slice(0, 500), { areas: store.all('linh_vuc'), projects: store.all('du_an') });
+  const when = (qa.chips.find((c) => c.k === 'when') || {}).v || '';
+  const ev = {
+    ten: (qa.title || p.firstLine || 'Lịch từ tin nhắn').slice(0, 120),
+    ngay: when ? when.slice(0, 10) : today(),
+    gio: when && when.length > 10 ? when.slice(11, 16) : '',
+    phut: 60, nhac: 30, dia_diem: qa.data.dia_diem || ''
+  };
+  const at = !ev.dia_diem && ev.ten.match(/^(.*?)\s+(?:tại|ở)\s+(.{3,80})$/i);
+  if (at) { ev.ten = at[1]; ev.dia_diem = at[2]; }
+  if (qa.data.ket_thuc && ev.gio) {
+    const [h1, m1] = ev.gio.split(':').map(Number), [h2, m2] = qa.data.ket_thuc.slice(11, 16).split(':').map(Number);
+    ev.phut = Math.max(15, h2 * 60 + m2 - h1 * 60 - m1);
+  }
+  let target = p.isMaps ? 'place' : when ? (ev.gio ? 'event' : 'task') : 'note:#0_Inbox';
 
   const box = document.createElement('div');
   box.className = 'share-box';
   const render = () => {
     box.innerHTML = html`
-      <div class="share-preview">${p.firstLine ? html`<b>${p.firstLine}</b>` : ''}<p>${(p.textOnly || '').slice(0, 600)}</p>${p.link ? html`<a href="${p.link}" target="_blank" rel="noopener">${p.link.slice(0, 80)}</a>` : ''}</div>
+      <div class="share-preview">${p.firstLine && p.firstLine !== p.textOnly ? html`<b>${p.firstLine}</b>` : ''}<p>${(p.textOnly || '').slice(0, 600)}</p>${p.link ? html`<a href="${p.link}" target="_blank" rel="noopener">${p.link.slice(0, 80)}</a>` : ''}</div>
       <h4>Lưu vào</h4>
       <div class="opts">
         ${MAIN_LABELS.map((l) => html`<button class="opt ${target === 'note:' + l.key ? 'on' : ''}" data-target="note:${l.key}">${icon(l.ic)} Ghi chú ${l.key}</button>`)}
-        <button class="opt ${target === 'task' ? 'on' : ''}" data-target="task">${icon('task')} Việc cần làm</button>
+        <button class="opt ${target === 'event' ? 'on' : ''}" data-target="event">${icon('calendar')} Lên lịch${when ? ' (có ngày giờ)' : ''}</button>
+        <button class="opt ${target === 'task' ? 'on' : ''}" data-target="task">${icon('task')} Việc cần làm (nhắc hạn)</button>
         <button class="opt ${target === 'place' ? 'on' : ''}" data-target="place">${icon('place')} Địa điểm${p.isMaps ? ' (link Maps)' : ''}</button>
       </div>
+      ${target === 'event' || target === 'task' ? html`<div class="share-when">
+        <div class="field"><label>${target === 'event' ? 'Tên sự kiện' : 'Tên việc'}</label><input data-f="ten" value="${ev.ten}"></div>
+        <div class="when"><input type="date" data-f="ngay" value="${ev.ngay}" aria-label="Ngày"><input type="time" data-f="gio" value="${ev.gio}" aria-label="Giờ"></div>
+        ${target === 'event' ? html`<div class="when"><label class="mini-f">Dài <input type="number" min="5" step="5" data-f="phut" value="${ev.phut}"> phút</label><label class="mini-f">Nhắc trước <input type="number" min="0" step="5" data-f="nhac" value="${ev.nhac}"> phút</label></div>
+        <div class="field"><label>Địa điểm</label><input data-f="dia_diem" value="${ev.dia_diem}"></div>` : html`<p class="hint">Có giờ thì lịch nhắc trước 30 phút; chỉ có ngày thì nhắc 8:00 hôm trước.</p>`}
+      </div>` : ''}
       <div class="form-actions"><button class="btn btn-ghost" data-cancel>Bỏ qua</button><span class="spacer"></span><button class="btn btn-primary" data-save>Lưu</button></div>`.__raw;
+    box.querySelectorAll('[data-f]').forEach((i) => i.oninput = () => { ev[i.dataset.f] = i.type === 'number' ? +i.value : i.value; });
     box.querySelectorAll('[data-target]').forEach((b) => b.onclick = () => { target = b.dataset.target; render(); });
     box.querySelector('[data-cancel]').onclick = () => { localStorage.removeItem(PENDING); sheet.close(); };
     box.querySelector('[data-save]').onclick = save;
@@ -67,9 +92,30 @@ export function handlePendingShare() {
     localStorage.removeItem(PENDING);
     sheet.close();
     try {
-      if (target === 'task') {
-        await store.create('viec', { ten: (p.firstLine || p.textOnly || p.link).slice(0, 200), mo_ta: p.all, nguon: 'Tự nhập' });
-        toast('Đã lưu thành việc', { kind: 'ok' });
+      if (target === 'event') {
+        const start = ev.gio ? `${ev.ngay}T${ev.gio}` : ev.ngay;
+        const data = { ten: ev.ten || 'Lịch từ tin nhắn', bat_dau: start, mo_ta: p.all, loai: 'Khác', nhac_truoc_phut: ev.nhac };
+        if (ev.gio) {
+          const [h, m] = ev.gio.split(':').map(Number); const end = h * 60 + m + (ev.phut || 60);
+          if (end < 1440) data.ket_thuc = `${ev.ngay}T${String(Math.floor(end / 60)).padStart(2, '0')}:${String(end % 60).padStart(2, '0')}`;
+        }
+        if (ev.dia_diem) data.dia_diem = ev.dia_diem;
+        await store.create('su_kien', data);
+        toast(`Đã lên lịch ${ev.ngay.split('-').reverse().slice(0, 2).join('/')}${ev.gio ? ' ' + ev.gio : ''} · nhắc trước ${ev.nhac} phút`, { kind: 'ok' });
+      } else if (target === 'task') {
+        const data = { ten: (ev.ten || p.firstLine || p.textOnly || p.link).slice(0, 200), mo_ta: p.all };
+        if (when || ev.ngay !== today() || ev.gio) data.han = ev.gio ? `${ev.ngay}T${ev.gio}` : ev.ngay;
+        await store.create('viec', data);
+        toast(data.han ? 'Đã lưu việc, lịch sẽ nhắc trước hạn' : 'Đã lưu thành việc', { kind: 'ok' });
+      } else if (target === 'place' && p.isMaps && p.link && navigator.onLine) {
+        // Máy chủ mở link rút gọn, lấy tên, toạ độ, địa chỉ chuẩn từ Google Maps
+        try {
+          const r = await store.action('dia_diem_tu_link', { url: p.link, ghi_chu: p.textOnly, trang_thai: 'Muốn đến' });
+          toast(`Đã lưu ${r.item.ten}${r.item.dia_chi ? ' · ' + r.item.dia_chi.split(',').slice(0, 2).join(',') : ''}`, { kind: 'ok' });
+          return;
+        } catch (e) { /* mất mạng hoặc lỗi: lưu bản đơn giản bên dưới */ }
+        await store.create('dia_diem', { ten: (p.firstLine && !URL_RE.test(p.firstLine) ? p.firstLine : 'Địa điểm từ link chia sẻ').slice(0, 200), link_goc: p.link, trang_thai: 'Muốn đến', ghi_chu: p.textOnly });
+        toast('Đã lưu địa điểm (sẽ bổ sung địa chỉ khi có mạng)', { kind: 'ok' });
       } else if (target === 'place') {
         const data = { ten: (p.firstLine && !URL_RE.test(p.firstLine) ? p.firstLine : 'Địa điểm từ link chia sẻ').slice(0, 200), link_goc: p.link, trang_thai: 'Muốn đến', ghi_chu: p.textOnly };
         if (p.lat !== null) { data.lat = p.lat; data.lng = p.lng; }

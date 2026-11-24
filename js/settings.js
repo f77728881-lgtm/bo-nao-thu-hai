@@ -35,6 +35,15 @@ export function setPref(k, v) {
   applyPrefs(p);
 }
 
+const backup = { loaded: false, data: null, msg: '' };
+const fmt = (iso) => new Date(iso).toLocaleString('vi-VN');
+function backupLine() {
+  const r = backup.data;
+  if (!r) return 'Tự sao lưu mỗi Chủ nhật 22:00, giữ 6 bản gần nhất trong Google Drive của bạn.';
+  return r.moi_nhat ? `Bản gần nhất: ${fmt(r.moi_nhat.luc)} · ${r.so_ban}/${r.toi_da} bản. Tự sao lưu mỗi Chủ nhật 22:00.`
+    : 'Chưa có bản sao lưu nào. Tự sao lưu mỗi Chủ nhật 22:00.';
+}
+
 export function settingsView() {
   const p = prefs();
   const s = store.getState();
@@ -58,6 +67,13 @@ export function settingsView() {
         <div class="opts"><button class="btn btn-ghost" data-sync-now>Đồng bộ ngay</button>${!isDemo() && Auth.email ? html`<button class="btn btn-ghost" data-logout>Đăng xuất</button>` : ''}</div>
         <p class="hint">Cài đặt giao diện lưu riêng trên từng máy.</p>
       </section>
+      <section class="card settings">
+        <h3 class="card-title">${icon('folder')} Sao lưu dữ liệu</h3>
+        <p class="row-meta">${backupLine()}</p>
+        <div class="opts"><button class="btn btn-ghost" data-backup-now>Sao lưu ngay</button></div>
+        ${backup.msg ? html`<p class="hint">${backup.msg}</p>` : ''}
+        ${backup.data && backup.data.ban_sao.length ? html`<ul class="backup-list">${backup.data.ban_sao.map((b) => html`<li><a href="${b.url}" target="_blank" rel="noopener">${b.ten} · ${fmt(b.luc)}</a></li>`)}</ul>` : ''}
+      </section>
     </div>`;
 }
 
@@ -66,6 +82,16 @@ export function bindSettings(root, rerender) {
     const [k, v] = b.dataset.pref.split(':'); setPref(k, v); rerender();
   }));
   root.querySelector('[data-sync-now]')?.addEventListener('click', () => store.sync());
+  if (!backup.loaded) {
+    backup.loaded = true;
+    store.action('sao_luu', {}).then((r) => { backup.data = r; rerender(); }).catch(() => {});
+  }
+  root.querySelector('[data-backup-now]')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget; btn.disabled = true; btn.textContent = 'Đang sao lưu…';
+    try { backup.data = await store.action('sao_luu', { chay: true }); backup.msg = 'Đã sao lưu xong.'; }
+    catch (err) { backup.msg = 'Sao lưu lỗi: ' + (err.message || err); }
+    rerender();
+  });
   root.querySelector('[data-logout]')?.addEventListener('click', () => {
     Auth.clear();
     if (typeof google !== 'undefined') google.accounts.id.disableAutoSelect();

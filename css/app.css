@@ -559,3 +559,5 @@ html[data-theme="dark"] .care { color: var(--text); }
 .m1 { background: #ef4444 !important; } .m2 { background: #f97316 !important; } .m3 { background: #eab308 !important; } .m4 { background: #22c55e !important; } .m5 { background: #10b981 !important; }
 .mood-dot { font-size: 1.5rem; }
 .row.event.is-cancel .row-title { text-decoration: line-through; color: var(--muted); }
+.backup-list { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 4px; font-size: .9em; }
+.backup-list a { color: var(--accent); text-decoration: none; }

@@ -9,6 +9,7 @@ import { notesView, bindNotes, openNote } from './notes.js';
 import { travelView, bindTravel, openTrip } from './travel.js';
 import { settingsView, bindSettings, applyPrefs } from './settings.js';
 import { captureShare, handlePendingShare } from './share.js';
+import { trainingView, bindTraining, toggleHabit, openSession, openProgram } from './training.js';
 import { toast, errorToast, openSheet, closeSheet, TABLE_META } from './ui.js';
 import { html, esc, whenLabel, debounce } from './util.js';
 
@@ -21,6 +22,7 @@ const ROUTES = {
   'ghi-chu': () => notesView(),
   'hanh-trinh': () => travelView(),
   'cai-dat': () => settingsView(),
+  'ren-luyen': () => trainingView(),
   viec: () => V.tasksView(),
   'van-ban': () => V.docsView(),
   lich: () => V.calendarView(),
@@ -51,6 +53,7 @@ function render() {
   if (route === 'ghi-chu') bindNotes(main, render);
   if (route === 'hanh-trinh') bindTravel(main, render);
   if (route === 'cai-dat') bindSettings(main, render);
+  if (route === 'ren-luyen') bindTraining(main, render);
   if (keepFocus || route === 'tim') {
     const inp = document.getElementById(focusId || 'search-input');
     if (inp) { inp.focus(); if (keepFocus) inp.setSelectionRange(caret, caret); }
@@ -85,7 +88,7 @@ function renderStatus() {
 
 // ---------------- Sự kiện giao diện ----------------
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-trip],[data-lunar],[data-toggle-task],[data-open],[data-new],[data-task-mode],[data-doc-filter],[data-cal-day],[data-cal-nav],[data-cal-today],#sync-status,#fab');
+  const t = e.target.closest('[data-habit-toggle],[data-session],[data-trip],[data-lunar],[data-toggle-task],[data-open],[data-new],[data-task-mode],[data-doc-filter],[data-cal-day],[data-cal-nav],[data-cal-today],#sync-status,#fab');
   if (!t) return;
   if (t.closest('.sheet') && !t.matches('[data-toggle-task]')) return; // trong biểu mẫu tự xử lý
   if (t.matches('[data-toggle-task]')) {
@@ -99,6 +102,8 @@ document.addEventListener('click', async (e) => {
     } catch (err) { errorToast(err); }
     return;
   }
+  if (t.matches('[data-habit-toggle]')) { toggleHabit(t.dataset.habitToggle); return; }
+  if (t.matches('[data-session]')) { openSession(t.dataset.session); return; }
   if (t.matches('[data-trip]')) { openTrip(t.dataset.trip); return; }
   if (t.matches('[data-lunar]')) {
     const d = t.dataset.lunar;
@@ -107,7 +112,7 @@ document.addEventListener('click', async (e) => {
   }
   if (t.matches('[data-open]')) {
     const [table, id] = t.dataset.open.split('/');
-    if (table === 'ghi_chu') openNote(id); else if (table === 'chuyen_di') openTrip(id); else openRecord(table, id);
+    if (table === 'ghi_chu') openNote(id); else if (table === 'chuyen_di') openTrip(id); else if (table === 'lo_trinh') openProgram(id); else if (table === 'buoi_hoc') openSession(id); else openRecord(table, id);
     return;
   }
   if (t.matches('[data-new]')) { openRecord(t.dataset.new, null); return; }

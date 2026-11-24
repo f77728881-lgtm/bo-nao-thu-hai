@@ -480,3 +480,40 @@ html[data-theme="dark"] .p-var { color: var(--text); }
 .ai-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .ltab-prompt .ic { color: var(--primary); }
 .ltab-prompt.on .ic { color: inherit; }
+
+/* ======================= Rèn luyện ======================= */
+.habits-today { margin-bottom: 14px; }
+.habit-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.habit-chip { display: inline-flex; align-items: center; gap: 8px; border: 1.5px solid var(--line); background: var(--surface); border-radius: 14px; padding: 9px 12px; cursor: pointer; font-weight: 600; color: var(--text); transition: all .15s; }
+.habit-chip .hc-ic { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); font-size: .95rem; }
+.habit-chip small { font-weight: 500; color: var(--muted); }
+.habit-chip .hc-streak { font-size: .8rem; color: var(--q3); }
+.habit-chip.done { border-color: var(--green); background: var(--green-bg); }
+.habit-chip.done .hc-ic { background: var(--green); color: #fff; }
+.habit-head { display: flex; align-items: center; gap: 12px; }
+.habit-head h3 { margin: 0; font-size: 1.05rem; }
+.habit-emoji { font-size: 1.6rem; width: 42px; height: 42px; display: grid; place-items: center; background: var(--surface-2); border-radius: 12px; }
+.habit-streak { text-align: center; } .habit-streak b { display: block; font-size: 1.5rem; color: var(--q3); line-height: 1; } .habit-streak small { font-size: .68rem; color: var(--muted); }
+.week-dots { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin: 12px 0; }
+.wdot { border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; color: var(--muted); padding: 0; }
+.wdot small { font-size: .68rem; }
+.wdot span { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; border: 1.5px solid var(--line); font-size: .8rem; font-weight: 600; color: var(--text); }
+.wdot.on span { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); }
+.wdot.rest span { border-style: dashed; opacity: .5; }
+.heatmap { display: grid; grid-template-rows: repeat(7, 1fr); grid-auto-flow: column; gap: 3px; overflow-x: auto; }
+.hm { width: 11px; height: 11px; border-radius: 3px; background: var(--surface-2); display: block; }
+.hm.on { background: var(--primary); } .hm.miss { background: var(--gray-bg); outline: 1px solid var(--line); } .hm.future { opacity: .3; } .hm.off { opacity: .45; }
+.program { cursor: pointer; } .program h3 { margin: 2px 0 4px; }
+.next-session { margin: 8px 0 0; font-size: .9rem; }
+.row.session.is-today { background: var(--primary-soft); border-radius: 10px; padding-left: 8px; }
+.lesson { display: flex; flex-direction: column; gap: 10px; }
+.lesson-goal { background: var(--primary-soft); border-radius: 12px; padding: 10px 14px; font-size: 1.15rem; font-weight: 600; }
+html[data-theme="dark"] .lesson-goal { color: var(--text); }
+.lesson-body h4 { margin: 14px 0 6px; color: var(--primary); }
+.lesson-body p { margin: 4px 0; } .lesson-body ul, .lesson-body ol { margin: 4px 0; padding-left: 22px; } .lesson-body li { margin: 3px 0; }
+.lesson-done { border-top: 1px solid var(--line); padding-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+.lesson-done h4 { margin: 4px 0; }
+.lesson-note { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); font-size: 1rem; }
+.week h4 { margin: 14px 0 4px; display: flex; gap: 6px; align-items: center; }
+.lesson-meta { margin: 0; color: var(--muted); font-size: .85rem; }
+.today-trip .trip-status { font-size: .7rem; } .today-trip .trip-cover { min-width: 110px; }

@@ -16,7 +16,11 @@ export const TABLE_META = {
   don_vi: { icon: '🏢', ic: 'building', label: 'Đơn vị', plural: 'Đơn vị' },
   theo_doi_dv: { icon: '📮', ic: 'list', label: 'Theo dõi đơn vị', plural: 'Theo dõi đơn vị' },
   chuyen_di: { icon: '✈️', ic: 'travel', label: 'Chuyến đi', plural: 'Chuyến đi' },
-  nhat_ky_chuyen_di: { icon: '📓', ic: 'note', label: 'Nhật ký chuyến đi', plural: 'Nhật ký chuyến đi' }
+  nhat_ky_chuyen_di: { icon: '📓', ic: 'note', label: 'Nhật ký chuyến đi', plural: 'Nhật ký chuyến đi' },
+  thoi_quen: { icon: '🔁', ic: 'check', label: 'Thói quen', plural: 'Thói quen' },
+  diem_danh: { icon: '✔️', ic: 'check', label: 'Điểm danh', plural: 'Điểm danh' },
+  lo_trinh: { icon: '🧭', ic: 'travel', label: 'Lộ trình', plural: 'Lộ trình' },
+  buoi_hoc: { icon: '📘', ic: 'note', label: 'Buổi học/tập', plural: 'Buổi học/tập' }
 };
 
 export const LABELS = {
@@ -35,6 +39,9 @@ export const LABELS = {
   da_gui: 'Đã gửi', ngay_gui: 'Ngày gửi', so_vb_phan_hoi: 'Số VB phản hồi', khong_dong_bo_lich: 'Không đưa lên lịch',
   nguon: 'Nguồn', archived: 'Đã lưu trữ', diem_den: 'Điểm đến', tu_ngay: 'Ngày đi', den_ngay: 'Ngày về', phuong_tien: 'Phương tiện',
   di_cung: 'Đi cùng', ngay: 'Ngày', tam_trang: 'Tâm trạng (emoji)', dia_diem_ids: 'Địa điểm đã ghé', chi_tieu: 'Chi tiêu (đ)', chuyen_di_id: 'Chuyến đi',
+  tan_suat: 'Tần suất', ngay_trong_tuan: 'Các ngày (T2, T3… CN)', so_lan_tuan: 'Số lần/tuần', gio_nhac: 'Giờ (HH:mm)', muc_tieu: 'Mục tiêu',
+  bat_dau: 'Bắt đầu', thoi_quen_id: 'Thói quen', lo_trinh_id: 'Lộ trình', so_tuan: 'Số tuần', cach_hoc: 'Cách học/tập mỗi buổi',
+  tuan: 'Tuần', thu_tu: 'Thứ tự', gio: 'Giờ', bai_tap: 'Bài tập', tai_lieu: 'Tài liệu (link)', cam_nhan: 'Cảm nhận', ngay_xong: 'Ngày xong', gia_tri: 'Giá trị', buoi_id: 'Buổi',
   ngan_sach: 'Ngân sách (đ)', chi_phi: 'Chi phí thực tế (đ)', album: 'Link album ảnh', anh_bia: 'Ảnh bìa (link)'
 };
 export const label = (k) => LABELS[k] || k;

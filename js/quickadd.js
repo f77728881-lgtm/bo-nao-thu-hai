@@ -69,14 +69,36 @@ export function parse(input, { areas = [], projects = [], now = today() } = {}) 
   let diaDiem = '';
   take(/\s@([^#!]+?)(?=\s[#!]|\s*$)/, (m, orig) => { diaDiem = orig.trim().slice(1).trim(); });
 
+  // 5a. Giờ viết bằng chữ: "14 giờ 30", "8 giờ 15 phút sáng", "lúc 9 giờ" (đọc trước thời lượng để "30 phút" không bị hiểu nhầm)
+  let time = null;
+  const setTime = (h, mi, period) => {
+    if (h > 23 || mi > 59) return false;
+    if ((period === 'chieu' || period === 'toi') && h < 12) h += 12;
+    if (period === 'trua' && h < 11) h += 12;
+    time = `${pad(h)}:${pad(mi)}`;
+  };
+  take(/(?<!trong)\s(?:luc\s|vao\s|vao luc\s|tu\s)?(\d{1,2})\s?gio(?:\s?(\d{1,2})(?:\s?phut)?|\s?(ruoi))?(?:\s(sang|trua|chieu|toi|dem))?\b/, (m) => {
+    // "trong 2 giờ" là thời lượng, để bước sau xử lý
+    return setTime(+m[1], m[3] ? 30 : m[2] ? +m[2] : 0, m[4]);
+  });
+
   // 5. Thời lượng
   let minutes = null;
-  take(/\s(?:trong\s)?(\d+(?:[.,]\d+)?)\s?(tieng|gio)(?!\s?\d)\b/, (m) => { minutes = Math.round(parseFloat(m[1].replace(',', '.')) * 60); });
+  take(/\s(?:trong\s)(\d+(?:[.,]\d+)?)\s?(tieng|gio)\b/, (m) => { minutes = Math.round(parseFloat(m[1].replace(',', '.')) * 60); }) ||
+  take(/\s(?:trong\s)?(\d+(?:[.,]\d+)?)\s?tieng\b/, (m) => { minutes = Math.round(parseFloat(m[1].replace(',', '.')) * 60); });
   take(/\s(?:trong\s)?(\d+)\s?(p|phut|ph)\b/, (m) => { minutes = parseInt(m[1], 10); });
 
   // 6. Ngày
   let day = null;
   const setDay = (d) => { day = d; };
+  let periodHint = null;
+  take(/\s(sang|trua|chieu|toi)\s(nay|mai|mot)\b/, (m) => { periodHint = m[1]; setDay(addDays(now, { nay: 0, mai: 1, mot: 2 }[m[2]])); }) ||
+  take(/\s(?:ngay\s)?(\d{1,2})\sthang\s(\d{1,2})(?:\s(?:nam\s)?(\d{4}))?\b/, (m) => {
+    const d = +m[1], mo = +m[2]; if (d < 1 || d > 31 || mo < 1 || mo > 12) return false;
+    let y = m[3] ? +m[3] : +now.slice(0, 4); let cand = `${y}-${pad(mo)}-${pad(d)}`;
+    if (!m[3] && cand < addDays(now, -60)) cand = `${y + 1}-${pad(mo)}-${pad(d)}`;
+    setDay(cand);
+  }) ||
   take(/\s(hom nay|bay gio|nay)\b/, () => setDay(now)) ||
   take(/\s(ngay mai|mai)\b/, () => setDay(addDays(now, 1))) ||
   take(/\s(ngay kia|mot)\b/, () => setDay(addDays(now, 2))) ||
@@ -106,20 +128,15 @@ export function parse(input, { areas = [], projects = [], now = today() } = {}) 
     setDay(cand);
   });
 
-  // 7. Giờ
-  let time = null;
-  take(/\s(?:luc\s)?(\d{1,2})(?:h|:|g)(\d{2})?(?:p)?\s?(sang|trua|chieu|toi|dem)?\b/, (m) => {
-    let h = +m[1]; const mi = m[2] ? +m[2] : 0;
-    if (h > 23 || mi > 59) return false;
-    if ((m[3] === 'chieu' || m[3] === 'toi') && h < 12) h += 12;
-    if (m[3] === 'trua' && h < 11) h += 12;
-    time = `${pad(h)}:${pad(mi)}`;
-  });
+  // 7. Giờ: 9h, 14h30, 14:30, 14g30, 7h30', 3h chiều
+  if (!time) take(/\s(?:luc\s|vao\s|vao luc\s|tu\s)?(\d{1,2})(?:h|:|g)(\d{2})?(?:p|')?\s?(sang|trua|chieu|toi|dem)?(?![\d\/])/, (m) => setTime(+m[1], m[2] ? +m[2] : 0, m[3]));
+  if (time && periodHint && +time.slice(0, 2) < 12 && (periodHint === 'chieu' || periodHint === 'toi')) time = `${pad(+time.slice(0, 2) + 12)}${time.slice(2)}`;
   if (time && !day) day = now;
 
   // 8. Tiêu đề = phần còn lại
   const title = text.replace(/\s+/g, ' ').replace(/^[\s,.;:\-]+|[\s,.;:\-]+$/g, '').trim();
-  const t = title.charAt(0).toUpperCase() + title.slice(1);
+  const t0 = cleanTitle(title);
+  const t = t0.charAt(0).toUpperCase() + t0.slice(1);
 
   // 9. Chọn loại
   if (!type) {
@@ -163,4 +180,15 @@ export function parse(input, { areas = [], projects = [], now = today() } = {}) 
   if (duAn) chips.push({ k: 'project', v: duAn.ten });
   if (diaDiem) chips.push({ k: 'place', v: diaDiem });
   return { type, data, chips, title: t };
+}
+
+/** Làm gọn tiêu đề lấy từ tin nhắn: bỏ lời chào/mời ở đầu, từ nối còn sót sau khi đã tách ngày giờ. */
+export function cleanTitle(s) {
+  let t = String(s || '').trim();
+  t = t.replace(/^(?:thông báo|tb|nhắc nhở|nhắc|lưu ý|v\/v|về việc)\s*[:\-–]\s*/i, '');
+  t = t.replace(/^(?:trân trọng\s+)?(?:kính\s+|xin\s+)?(?:mời|gửi|thân gửi|chào)\s+(?:các\s+)?(?:anh chị em|anh chị|anh|chị|em|ông|bà|bạn|cô|chú|đồng chí|cả nhà|mọi người|cả phòng|thầy|cô giáo)(?:\s+[A-ZĐÀ-Ỹ][\p{L}]*)?\s*[,.:!]?\s*/iu, '');
+  t = t.replace(/^(?:tham\s+)?dự\s+/i, '');
+  t = t.replace(/\s+(?:vào lúc|lúc|vào|ngày|trong|từ|tới|đến|hồi)(?=\s*(?:[,.;:!]|$))/gi, '');
+  t = t.replace(/\s*([,;.])(?:\s*[,;.])+/g, '$1').replace(/[\s,;:.\-–]+$/, '').replace(/^[\s,;:.\-–]+/, '').replace(/\s{2,}/g, ' ');
+  return t.trim();
 }

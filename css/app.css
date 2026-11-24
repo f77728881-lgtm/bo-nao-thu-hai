@@ -558,3 +558,4 @@ html[data-theme="dark"] .care { color: var(--text); }
 .mbar small { font-size: .55rem; color: var(--muted); height: 12px; white-space: nowrap; }
 .m1 { background: #ef4444 !important; } .m2 { background: #f97316 !important; } .m3 { background: #eab308 !important; } .m4 { background: #22c55e !important; } .m5 { background: #10b981 !important; }
 .mood-dot { font-size: 1.5rem; }
+.row.event.is-cancel .row-title { text-decoration: line-through; color: var(--muted); }

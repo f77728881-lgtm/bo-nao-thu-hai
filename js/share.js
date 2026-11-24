@@ -46,7 +46,11 @@ export function handlePendingShare() {
   if (Date.now() - s.at > 24 * 3600e3) { localStorage.removeItem(PENDING); return; }
   const p = parseShare(s);
   // Đọc ngày giờ trong nội dung (vd "họp 14h ngày 28/11 tại phòng họp 3") để đề xuất lên lịch / nhắc nhở
-  const qa = parseQuick((p.textOnly || p.firstLine || '').replace(/\s+/g, ' ').slice(0, 500), { areas: store.all('linh_vuc'), projects: store.all('du_an') });
+  // Tin nhiều dòng (Zalo): đọc dòng có ngày/giờ trước, cả tin để vào mô tả
+  const lines = (p.textOnly || p.firstLine || '').split('\n').map((l) => l.trim()).filter(Boolean);
+  const timeRe = /\d{1,2}\s?(h|g|:|giờ)|\d{1,2}\/\d{1,2}|tháng\s?\d|thứ\s|chủ nhật|ngày mai|sáng mai|chiều mai|tối nay|hôm nay/i;
+  const mainLine = lines.find((l) => timeRe.test(l)) || lines[0] || '';
+  const qa = parseQuick(mainLine.slice(0, 500), { areas: store.all('linh_vuc'), projects: store.all('du_an') });
   const when = (qa.chips.find((c) => c.k === 'when') || {}).v || '';
   const ev = {
     ten: (qa.title || p.firstLine || 'Lịch từ tin nhắn').slice(0, 120),

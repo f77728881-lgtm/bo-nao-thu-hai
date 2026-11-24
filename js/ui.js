@@ -160,7 +160,7 @@ export function docRow(d) {
 export function eventRow(e) {
   const t = e.bat_dau && e.bat_dau.length > 10 ? e.bat_dau.slice(11, 16) : 'Cả ngày';
   const end = e.ket_thuc && e.ket_thuc.length > 10 ? '–' + e.ket_thuc.slice(11, 16) : '';
-  return html`<li class="row event" data-open="su_kien/${e.id}">
+  return html`<li class="row event ${e.trang_thai === 'Đã diễn ra' ? 'is-done' : ''} ${e.trang_thai === 'Hủy' ? 'is-cancel' : ''}" data-open="su_kien/${e.id}">
     <div class="ev-time">${t}${end}</div>
     <div class="row-main"><div class="row-title">${e.ten}</div>
       <div class="row-meta">${e.dia_diem ? html`<span>📍 ${e.dia_diem}</span>` : ''}${e.lap_lai ? html`<span class="tag">🔁 lặp lại</span>` : ''}</div></div>

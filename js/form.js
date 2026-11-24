@@ -8,7 +8,7 @@ import { openSheet, label, TABLE_META, toast, errorToast, closeSheet } from './u
 const PRIMARY = {
   viec: ['ten', 'han', 'gap', 'quan_trong', 'trang_thai', 'linh_vuc_id', 'du_an_id', 'mo_ta'],
   van_ban: ['so_hieu', 'trich_yeu', 'han_xu_ly', 'vai_tro', 'trang_thai', 'loai', 'chieu', 'but_phe', 'link_doffice', 'yeu_cau_dv_gui'],
-  su_kien: ['ten', 'bat_dau', 'ket_thuc', 'dia_diem', 'loai', 'mo_ta'],
+  su_kien: ['ten', 'bat_dau', 'ket_thuc', 'dia_diem', 'trang_thai', 'ket_qua', 'loai', 'mo_ta', 'nhac_truoc_phut'],
   ghi_chu: ['tieu_de', 'noi_dung', 'loai', 'nhan', 'ghim', 'url'],
   dia_diem: ['ten', 'dia_chi', 'loai', 'trang_thai', 'danh_gia', 'mon_nen_thu', 'ghi_chu', 'link_goc'],
   nguoi: ['ten', 'don_vi', 'chuc_vu', 'dien_thoai', 'email', 'ghi_chu'],
@@ -208,6 +208,15 @@ function extraFor(table, rec) {
       <ul class="mini">${tasks.map((t) => html`<li data-open="viec/${t.id}">${t.trang_thai === 'Xong' ? '✅' : '◻️'} ${t.ten}</li>`)}</ul></section>`;
   }
   if (table === 'dia_diem') return placeTools(rec);
+  if (table === 'su_kien') {
+    return html`<section class="sub"><h4>Thao tác</h4><div class="chips">
+      ${rec.trang_thai !== 'Đã diễn ra' ? html`<button type="button" class="chip" data-ev="done">✅ Đã diễn ra</button>` : ''}
+      <button type="button" class="chip" data-ev="minutes">📝 Ghi biên bản</button>
+      <button type="button" class="chip" data-ev="task">➕ Việc phát sinh</button>
+      <button type="button" class="chip" data-ev="move">⏭ Dời lịch</button>
+      ${rec.trang_thai !== 'Hủy' ? html`<button type="button" class="chip" data-ev="cancel">✖ Hủy</button>` : ''}
+    </div><p class="hint">Sự kiện là việc diễn ra theo giờ (họp, hẹn…). Sau khi diễn ra: ghi kết quả, biên bản và giao việc phát sinh.</p></section>`;
+  }
   if (table === 'inbox' && !rec.da_xu_ly) {
     return html`<section class="sub"><h4>Chuyển thành</h4><div class="chips">
       <button type="button" class="chip" data-convert="viec">✅ Việc</button>
@@ -220,6 +229,21 @@ function extraFor(table, rec) {
 
 function wireExtra(form, table, rec) {
   if (!rec) return;
+  form.querySelectorAll('[data-ev]').forEach((b) => b.addEventListener('click', async () => {
+    const k = b.dataset.ev;
+    try {
+      if (k === 'done') { await store.update('su_kien', rec.id, { trang_thai: 'Đã diễn ra' }); toast('Đã đánh dấu diễn ra. Ghi kết quả vào ô “Kết quả” nếu cần.'); form.elements.trang_thai.value = 'Đã diễn ra'; form.elements.ket_qua?.focus(); }
+      else if (k === 'cancel') { await store.update('su_kien', rec.id, { trang_thai: 'Hủy' }); toast('Đã hủy, sự kiện được gỡ khỏi lịch', { actionLabel: 'Hoàn tác', onAction: () => store.update('su_kien', rec.id, { trang_thai: 'Sắp tới' }) }); closeSheet(); }
+      else if (k === 'move') { form.elements.bat_dau.focus(); form.elements.bat_dau.showPicker?.(); }
+      else if (k === 'task') { closeSheet(); setTimeout(() => openRecord('viec', null, { ten: '', mo_ta: `Phát sinh từ: ${rec.ten} (${fmtDate(rec.bat_dau.slice(0, 10))})`, linh_vuc_id: rec.linh_vuc_id }), 200); }
+      else if (k === 'minutes') {
+        closeSheet();
+        const { openNote } = await import('./notes.js');
+        setTimeout(() => openNote(null, { defaults: { tieu_de: `Biên bản: ${rec.ten} – ${fmtDate(rec.bat_dau.slice(0, 10))}`,
+          noi_dung: `Thời gian: ${rec.bat_dau.replace('T', ' ')}\nĐịa điểm: ${rec.dia_diem || ''}\nThành phần: \n\nNội dung:\n- \n\nKết luận:\n- \n\nViệc giao (ai – việc – hạn):\n- ` } }), 200);
+      }
+    } catch (err) { errorToast(err); }
+  }));
   form.querySelectorAll('[data-open]').forEach((el) => el.addEventListener('click', () => { const [t, id] = el.dataset.open.split('/'); openRecord(t, id); }));
   form.querySelector('[data-new-task]')?.addEventListener('click', () => {
     openRecord('viec', null, table === 'van_ban' ? { van_ban_ids: [rec.id], ten: '', linh_vuc_id: rec.linh_vuc_id } : { du_an_id: rec.id, linh_vuc_id: rec.linh_vuc_id });

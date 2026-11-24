@@ -182,6 +182,7 @@ async function runOp(op) {
   state.tables[op.table].set(rec.id, rec);
   if (res.warning) state.error = new ApiError('CANH_BAO', res.warning);
   if (rec.cal_pending === '1') scheduleCalendarFlush();
+  if (res.lien_quan) setTimeout(() => sync(), 400); // máy chủ tự tạo/sửa bản ghi liên quan (vd việc từ văn bản)
   return rec;
 }
 

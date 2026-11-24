@@ -24,7 +24,7 @@ export function todayView() {
   const doing = tasks.filter((v) => v.trang_thai === 'Đang làm' && !shown.has(v.id));
   const soon = tasks.filter((v) => { const d = dayOf(v.han); return d > t && d <= in7 && !shown.has(v.id) && !doing.includes(v); }).sort(byWhen('han'));
 
-  const events = store.all('su_kien').filter((e) => {
+  const events = store.all('su_kien').filter((e) => e.trang_thai !== 'Hủy').filter((e) => {
     const s = dayOf(e.bat_dau), en = dayOf(e.ket_thuc) || s;
     return (s <= t && en >= t) || (e.lap_lai && /FREQ=DAILY/.test(e.lap_lai) && s <= t);
   }).sort((a, b) => (a.bat_dau.slice(11) || '00') < (b.bat_dau.slice(11) || '00') ? -1 : 1);

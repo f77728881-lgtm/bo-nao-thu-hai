@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Bộ não thứ hai</title>
+  <meta name="description" content="Quản lý việc, văn bản, ghi chú, địa điểm và lịch cá nhân.">
+  <meta name="theme-color" content="#1d3557" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Não thứ hai">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <a class="skip" href="#main">Bỏ qua tới nội dung</a>
+  <header class="topbar">
+    <a class="brand" href="#/hom-nay"><span class="brand-logo">🧠</span><span class="brand-name">Bộ não thứ hai</span></a>
+    <button id="sync-status" class="sync-status" type="button" aria-live="polite"></button>
+    <a class="icon-btn top-search" href="#/tim" aria-label="Tìm kiếm">🔍</a>
+  </header>
+
+  <nav class="nav" aria-label="Điều hướng chính">
+    <a href="#/hom-nay" data-route="hom-nay"><span>☀️</span><b>Hôm nay</b></a>
+    <a href="#/viec" data-route="viec"><span>✅</span><b>Việc</b></a>
+    <a href="#/van-ban" data-route="van-ban"><span>📄</span><b>Văn bản</b></a>
+    <a href="#/lich" data-route="lich"><span>📅</span><b>Lịch</b></a>
+    <a href="#/tim" data-route="tim" class="nav-search"><span>🔍</span><b>Tìm</b></a>
+    <a href="#/them" data-route="them"><span>☰</span><b>Thêm</b></a>
+  </nav>
+
+  <main id="main" tabindex="-1"><p class="empty big">Đang mở…</p></main>
+
+  <button id="fab" class="fab" type="button" aria-label="Nhập nhanh (phím N)">＋</button>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

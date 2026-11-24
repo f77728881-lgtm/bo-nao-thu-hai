@@ -2,6 +2,8 @@
 import * as store from './store.js';
 import { html, raw, today, addDays, dayOf, weekdayName, fmtDate, fold, pad, vnNow, whenLabel } from './util.js';
 import { taskRow, docRow, eventRow, genericRow, section, TABLE_META, quadrant, areaName } from './ui.js';
+import { lunarInfo, hourChiIndex } from './lunar.js';
+import { upcomingTripCard } from './travel.js';
 
 const isOpen = (v) => v.trang_thai !== 'Xong';
 const byWhen = (f) => (a, b) => ((a[f] || '9999') < (b[f] || '9999') ? -1 : (a[f] || '9999') > (b[f] || '9999') ? 1 : 0);
@@ -33,20 +35,23 @@ export function todayView() {
 
   return html`
     <header class="page-head">
-      <div><p class="eyebrow">${weekdayName(t, true)}, ${fmtDate(t, true)}</p><h1>${hello} 👋</h1></div>
+      <div><p class="eyebrow">${weekdayName(t, true)}, ${fmtDate(t, true)}</p><h1>${hello} 👋</h1>
+        ${lunarChip(t)}</div>
       <div class="stat-row">
         <div class="stat ${overdue.length ? 'stat-red' : ''}"><b>${overdue.length}</b><span>quá hạn</span></div>
         <div class="stat"><b>${due.length}</b><span>hôm nay</span></div>
         <div class="stat stat-green"><b>${doneToday}</b><span>đã xong</span></div>
       </div>
     </header>
+    ${upcomingTripCard()}
     <div class="grid">
-      ${section('⏰ Quá hạn', overdue.map((v) => taskRow(v)))}
-      ${section('📅 Hôm nay', [...events.map(eventRow), ...due.map((v) => taskRow(v))], { empty: 'Không có việc hay lịch nào hôm nay.' })}
-      ${section('🔥 Gấp & Quan trọng', q1.map((v) => taskRow(v)))}
-      ${section('🟡 Đang làm', doing.map((v) => taskRow(v)))}
-      ${section('📄 Văn bản sắp hạn (7 ngày)', docs.map(docRow))}
-      ${section('🗓 7 ngày tới', soon.map((v) => taskRow(v)))}
+      ${lunarCard(t)}
+      ${section('⏰ Quá hạn', overdue.map((v) => taskRow(v)), { limit: 5 })}
+      ${section('📅 Hôm nay', [...events.map(eventRow), ...due.map((v) => taskRow(v))], { empty: 'Không có việc hay lịch nào hôm nay.', limit: 8 })}
+      ${section('🔥 Gấp & Quan trọng', q1.map((v) => taskRow(v)), { limit: 5 })}
+      ${section('🟡 Đang làm', doing.map((v) => taskRow(v)), { limit: 5 })}
+      ${section('📄 Văn bản sắp hạn (7 ngày)', docs.map(docRow), { limit: 5 })}
+      ${section('🗓 7 ngày tới', soon.map((v) => taskRow(v)), { limit: 5 })}
       ${inbox.length ? section('📥 Inbox chưa xử lý', inbox.slice(0, 7).map((r) => genericRow('inbox', r)), { more: html`<a class="more-link" href="#/bang/inbox">Xem tất cả →</a>` }) : ''}
     </div>`;
 }
@@ -169,8 +174,9 @@ export function calendarView() {
       ...it.tasks.filter((v) => isOpen(v)).slice(0, 3).map((v) => quadrant(v)),
       ...it.docs.slice(0, 2).map(() => 'doc')
     ];
-    cells.push(html`<button class="day ${d.slice(0, 7) !== calMonth ? 'other' : ''} ${d === today() ? 'is-today' : ''} ${d === calDay ? 'is-picked' : ''}" data-cal-day="${d}">
-      <span class="dnum">${+d.slice(8)}</span><span class="dots">${dots.map((c) => html`<i class="dot dot-${c}"></i>`)}</span></button>`);
+    const lu = lunarInfo(d);
+    cells.push(html`<button class="day ${d.slice(0, 7) !== calMonth ? 'other' : ''} ${d === today() ? 'is-today' : ''} ${d === calDay ? 'is-picked' : ''} ${lu.special ? 'lunar-special' : ''}" data-cal-day="${d}" title="${lu.label} ${lu.le}">
+      <span class="dnum">${+d.slice(8)}</span><span class="dlunar ${lu.hoangDao ? 'hd' : ''}">${lu.day === 1 ? lu.label : lu.day}</span><span class="dots">${dots.map((c) => html`<i class="dot dot-${c}"></i>`)}</span></button>`);
   }
   const it = itemsOn(calDay);
   void daysInMonth;
@@ -182,8 +188,9 @@ export function calendarView() {
     </header>
     <div class="cal">
       <div class="cal-grid">${['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((w) => html`<div class="wd">${w}</div>`)}${cells}</div>
-      <div class="cal-legend"><span><i class="dot dot-ev"></i>Sự kiện</span><span><i class="dot dot-q1"></i>Gấp & QT</span><span><i class="dot dot-q2"></i>Quan trọng</span><span><i class="dot dot-doc"></i>Văn bản</span></div>
+      <div class="cal-legend"><span><b class="hd-mark">16</b> ngày âm · xanh = hoàng đạo</span><span><i class="dot dot-ev"></i>Sự kiện</span><span><i class="dot dot-q1"></i>Gấp & QT</span><span><i class="dot dot-q2"></i>Quan trọng</span><span><i class="dot dot-doc"></i>Văn bản</span></div>
     </div>
+    ${lunarCard(calDay, { compact: true })}
     ${section(`${weekdayName(calDay, true)} ${fmtDate(calDay, true)}`, [
       ...it.events.sort((a, b) => (a.bat_dau.slice(11) < b.bat_dau.slice(11) ? -1 : 1)).map(eventRow),
       ...it.tasks.map((v) => taskRow(v)),
@@ -229,9 +236,10 @@ export function tableView(table) {
 }
 
 export function moreView() {
-  const items = [['lich', 'Lịch'], ['inbox', 'Inbox'], ['du_an', 'Dự án'], ['dia_diem', 'Địa điểm'], ['nguoi', 'Người liên hệ'], ['su_kien', 'Sự kiện'], ['linh_vuc', 'Lĩnh vực'], ['don_vi', 'Đơn vị']];
+  const items = [['hanh-trinh', 'Hành trình'], ['lich', 'Lịch'], ['inbox', 'Inbox'], ['du_an', 'Dự án'], ['dia_diem', 'Địa điểm'], ['nguoi', 'Người liên hệ'], ['su_kien', 'Sự kiện'], ['linh_vuc', 'Lĩnh vực'], ['don_vi', 'Đơn vị']];
   return html`<header class="page-head"><h1>Thêm</h1></header>
     <div class="tiles">${items.map(([t, l]) => {
+      if (t === 'hanh-trinh') return html`<a class="tile" href="#/hanh-trinh"><span class="tile-icon">✈️</span><span>${l}</span><em>${store.all('chuyen_di').length} chuyến</em></a>`;
       if (t === 'lich') return html`<a class="tile" href="#/lich"><span class="tile-icon">📅</span><span>${l}</span><em>tháng này</em></a>`;
       const n = t === 'inbox' ? store.all(t).filter((r) => !r.da_xu_ly).length : store.all(t).length;
       return html`<a class="tile" href="#/bang/${t}"><span class="tile-icon">${TABLE_META[t].icon}</span><span>${l}</span><em>${n}</em></a>`;
@@ -240,3 +248,45 @@ export function moreView() {
 }
 
 export { fold };
+
+// ---------------- Âm lịch ----------------
+export function lunarChip(ymd) {
+  const l = lunarInfo(ymd);
+  return html`<button class="lunar-chip" data-lunar="${ymd}">🌙 ${l.label} ${l.canChiYear} · ngày ${l.canChiDay} · <b class="${l.hoangDao ? 'good' : 'bad'}">${l.hoangDao ? 'Hoàng đạo' : 'Hắc đạo'}</b>${l.le ? html` · <b class="le">${l.le}</b>` : ''}</button>`;
+}
+
+export function lunarCard(ymd, { compact = false } = {}) {
+  const l = lunarInfo(ymd);
+  const isToday = ymd === today();
+  const nowIdx = isToday ? hourChiIndex(vnNow().h) : -1;
+  return html`<section class="card lunar-card" data-lunar="${ymd}">
+    <h3 class="card-title">🌙 Âm lịch ${compact ? html`<span class="muted-inline">${l.label} · ngày ${l.canChiDay}</span>` : ''}${l.le ? html` <span class="tag tag-le">${l.le}</span>` : ''}</h3>
+    ${compact ? '' : html`<p class="lunar-line"><b>${l.label}</b> năm ${l.canChiYear} · tháng ${l.canChiMonth} · ngày ${l.canChiDay}</p>`}
+    <p class="lunar-line">${l.hoangDao ? html`<span class="good">● Ngày hoàng đạo</span>` : html`<span class="bad">● Ngày hắc đạo</span>`} (${l.than}) · trực <b>${l.truc}</b> · tiết <b>${l.tietKhi}</b></p>
+    <div class="hours">${l.goodHours.map((h) => html`<span class="hour ${CHI_INDEX[h.chi] === nowIdx ? 'now' : ''}">${h.chi} <small>${h.range}h</small></span>`)}</div>
+    <p class="lunar-line small"><span class="good">Nên:</span> ${l.nen}</p>
+    <p class="lunar-line small"><span class="bad">Tránh:</span> ${l.tranh}</p>
+  </section>`;
+}
+const CHI_INDEX = { 'Tý': 0, 'Sửu': 1, 'Dần': 2, 'Mão': 3, 'Thìn': 4, 'Tỵ': 5, 'Ngọ': 6, 'Mùi': 7, 'Thân': 8, 'Dậu': 9, 'Tuất': 10, 'Hợi': 11 };
+
+/** Chi tiết âm lịch đầy đủ (mở trong bảng trượt). */
+export function lunarDetail(ymd) {
+  const l = lunarInfo(ymd);
+  return html`<div class="lunar-detail">
+    <p class="big-lunar">${l.label}<small>${l.leap ? 'tháng nhuận · ' : ''}năm ${l.canChiYear}</small></p>
+    <table class="kv">
+      <tr><th>Dương lịch</th><td>${weekdayName(ymd, true)}, ${fmtDate(ymd, true)}</td></tr>
+      <tr><th>Ngày</th><td>${l.canChiDay}</td></tr><tr><th>Tháng</th><td>${l.canChiMonth}</td></tr><tr><th>Năm</th><td>${l.canChiYear}</td></tr>
+      <tr><th>Tiết khí</th><td>${l.tietKhi}</td></tr>
+      <tr><th>Ngày</th><td>${l.hoangDao ? html`<span class="good">Hoàng đạo</span>` : html`<span class="bad">Hắc đạo</span>`} · ${l.than}</td></tr>
+      <tr><th>Trực</th><td>${l.truc}</td></tr>
+      ${l.le ? html`<tr><th>Ngày lễ</th><td>${l.le}</td></tr>` : ''}
+    </table>
+    <h4>Giờ trong ngày</h4>
+    <div class="hours all">${l.hours.map((h) => html`<span class="hour ${h.good ? 'good-h' : 'bad-h'}">${h.chi}<small>${h.range}h · ${h.than}</small></span>`)}</div>
+    <h4>Việc nên làm</h4><p>${l.nen}</p>
+    <h4>Nên tránh</h4><p>${l.tranh}</p>
+    <p class="hint">Theo lịch vạn niên truyền thống (ngày/giờ hoàng đạo theo 12 thần, 12 trực). Mỗi sách lịch có thể ghi hơi khác, chỉ để tham khảo.</p>
+  </div>`;
+}

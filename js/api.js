@@ -116,7 +116,8 @@ async function demoCall(action, payload) {
 }
 
 async function bootDemo() {
-  for (const f of DEMO_FILES) await loadScript(f);
+  const bust = '?v=' + Date.now(); // bản demo luôn nạp mã máy chủ mới nhất
+  for (const f of DEMO_FILES) await loadScript(f + bust);
   window.setup();
   window.__seedDemo();
 }

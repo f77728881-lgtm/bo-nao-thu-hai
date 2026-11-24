@@ -6,6 +6,7 @@ import * as V from './views.js';
 import { openRecord } from './form.js';
 import { parse } from './quickadd.js';
 import { notesView, bindNotes, openNote } from './notes.js';
+import { travelView, bindTravel, openTrip } from './travel.js';
 import { toast, errorToast, openSheet, closeSheet, TABLE_META } from './ui.js';
 import { html, esc, whenLabel, debounce } from './util.js';
 
@@ -16,6 +17,7 @@ let searchQ = '';
 const ROUTES = {
   'hom-nay': () => V.todayView(),
   'ghi-chu': () => notesView(),
+  'hanh-trinh': () => travelView(),
   viec: () => V.tasksView(),
   'van-ban': () => V.docsView(),
   lich: () => V.calendarView(),
@@ -35,7 +37,7 @@ function render() {
   // Liên kết từ Google Calendar: #/viec/V-xxx → mở bản ghi
   if (arg && store.schema()?.[route.replace('-', '_')] && route !== 'bang') {
     const table = route.replace('-', '_');
-    setTimeout(() => (table === 'ghi_chu' ? openNote(arg) : openRecord(table, arg)), 0);
+    setTimeout(() => (table === 'ghi_chu' ? openNote(arg) : table === 'chuyen_di' ? openTrip(arg) : openRecord(table, arg)), 0);
   }
   const view = ROUTES[route] || ROUTES['hom-nay'];
   const focusId = ['search-input', 'note-search'].includes(document.activeElement?.id) ? document.activeElement.id : null;
@@ -44,6 +46,7 @@ function render() {
   main.innerHTML = view(arg).__raw;
   document.querySelectorAll('.nav a').forEach((a) => a.classList.toggle('on', a.dataset.route === route || (route === 'bang' && a.dataset.route === 'them')));
   if (route === 'ghi-chu') bindNotes(main, render);
+  if (route === 'hanh-trinh') bindTravel(main, render);
   if (keepFocus || route === 'tim') {
     const inp = document.getElementById(focusId || 'search-input');
     if (inp) { inp.focus(); if (keepFocus) inp.setSelectionRange(caret, caret); }
@@ -78,7 +81,7 @@ function renderStatus() {
 
 // ---------------- Sự kiện giao diện ----------------
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-toggle-task],[data-open],[data-new],[data-task-mode],[data-doc-filter],[data-cal-day],[data-cal-nav],[data-cal-today],#sync-status,#fab');
+  const t = e.target.closest('[data-trip],[data-lunar],[data-toggle-task],[data-open],[data-new],[data-task-mode],[data-doc-filter],[data-cal-day],[data-cal-nav],[data-cal-today],#sync-status,#fab');
   if (!t) return;
   if (t.closest('.sheet') && !t.matches('[data-toggle-task]')) return; // trong biểu mẫu tự xử lý
   if (t.matches('[data-toggle-task]')) {
@@ -92,9 +95,15 @@ document.addEventListener('click', async (e) => {
     } catch (err) { errorToast(err); }
     return;
   }
+  if (t.matches('[data-trip]')) { openTrip(t.dataset.trip); return; }
+  if (t.matches('[data-lunar]')) {
+    const d = t.dataset.lunar;
+    openSheet(V.lunarDetail(d).__raw, { title: `🌙 Âm lịch ${d.split('-').reverse().join('/')}` });
+    return;
+  }
   if (t.matches('[data-open]')) {
     const [table, id] = t.dataset.open.split('/');
-    if (table === 'ghi_chu') openNote(id); else openRecord(table, id);
+    if (table === 'ghi_chu') openNote(id); else if (table === 'chuyen_di') openTrip(id); else openRecord(table, id);
     return;
   }
   if (t.matches('[data-new]')) { openRecord(t.dataset.new, null); return; }
@@ -167,7 +176,9 @@ function openQuickAdd() {
       toast(`Đã thêm ${TYPE_LABEL[p.type].slice(2).toLowerCase()}: ${p.title || p.data.noi_dung}`, { kind: 'ok' });
     } catch (err) { errorToast(err); }
   }
-  setTimeout(() => input.focus(), 50);
+  // Đợi bảng trượt mở xong mới đặt con trỏ (iOS chỉ bật bàn phím khi focus trong cùng thao tác)
+  input.focus();
+  setTimeout(() => input.focus(), 220);
 }
 
 /** Đổi loại theo lựa chọn của người dùng, giữ ngày giờ đã đọc. */
@@ -184,6 +195,35 @@ function reshape(p, type, raw) {
   Object.keys(data).forEach((k) => (data[k] === undefined || data[k] === '') && delete data[k]);
   return { ...p, type, data };
 }
+
+// ---------------- Vuốt trên điện thoại: vuốt phải = xong/bỏ xong, vuốt trái = mở ----------------
+let swipe = null;
+main.addEventListener('touchstart', (e) => {
+  const row = e.target.closest('.row.task');
+  if (!row || e.touches.length > 1) return;
+  swipe = { row, x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, locked: null };
+}, { passive: true });
+main.addEventListener('touchmove', (e) => {
+  if (!swipe) return;
+  const dx = e.touches[0].clientX - swipe.x, dy = e.touches[0].clientY - swipe.y;
+  if (swipe.locked === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) swipe.locked = Math.abs(dx) > Math.abs(dy) * 1.5 ? 'x' : 'y';
+  if (swipe.locked !== 'x') return;
+  swipe.dx = dx;
+  swipe.row.style.transform = `translateX(${Math.max(-120, Math.min(120, dx))}px)`;
+  swipe.row.classList.toggle('swipe-done', dx > 70);
+  swipe.row.classList.toggle('swipe-open', dx < -70);
+}, { passive: true });
+main.addEventListener('touchend', () => {
+  if (!swipe) return;
+  const { row, dx, locked } = swipe;
+  swipe = null;
+  row.style.transform = '';
+  row.classList.remove('swipe-done', 'swipe-open');
+  if (locked !== 'x') return;
+  const id = row.dataset.open?.split('/')[1];
+  if (dx > 70) row.querySelector('[data-toggle-task]')?.click();
+  else if (dx < -70 && id) openRecord('viec', id);
+});
 
 // ---------------- Khởi động ----------------
 async function start() {

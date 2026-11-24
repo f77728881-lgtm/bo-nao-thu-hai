@@ -14,9 +14,11 @@ const PRIMARY = {
   du_an: ['ten', 'trang_thai', 'han', 'linh_vuc_id', 'ket_qua', 'mo_ta'],
   inbox: ['noi_dung', 'da_xu_ly'],
   linh_vuc: ['ten', 'nhom', 'bieu_tuong', 'thu_tu', 'mo_ta'],
-  don_vi: ['ten', 'loai', 'dau_moi', 'dien_thoai', 'email', 'ghi_chu']
+  don_vi: ['ten', 'loai', 'dau_moi', 'dien_thoai', 'email', 'ghi_chu'],
+  chuyen_di: ['ten', 'diem_den', 'tu_ngay', 'den_ngay', 'trang_thai', 'loai', 'phuong_tien', 'di_cung', 'ngan_sach', 'chi_phi', 'danh_gia', 'album', 'ghi_chu'],
+  nhat_ky_chuyen_di: ['ngay', 'tieu_de', 'noi_dung', 'tam_trang', 'dia_diem_ids', 'chi_tieu', 'chuyen_di_id']
 };
-const HIDDEN = new Set(['id', 'created_at', 'updated_at', 'archived', 'cal_event_id', 'cal_pending', 'hoan_thanh_luc', 'nguon']);
+const HIDDEN = new Set(['id', 'created_at', 'updated_at', 'archived', 'cal_event_id', 'cal_pending', 'hoan_thanh_luc', 'nguon', 'checklist', 'tim_hieu', 'lich_trinh', 'dat_cho']);
 
 function fieldInput(table, k, f, v) {
   const id = `f-${k}`;

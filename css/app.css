@@ -314,3 +314,88 @@ body.demo .brand-name::after { content: ' · demo'; color: var(--yellow); font-w
 .brand { min-width: 0; } .brand-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sync-status { white-space: nowrap; flex: 0 0 auto; }
 @media (max-width: 420px) { body.demo .brand-name::after { content: ''; } }
+
+/* ======================= Âm lịch ======================= */
+.lunar-chip { margin-top: 6px; border: 0; background: var(--surface-2); color: var(--text); border-radius: 99px; padding: 5px 12px; font-size: 12.5px; cursor: pointer; text-align: left; }
+.good { color: var(--green); } .bad { color: var(--red); } .le { color: var(--purple); }
+.lunar-card { cursor: pointer; }
+.lunar-line { margin: 4px 0; font-size: 14px; } .lunar-line.small { font-size: 13px; color: var(--muted); }
+.muted-inline { font-weight: 500; color: var(--muted); font-size: 13px; }
+.tag-le { background: var(--purple-bg); color: var(--purple); font-weight: 600; }
+.hours { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0 4px; }
+.hour { background: var(--green-bg); color: var(--green); border-radius: 8px; padding: 2px 8px; font-size: 12.5px; font-weight: 600; }
+.hour small { font-weight: 400; opacity: .8; }
+.hour.now { outline: 2px solid var(--green); }
+.hours.all .hour { display: flex; flex-direction: column; min-width: 92px; }
+.hour.bad-h { background: var(--gray-bg); color: var(--muted); }
+.dlunar { font-size: 10px; color: var(--muted); line-height: 1; }
+.dlunar.hd { color: var(--green); }
+.day.lunar-special .dlunar { color: var(--red); font-weight: 700; }
+.hd-mark { font-size: 10px; color: var(--green); }
+.big-lunar { font-size: 40px; font-weight: 800; margin: 0 0 8px; display: flex; flex-direction: column; line-height: 1.1; }
+.big-lunar small { font-size: 15px; font-weight: 500; color: var(--muted); }
+.kv { width: 100%; border-collapse: collapse; font-size: 14px; }
+.kv th { text-align: left; color: var(--muted); font-weight: 500; padding: 5px 10px 5px 0; width: 38%; }
+.kv td { padding: 5px 0; }
+.kv tr + tr { border-top: 1px solid var(--line); }
+.lunar-detail h4 { margin: 16px 0 6px; }
+.lunar-detail p { margin: 0; }
+
+/* ======================= Hành trình ======================= */
+.travel-stats { flex-wrap: wrap; }
+.travel-stats .stat { flex: 1 1 70px; }
+.trip-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); margin-bottom: 8px; }
+.trip { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; cursor: pointer; transition: transform .12s, box-shadow .12s; }
+.trip:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(16, 24, 40, .12); }
+.trip-cover { height: 92px; background-size: cover; background-position: center; position: relative; }
+.trip.past .trip-cover { filter: saturate(.75); }
+.trip-status, .trip-count { position: absolute; bottom: 8px; font-size: 12px; font-weight: 600; color: #fff; background: rgba(0, 0, 0, .35); border-radius: 99px; padding: 2px 9px; }
+.trip-status { left: 10px; } .trip-count { right: 10px; background: rgba(214, 40, 40, .85); }
+.trip-body { padding: 10px 12px 12px; }
+.trip-body h3 { margin: 0 0 4px; font-size: 16px; }
+.stars { color: #e3a008; letter-spacing: 1px; }
+.timeline { display: grid; grid-template-columns: 1fr; gap: 6px; margin-bottom: 10px; }
+@media (min-width: 760px) { .timeline { grid-template-columns: 90px 1fr; } }
+.tl-year { font-size: 22px; font-weight: 800; color: var(--muted); display: flex; flex-direction: column; }
+.tl-year small { font-size: 12px; font-weight: 500; }
+.today-trip { margin-bottom: 14px; max-width: 520px; }
+.today-trip .trip { display: grid; grid-template-columns: 110px 1fr; }
+.today-trip .trip-cover { height: auto; min-height: 96px; }
+
+.trip-tabs { width: 100%; margin-bottom: 14px; display: flex; overflow-x: auto; flex-wrap: nowrap; }
+.trip-tabs button { flex: 1 0 auto; }
+.trip-pane { display: flex; flex-direction: column; gap: 12px; }
+.trip-pane .field textarea { font-size: 15px; }
+.budget { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.budget div { background: var(--surface-2); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; }
+.budget span { font-size: 12px; color: var(--muted); } .budget b { font-size: 18px; }
+.gen { display: flex; flex-direction: column; gap: 10px; }
+.progress.big { height: 26px; } .progress.big em { line-height: 26px; font-size: 13px; }
+.ck-group h4 { margin: 10px 0 4px; font-size: 14px; }
+.ck { list-style: none; margin: 0; padding: 0; }
+.ck li { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 15px; }
+.ck li:first-child { border-top: 0; }
+.ck li span { flex: 1; }
+.ck li.done span { text-decoration: line-through; color: var(--muted); }
+.ck li.forgot span { color: var(--red); font-weight: 600; }
+.ck-box { width: 24px; height: 24px; border-radius: 6px; border: 2px solid var(--gray); background: none; font-weight: 700; color: #fff; cursor: pointer; padding: 0; flex: 0 0 auto; }
+.ck li.done .ck-box { background: var(--green); border-color: var(--green); }
+.ck li.forgot .ck-box { background: var(--red); border-color: var(--red); }
+.ck-add { display: flex; gap: 8px; }
+.ck-add input { flex: 1; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); font-size: 16px; }
+.journal { display: flex; flex-direction: column; gap: 10px; }
+.jentry { display: grid; grid-template-columns: 64px 1fr; gap: 10px; background: var(--surface-2); border-radius: 12px; padding: 10px; cursor: pointer; }
+.jdate { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.jdate b { font-size: 16px; } .jdate small { color: var(--muted); font-size: 12px; } .mood { font-size: 22px; }
+.jbody h4 { margin: 0 0 4px; } .jbody p { margin: 0 0 4px; white-space: pre-wrap; }
+
+/* ======================= UX bổ sung ======================= */
+main { padding-bottom: 84px; } /* chừa chỗ cho nút ＋ */
+@media (min-width: 900px) { main { padding-bottom: 40px; } }
+.more-items summary { list-style: none; cursor: pointer; color: var(--accent); font-size: 13px; font-weight: 600; padding: 6px 2px 0; }
+.more-items summary::-webkit-details-marker { display: none; }
+.more-items[open] summary { display: none; }
+.row.task { transition: transform .15s ease-out, background .15s; position: relative; touch-action: pan-y; }
+.row.task.swipe-done { background: var(--green-bg); }
+.row.task.swipe-open { background: var(--blue-bg); }
+@media (hover: none) { .card .row.task::after { content: ''; } }

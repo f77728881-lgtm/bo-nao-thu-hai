@@ -13,7 +13,9 @@ export const TABLE_META = {
   linh_vuc: { icon: '🗂', label: 'Lĩnh vực', plural: 'Lĩnh vực' },
   inbox: { icon: '📥', label: 'Inbox', plural: 'Inbox' },
   don_vi: { icon: '🏢', label: 'Đơn vị', plural: 'Đơn vị' },
-  theo_doi_dv: { icon: '📮', label: 'Theo dõi đơn vị', plural: 'Theo dõi đơn vị' }
+  theo_doi_dv: { icon: '📮', label: 'Theo dõi đơn vị', plural: 'Theo dõi đơn vị' },
+  chuyen_di: { icon: '✈️', label: 'Chuyến đi', plural: 'Chuyến đi' },
+  nhat_ky_chuyen_di: { icon: '📓', label: 'Nhật ký chuyến đi', plural: 'Nhật ký chuyến đi' }
 };
 
 export const LABELS = {
@@ -30,7 +32,9 @@ export const LABELS = {
   chuc_vu: 'Chức vụ', email: 'Email', da_xu_ly: 'Đã xử lý', xu_ly_thanh: 'Đã chuyển thành', nhom: 'Nhóm', bieu_tuong: 'Biểu tượng',
   thu_tu: 'Thứ tự', ket_qua: 'Kết quả mong muốn', ma: 'Mã', stt: 'STT', dau_moi: 'Đầu mối', van_ban_id: 'Văn bản',
   da_gui: 'Đã gửi', ngay_gui: 'Ngày gửi', so_vb_phan_hoi: 'Số VB phản hồi', khong_dong_bo_lich: 'Không đưa lên lịch',
-  nguon: 'Nguồn', archived: 'Đã lưu trữ'
+  nguon: 'Nguồn', archived: 'Đã lưu trữ', diem_den: 'Điểm đến', tu_ngay: 'Ngày đi', den_ngay: 'Ngày về', phuong_tien: 'Phương tiện',
+  di_cung: 'Đi cùng', ngay: 'Ngày', tam_trang: 'Tâm trạng (emoji)', dia_diem_ids: 'Địa điểm đã ghé', chi_tieu: 'Chi tiêu (đ)', chuyen_di_id: 'Chuyến đi',
+  ngan_sach: 'Ngân sách (đ)', chi_phi: 'Chi phí thực tế (đ)', album: 'Link album ảnh', anh_bia: 'Ảnh bìa (link)'
 };
 export const label = (k) => LABELS[k] || k;
 
@@ -166,11 +170,14 @@ export function genericRow(table, r) {
     </div></li>`;
 }
 
-export function section(title, items, { empty = '', count = true, more } = {}) {
+export function section(title, items, { empty = '', count = true, more, limit = 0 } = {}) {
   if (!items.length && !empty) return raw('');
+  const shown = limit && items.length > limit + 1 ? items.slice(0, limit) : items;
+  const rest = shown.length < items.length ? items.slice(limit) : [];
   return html`<section class="card">
     <h3 class="card-title">${title}${count && items.length ? html` <span class="count">${items.length}</span>` : ''}</h3>
-    ${items.length ? html`<ul class="list">${items}</ul>` : html`<p class="empty">${empty}</p>`}
+    ${items.length ? html`<ul class="list">${shown}</ul>` : html`<p class="empty">${empty}</p>`}
+    ${rest.length ? html`<details class="more-items"><summary>Xem thêm ${rest.length}</summary><ul class="list">${rest}</ul></details>` : ''}
     ${more ? more : ''}
   </section>`;
 }

@@ -3,7 +3,7 @@ import { call, isDemo, ApiError } from './api.js';
 import { fold } from './util.js';
 
 const DB_NAME = isDemo() ? 'bnth-demo' : 'bnth';
-const TABLES = ['linh_vuc', 'du_an', 'viec', 'van_ban', 'don_vi', 'theo_doi_dv', 'su_kien', 'ghi_chu', 'dia_diem', 'nguoi', 'inbox'];
+const TABLES = ['linh_vuc', 'du_an', 'viec', 'van_ban', 'don_vi', 'theo_doi_dv', 'su_kien', 'ghi_chu', 'dia_diem', 'nguoi', 'inbox', 'chuyen_di', 'nhat_ky_chuyen_di'];
 
 const state = {
   tables: Object.fromEntries(TABLES.map((t) => [t, new Map()])),
@@ -69,7 +69,7 @@ export async function init() {
   // Bản demo tạo dữ liệu mới mỗi lần mở: không dùng bản sao cũ.
   const saved = isDemo() ? null : await idbGet('state');
   if (saved) {
-    TABLES.forEach((t) => (saved.tables[t] || []).forEach((r) => state.tables[t].set(r.id, r)));
+    TABLES.forEach((t) => ((saved.tables || {})[t] || []).forEach((r) => state.tables[t].set(r.id, r)));
     state.schema = saved.schema; state.since = saved.since || ''; state.outbox = saved.outbox || []; state.lastSync = saved.lastSync || 0;
   }
   window.addEventListener('online', () => { state.online = true; emit(); sync(); });
@@ -202,7 +202,7 @@ async function flushOutbox() {
 }
 
 // ---------------- Tìm kiếm trên máy ----------------
-const SEARCH_TABLES = ['viec', 'van_ban', 'su_kien', 'ghi_chu', 'dia_diem', 'nguoi', 'du_an', 'inbox', 'don_vi'];
+const SEARCH_TABLES = ['viec', 'van_ban', 'su_kien', 'ghi_chu', 'dia_diem', 'nguoi', 'du_an', 'inbox', 'don_vi', 'chuyen_di', 'nhat_ky_chuyen_di'];
 
 export function search(q, { limit = 60 } = {}) {
   const query = fold(q);

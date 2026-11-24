@@ -561,3 +561,13 @@ html[data-theme="dark"] .care { color: var(--text); }
 .row.event.is-cancel .row-title { text-decoration: line-through; color: var(--muted); }
 .backup-list { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 4px; font-size: .9em; }
 .backup-list a { color: var(--accent); text-decoration: none; }
+
+/* Lịch Google khác (chỉ đọc) */
+.dot-gcal { background: linear-gradient(135deg, #039be5 50%, #0b8043 50%); }
+.row.gcal { padding: 0; border-left: 3px solid var(--cal); padding-left: 6px; }
+.gcal-link { display: flex; gap: 10px; align-items: flex-start; padding: 9px 2px; color: inherit; text-decoration: none; flex: 1; min-width: 0; }
+.row.gcal .ev-time { color: var(--muted); }
+.gcal-name { display: inline-flex; align-items: center; gap: 4px; }
+.cal-list { list-style: none; padding: 0; margin: 6px 0 0; display: grid; gap: 6px; }
+.cal-list label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.cal-list .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }

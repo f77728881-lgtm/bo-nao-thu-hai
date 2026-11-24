@@ -1,4 +1,5 @@
 // Tùy chỉnh giao diện: sáng/tối, cỡ chữ, màu nhấn. Lưu trên máy (localStorage).
+import * as gcal from './extcal.js';
 import { html } from './util.js';
 import * as store from './store.js';
 import { Auth, isDemo } from './api.js';
@@ -68,6 +69,12 @@ export function settingsView() {
         <p class="hint">Cài đặt giao diện lưu riêng trên từng máy.</p>
       </section>
       <section class="card settings">
+        <h3 class="card-title">${icon('calendar')} Lịch Google hiển thị</h3>
+        <p class="row-meta">Sự kiện từ các lịch này hiện chung trên màn Lịch và Hôm nay (chỉ xem; chạm để mở trong Google Calendar).</p>
+        ${gcal.listCalendars().length ? html`<ul class="cal-list">${gcal.listCalendars().map((c) => html`<li><label><input type="checkbox" data-gcal="${c.id}" ${gcal.isShown(c) ? 'checked' : ''}><span class="sw" style="background:${c.mau}"></span>${c.ten}${c.chinh ? ' (chính)' : ''}</label></li>`)}</ul>`
+          : html`<p class="hint">Mở màn Lịch một lần để tải danh sách lịch.</p>`}
+      </section>
+      <section class="card settings">
         <h3 class="card-title">${icon('folder')} Sao lưu dữ liệu</h3>
         <p class="row-meta">${backupLine()}</p>
         <div class="opts"><button class="btn btn-ghost" data-backup-now>Sao lưu ngay</button></div>
@@ -82,6 +89,7 @@ export function bindSettings(root, rerender) {
     const [k, v] = b.dataset.pref.split(':'); setPref(k, v); rerender();
   }));
   root.querySelector('[data-sync-now]')?.addEventListener('click', () => store.sync());
+  root.querySelectorAll('[data-gcal]').forEach((cb) => cb.addEventListener('change', () => gcal.setShown(cb.dataset.gcal, cb.checked)));
   if (!backup.loaded) {
     backup.loaded = true;
     store.action('sao_luu', {}).then((r) => { backup.data = r; rerender(); }).catch(() => {});

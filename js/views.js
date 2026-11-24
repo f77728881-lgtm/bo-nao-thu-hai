@@ -7,6 +7,7 @@ import { icon } from './icons.js';
 import { upcomingTripCard } from './travel.js';
 import { habitStrip, todaySessions } from './training.js';
 import { todayReviewCards } from './review.js';
+import * as gcal from './extcal.js';
 
 const isOpen = (v) => v.trang_thai !== 'Xong';
 const byWhen = (f) => (a, b) => ((a[f] || '9999') < (b[f] || '9999') ? -1 : (a[f] || '9999') > (b[f] || '9999') ? 1 : 0);
@@ -28,6 +29,11 @@ export function todayView() {
     const s = dayOf(e.bat_dau), en = dayOf(e.ket_thuc) || s;
     return (s <= t && en >= t) || (e.lap_lai && /FREQ=DAILY/.test(e.lap_lai) && s <= t);
   }).sort((a, b) => (a.bat_dau.slice(11) || '00') < (b.bat_dau.slice(11) || '00') ? -1 : 1);
+
+  const [gTu, gDen] = gridRange(t.slice(0, 7));
+  const gToday = gcal.eventsOn(t, gcal.eventsIn(gTu, gDen));
+  const agenda = [...events.map((e) => [gcal.timeKey(e.bat_dau), eventRow(e)]), ...gToday.map((e) => [gcal.timeKey(e.bat_dau), gcal.gcalRow(e)])]
+    .sort((a, b) => (a[0] < b[0] ? -1 : 1)).map((x) => x[1]);
 
   const docs = store.all('van_ban').filter((d) => d.trang_thai !== 'Xong' && d.vai_tro !== 'Xem để biết' && d.han_xu_ly && dayOf(d.han_xu_ly) <= in7).sort(byWhen('han_xu_ly'));
   const inbox = store.all('inbox').filter((i) => !i.da_xu_ly);
@@ -53,7 +59,7 @@ export function todayView() {
       ${todaySessions()}
       ${lunarCard(t)}
       ${section('⏰ Quá hạn', overdue.map((v) => taskRow(v)), { limit: 5 })}
-      ${section('📅 Hôm nay', [...events.map(eventRow), ...due.map((v) => taskRow(v))], { empty: 'Không có việc hay lịch nào hôm nay.', limit: 8 })}
+      ${section('📅 Hôm nay', [...agenda, ...due.map((v) => taskRow(v))], { empty: 'Không có việc hay lịch nào hôm nay.', limit: 10 })}
       ${section('🔥 Gấp & Quan trọng', q1.map((v) => taskRow(v)), { limit: 5 })}
       ${section('🟡 Đang làm', doing.map((v) => taskRow(v)), { limit: 5 })}
       ${section('📄 Văn bản sắp hạn (7 ngày)', docs.map(docRow), { limit: 5 })}
@@ -149,6 +155,16 @@ export function calNav(delta) {
 }
 export function calPick(day) { calDay = day; calMonth = day.slice(0, 7); }
 
+/** Ô đầu và ô cuối của lưới tháng (thứ Hai → Chủ nhật). */
+function gridRange(month) {
+  const first = `${month}-01`;
+  const off = (new Date(first + 'T00:00:00Z').getUTCDay() + 6) % 7;
+  const [y, m] = month.split('-').map(Number);
+  const last = `${month}-${pad(new Date(Date.UTC(y, m, 0)).getUTCDate())}`;
+  const offEnd = (7 - ((new Date(last + 'T00:00:00Z').getUTCDay() + 6) % 7) - 1);
+  return [addDays(first, -off), addDays(last, offEnd)];
+}
+
 function itemsOn(day) {
   const tasks = store.all('viec').filter((v) => dayOf(v.han) === day);
   const docs = store.all('van_ban').filter((d) => dayOf(d.han_xu_ly) === day);
@@ -162,14 +178,18 @@ function itemsOn(day) {
     if (/FREQ=YEARLY/.test(e.lap_lai)) return s.slice(5) === day.slice(5);
     return false;
   });
-  return { tasks, docs, events };
+  return { tasks, docs, events, g: gcal.eventsOn(day, gList) };
 }
+let gList = [];
 
 export function calendarView() {
   const [y, m] = calMonth.split('-').map(Number);
   const first = `${calMonth}-01`;
   const startOffset = (new Date(first + 'T00:00:00Z').getUTCDay() + 6) % 7; // tuần bắt đầu thứ Hai
   const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const [gTu, gDen] = gridRange(calMonth);
+  gList = gcal.eventsIn(gTu, gDen);
+  const gErr = gcal.lastError(gTu, gDen);
   const cells = [];
   for (let i = 0; i < 42; i++) {
     const d = addDays(first, i - startOffset);
@@ -180,9 +200,10 @@ export function calendarView() {
       ...it.tasks.filter((v) => isOpen(v)).slice(0, 3).map((v) => quadrant(v)),
       ...it.docs.slice(0, 2).map(() => 'doc')
     ];
+    const gdots = it.g.slice(0, Math.max(0, 5 - dots.length)).map((e) => gcal.calOf(e.lich_id).mau);
     const lu = lunarInfo(d);
     cells.push(html`<button class="day ${d.slice(0, 7) !== calMonth ? 'other' : ''} ${d === today() ? 'is-today' : ''} ${d === calDay ? 'is-picked' : ''} ${lu.special ? 'lunar-special' : ''}" data-cal-day="${d}" title="${lu.label} ${lu.le}">
-      <span class="dnum">${+d.slice(8)}</span><span class="dlunar ${lu.hoangDao ? 'hd' : ''}">${lu.day === 1 ? lu.label : lu.day}</span><span class="dots">${dots.map((c) => html`<i class="dot dot-${c}"></i>`)}</span></button>`);
+      <span class="dnum">${+d.slice(8)}</span><span class="dlunar ${lu.hoangDao ? 'hd' : ''}">${lu.day === 1 ? lu.label : lu.day}</span><span class="dots">${dots.map((c) => html`<i class="dot dot-${c}"></i>`)}${gdots.map((c) => html`<i class="dot" style="background:${c}"></i>`)}</span></button>`);
   }
   const it = itemsOn(calDay);
   void daysInMonth;
@@ -194,11 +215,13 @@ export function calendarView() {
     </header>
     <div class="cal">
       <div class="cal-grid">${['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((w) => html`<div class="wd">${w}</div>`)}${cells}</div>
-      <div class="cal-legend"><span><b class="hd-mark">16</b> ngày âm · xanh = hoàng đạo</span><span><i class="dot dot-ev"></i>Sự kiện</span><span><i class="dot dot-q1"></i>Gấp & QT</span><span><i class="dot dot-q2"></i>Quan trọng</span><span><i class="dot dot-doc"></i>Văn bản</span></div>
+      <div class="cal-legend"><span><b class="hd-mark">16</b> ngày âm · xanh = hoàng đạo</span><span><i class="dot dot-ev"></i>Sự kiện</span><span><i class="dot dot-q1"></i>Gấp & QT</span><span><i class="dot dot-q2"></i>Quan trọng</span><span><i class="dot dot-doc"></i>Văn bản</span><span><i class="dot dot-gcal"></i>Lịch Google khác</span></div>
+      ${gErr ? html`<p class="hint">⚠️ ${gErr}.</p>` : ''}
     </div>
     ${lunarCard(calDay, { compact: true })}
     ${section(`${weekdayName(calDay, true)} ${fmtDate(calDay, true)}`, [
-      ...it.events.sort((a, b) => (a.bat_dau.slice(11) < b.bat_dau.slice(11) ? -1 : 1)).map(eventRow),
+      ...[...it.events.map((e) => [gcal.timeKey(e.bat_dau), eventRow(e)]), ...it.g.map((e) => [gcal.timeKey(e.bat_dau), gcal.gcalRow(e)])]
+        .sort((a, b) => (a[0] < b[0] ? -1 : 1)).map((x) => x[1]),
       ...it.tasks.map((v) => taskRow(v)),
       ...it.docs.map(docRow)
     ], { empty: 'Trống. Chạm ＋ để thêm.', count: false })}`;

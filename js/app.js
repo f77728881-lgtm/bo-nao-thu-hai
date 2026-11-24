@@ -13,6 +13,7 @@ import { journalView, bindJournal, openReview } from './review.js';
 import { trainingView, bindTraining, toggleHabit, openSession, openProgram } from './training.js';
 import { toast, errorToast, openSheet, closeSheet, TABLE_META } from './ui.js';
 import { html, esc, whenLabel, debounce } from './util.js';
+import * as gcal from './extcal.js';
 
 const main = document.getElementById('main');
 let searchQ = '';
@@ -127,7 +128,7 @@ document.addEventListener('click', async (e) => {
   if (t.matches('[data-cal-today]')) { V.calPick(new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10)); render(); return; }
   if (t.id === 'sync-status') {
     if (!Auth.valid() && !isDemo()) { Auth.refresh(); return; }
-    store.sync(); return;
+    gcal.refresh(); store.sync(); return;
   }
   if (t.id === 'fab') { if (parseHash()[0] === 'ghi-chu') openNote(null); else openQuickAdd(); }
 });
@@ -245,7 +246,9 @@ async function start() {
   if (isDemo()) document.body.classList.add('demo');
   Auth.load();
   await store.init();
-  store.subscribe(debounce(() => { if (!document.querySelector('.sheet-wrap')) render(); else renderStatus(); }, 60));
+  const rerender = debounce(() => { if (!document.querySelector('.sheet-wrap')) render(); else renderStatus(); }, 60);
+  store.subscribe(rerender);
+  gcal.subscribe(rerender);
   Auth.onChange((ok) => { if (ok) store.sync(); render(); });
   window.addEventListener('hashchange', () => { closeSheet(); render(); });
   render();

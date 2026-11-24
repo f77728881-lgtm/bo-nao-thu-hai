@@ -80,20 +80,27 @@ function loadScript(src) {
 export async function call(action, payload = {}) {
   if (isDemo()) return demoCall(action, payload);
   if (!Auth.valid()) throw new ApiError('CHUA_XAC_THUC', 'Phiên đăng nhập đã hết hạn.');
-  let res;
+  let res, j;
+  // Giới hạn thời gian: máy chủ không trả lời thì báo lỗi thay vì treo "Đang đồng bộ…" mãi.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), action === 'sync' ? 45000 : 30000);
   try {
     res = await fetch(CONFIG.API_URL, {
       method: 'POST',
       // text/plain để không phát sinh yêu cầu CORS preflight (Apps Script không trả lời OPTIONS)
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action, payload, id_token: Auth.token }),
-      redirect: 'follow'
+      redirect: 'follow',
+      signal: ctrl.signal
     });
+    j = await res.json();
   } catch (e) {
+    if (e.name === 'AbortError') throw new ApiError('MAT_MANG', 'Máy chủ phản hồi quá lâu, sẽ thử lại.');
+    if (e instanceof SyntaxError) throw new ApiError('LOI_MAY_CHU', 'Máy chủ trả về dữ liệu không đọc được.');
     throw new ApiError('MAT_MANG', 'Không kết nối được máy chủ.');
+  } finally {
+    clearTimeout(timer);
   }
-  let j;
-  try { j = await res.json(); } catch { throw new ApiError('LOI_MAY_CHU', 'Máy chủ trả về dữ liệu không đọc được.'); }
   if (!j.ok) {
     if (j.error.code === 'CHUA_XAC_THUC') Auth.clear();
     throw new ApiError(j.error.code, j.error.message);

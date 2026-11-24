@@ -77,8 +77,10 @@ export async function init() {
   emit();
 }
 
+let syncStarted = 0;
 export async function sync() {
-  if (state.syncing) return;
+  if (state.syncing && Date.now() - syncStarted < 60000) return;
+  syncStarted = Date.now();
   state.syncing = true; state.error = null; emit();
   try {
     await flushOutbox();
@@ -86,7 +88,10 @@ export async function sync() {
     const res = await call('sync', { since: state.since });
     for (const t of Object.keys(res.tables)) {
       if (!state.tables[t]) continue;
-      for (const r of res.tables[t]) state.tables[t].set(r.id, r);
+      for (const r of res.tables[t]) {
+        const cur = state.tables[t].get(r.id);
+        if (!cur || !cur.updated_at || cur.updated_at <= r.updated_at) state.tables[t].set(r.id, r);
+      }
     }
     state.since = res.server_time;
     state.lastSync = Date.now();
@@ -176,7 +181,15 @@ async function runOp(op) {
   }
   state.tables[op.table].set(rec.id, rec);
   if (res.warning) state.error = new ApiError('CANH_BAO', res.warning);
+  if (rec.cal_pending === '1') scheduleCalendarFlush();
   return rec;
+}
+
+// Máy chủ trả lời ngay khi ghi, còn việc đưa lên Google Calendar được gọi ngầm ngay sau (gom nhiều lần ghi làm một).
+let flushTimer = null;
+function scheduleCalendarFlush() {
+  clearTimeout(flushTimer);
+  flushTimer = setTimeout(() => { call('calendar_flush').catch(() => { /* máy chủ tự thử lại sau 15 phút */ }); }, 1500);
 }
 export const tmpMap = new Map();
 

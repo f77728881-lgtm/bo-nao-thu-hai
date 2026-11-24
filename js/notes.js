@@ -3,14 +3,24 @@
 import * as store from './store.js';
 import { html, raw, esc, fold, whenLabel } from './util.js';
 import { openSheet, toast, errorToast } from './ui.js';
+import { icon } from './icons.js';
 
 export const MAIN_LABELS = [
-  { key: '#0_Inbox', name: 'Inbox', icon: '📥', hint: 'Mới nhập, chưa phân loại' },
-  { key: '#1_Work', name: 'Work', icon: '💼', hint: 'Công việc' },
-  { key: '#2_Life', name: 'Life', icon: '🌿', hint: 'Cuộc sống' },
-  { key: '#3_Archive', name: 'Archive', icon: '🗄', hint: 'Lưu trữ, tra cứu' }
+  { key: '#0_Inbox', name: 'Inbox', ic: 'inbox', hint: 'Mới nhập, chưa phân loại' },
+  { key: '#1_Work', name: 'Work', ic: 'folder', hint: 'Công việc' },
+  { key: '#2_Life', name: 'Life', ic: 'sun', hint: 'Cuộc sống' },
+  { key: '#3_Archive', name: 'Archive', ic: 'list', hint: 'Lưu trữ, tra cứu' }
 ];
 const MAIN_KEYS = MAIN_LABELS.map((l) => l.key);
+
+/** Chép chữ vào bộ nhớ tạm (có cách dự phòng cho trình duyệt cũ). */
+export async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch {
+    const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select(); const ok = document.execCommand('copy'); ta.remove(); return ok;
+  }
+}
+const noteText = (n) => [n.tieu_de && n.tieu_de !== n.noi_dung ? n.tieu_de : '', n.noi_dung || '', n.url || ''].filter(Boolean).join('\n\n');
 const INBOX = '#0_Inbox';
 
 export const COLORS = ['Trắng', 'Đỏ', 'Cam', 'Vàng', 'Xanh lá', 'Xanh ngọc', 'Xanh dương', 'Tím', 'Hồng', 'Nâu', 'Xám'];
@@ -67,14 +77,15 @@ function card(n) {
   const showMain = tab === 'all' || query;
   const tags = [...(showMain ? [mainLabel(n)] : []), ...extraLabels(n)];
   return html`<article class="note ${colorClass(n.mau)} ${n._pending ? 'is-pending' : ''}" data-note="${n.id}" tabindex="0">
-    ${n.ghim ? html`<span class="n-pin" title="Đã ghim">📌</span>` : ''}
+    ${n.ghim ? html`<span class="n-pin" title="Đã ghim">${icon('pin')}</span>` : ''}
     ${n.tieu_de && n.tieu_de !== n.noi_dung ? html`<h3 class="n-title">${n.tieu_de}</h3>` : ''}
     ${body}
     ${n.url ? html`<a class="n-link" href="${n.url}" target="_blank" rel="noopener">🔗 ${n.url.replace(/^https?:\/\//, '').slice(0, 40)}</a>` : ''}
     ${tags.length ? html`<div class="n-tags">${tags.map((t) => html`<span class="tag">${t}</span>`)}</div>` : ''}
+    <button class="n-copy" data-note-copy="${n.id}" title="Sao chép nội dung" aria-label="Sao chép nội dung">${icon('copy')}</button>
     <div class="n-actions">
-      <button data-note-pin="${n.id}" title="${n.ghim ? 'Bỏ ghim' : 'Ghim'}">📌</button>
-      ${MAIN_LABELS.filter((l) => l.key !== mainLabel(n)).map((l) => html`<button data-note-move="${n.id}|${l.key}" title="Chuyển sang ${l.key}">${l.icon}</button>`)}
+      <button data-note-pin="${n.id}" title="${n.ghim ? 'Bỏ ghim' : 'Ghim'}">${icon('pin')}</button>
+      ${MAIN_LABELS.filter((l) => l.key !== mainLabel(n)).map((l) => html`<button data-note-move="${n.id}|${l.key}" title="Chuyển sang ${l.key}">${icon(l.ic)}</button>`)}
     </div>
   </article>`;
 }
@@ -90,13 +101,13 @@ export function notesView() {
     <header class="page-head notes-head"><h1>Ghi chú</h1>
       <input class="n-search" type="search" id="note-search" placeholder="Tìm trong ghi chú…" value="${query}" autocomplete="off"></header>
     <nav class="label-tabs" aria-label="Nhãn">
-      ${MAIN_LABELS.map((l) => html`<button class="ltab ${tab === l.key && !query ? 'on' : ''}" data-note-tab="${l.key}" title="${l.hint}">${l.icon} ${l.key}<em>${counts[l.key]}</em></button>`)}
+      ${MAIN_LABELS.map((l) => html`<button class="ltab ${tab === l.key && !query ? 'on' : ''}" data-note-tab="${l.key}" title="${l.hint}">${icon(l.ic)} ${l.key}<em>${counts[l.key]}</em></button>`)}
       <button class="ltab ${tab === 'all' && !query ? 'on' : ''}" data-note-tab="all">Tất cả<em>${all.length}</em></button>
       ${others.map((o) => html`<button class="ltab small ${tab === o && !query ? 'on' : ''}" data-note-tab="${o}">🏷 ${o}</button>`)}
     </nav>
-    <button class="composer" data-note-new>
-      <span>${tab === '#3_Archive' ? 'Lưu một ghi chú tra cứu…' : 'Ghi chú mới…'}</span><span class="composer-icons"><i data-note-new-check title="Danh sách việc">☑️</i></span>
-    </button>
+    <div class="composer-row"><button class="composer" data-note-new>
+      <span>${tab === '#3_Archive' ? 'Lưu một ghi chú tra cứu…' : 'Ghi chú mới…'}</span><span class="composer-icons"><i data-note-new-check title="Danh sách việc">${icon('list')}</i></span>
+    </button><button class="paste-btn" data-note-paste title="Dán từ bộ nhớ tạm thành ghi chú mới">${icon('paste')}<span>Dán</span></button></div>
     ${query ? html`<p class="hint">${notes.length} ghi chú khớp “${query}” trong mọi nhãn.</p>` : cur ? html`<p class="hint">${cur.hint}</p>` : ''}
     ${pinned.length ? html`<h4 class="n-group">Đã ghim</h4><div class="masonry">${pinned.map(card)}</div>` : ''}
     ${pinned.length && rest.length ? html`<h4 class="n-group">Khác</h4>` : ''}
@@ -131,6 +142,28 @@ export function bindNotes(root, rerender) {
     b.classList.add('done');
     try { await store.update('ghi_chu', id, { noi_dung: lines.join('\n') }); } catch (err) { errorToast(err); }
   }));
+  root.querySelectorAll('[data-note-copy]').forEach((b) => b.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const n = store.get('ghi_chu', b.dataset.noteCopy);
+    if (await copyText(noteText(n))) { b.classList.add('done'); setTimeout(() => b.classList.remove('done'), 1200); toast('Đã sao chép'); }
+  }));
+  root.querySelector('[data-note-paste]')?.addEventListener('click', async () => {
+    let text = '';
+    try { text = await navigator.clipboard.readText(); } catch { /* bị từ chối quyền */ }
+    if (!text.trim()) { openNote(null); toast('Không đọc được bộ nhớ tạm, hãy dán bằng tay (giữ ngón tay → Dán).'); return; }
+    const isUrl = /^https?:\/\/\S+$/.test(text.trim());
+    const firstLine = text.trim().split('\n')[0];
+    const data = {
+      tieu_de: isUrl ? '' : (firstLine.length <= 80 && text.includes('\n') ? firstLine : ''),
+      noi_dung: isUrl ? '' : text.trim(), url: isUrl ? text.trim() : '',
+      nhan: [MAIN_KEYS.includes(tab) ? tab : INBOX], loai: isUrl ? 'Liên kết' : 'Ghi chú'
+    };
+    if (!data.url) delete data.url;
+    try {
+      const rec = await store.create('ghi_chu', data);
+      toast('Đã dán thành ghi chú mới', { kind: 'ok', actionLabel: 'Hoàn tác', onAction: () => rec && store.archive('ghi_chu', rec.id) });
+    } catch (err) { errorToast(err); }
+  });
   root.querySelectorAll('[data-note-pin]').forEach((b) => b.addEventListener('click', async (e) => {
     e.stopPropagation();
     const n = store.get('ghi_chu', b.dataset.notePin);
@@ -178,11 +211,12 @@ export function openNote(id, { checklist = false, defaults = {} } = {}) {
             <li class="ne-add"><span>＋</span><input class="ne-new" placeholder="Thêm mục" enterkeyhint="next"></li></ul>`
         : html`<textarea class="ne-body" placeholder="Ghi chú…" rows="8">${st.noi_dung}</textarea>`}
       <input class="ne-url" type="url" placeholder="Liên kết (tùy chọn)" value="${st.url}">
-      <div class="ne-row"><span class="ne-lab">Nhãn</span>${MAIN_LABELS.map((l) => html`<button class="chip ${cur === l.key ? 'on' : ''}" data-main="${l.key}">${l.icon} ${l.key}</button>`)}</div>
+      <div class="ne-row"><span class="ne-lab">Nhãn</span>${MAIN_LABELS.map((l) => html`<button class="chip ${cur === l.key ? 'on' : ''}" data-main="${l.key}">${icon(l.ic)} ${l.key}</button>`)}</div>
       <div class="ne-row"><span class="ne-lab">Thêm nhãn</span>${extraLabels({ nhan: st.nhan }).map((x) => html`<button class="chip on" data-rm-label="${x}">${x} ✕</button>`)}<input class="ne-label" placeholder="vd: Guitar, Running" list="ne-labels"><datalist id="ne-labels">${[...new Set(store.all('ghi_chu').flatMap(extraLabels))].map((x) => html`<option value="${x}">`)}</datalist></div>
       <div class="ne-row colors" role="radiogroup" aria-label="Màu">${COLORS.map((c) => html`<button class="swatch ${colorClass(c)} ${st.mau === c ? 'on' : ''}" data-color="${c}" title="${c}" aria-label="${c}"></button>`)}</div>
       <div class="ne-toolbar">
         <button class="btn btn-ghost" data-pin>${st.ghim ? '📌 Bỏ ghim' : '📌 Ghim'}</button>
+        <button class="btn btn-ghost" data-copy>${icon('copy')} Sao chép</button>
         <button class="btn btn-ghost" data-mode>${st.checklist ? '📝 Văn bản' : '☑️ Danh sách'}</button>
         ${n ? html`<button class="btn btn-ghost" data-totask>✅ Tạo việc</button><button class="btn btn-ghost danger" data-trash>🗑 Xóa</button>` : ''}
         <span class="spacer"></span><button class="btn btn-primary" data-done>Xong</button>
@@ -229,6 +263,7 @@ export function openNote(id, { checklist = false, defaults = {} } = {}) {
     const nw = box.querySelector('.ne-new');
     nw?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); collect(); render(); box.querySelector('.ne-new').focus(); } });
     box.querySelector('[data-done]').onclick = () => sheet.close();
+    box.querySelector('[data-copy]').onclick = async () => { collect(); if (await copyText(noteText(st))) toast('Đã sao chép'); };
     box.querySelector('[data-trash]')?.addEventListener('click', async () => {
       closing = 'trash';
       sheet.close();

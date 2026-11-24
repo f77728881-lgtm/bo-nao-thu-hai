@@ -7,6 +7,7 @@ import { openRecord } from './form.js';
 import { parse } from './quickadd.js';
 import { notesView, bindNotes, openNote } from './notes.js';
 import { travelView, bindTravel, openTrip } from './travel.js';
+import { settingsView, bindSettings, applyPrefs } from './settings.js';
 import { toast, errorToast, openSheet, closeSheet, TABLE_META } from './ui.js';
 import { html, esc, whenLabel, debounce } from './util.js';
 
@@ -18,6 +19,7 @@ const ROUTES = {
   'hom-nay': () => V.todayView(),
   'ghi-chu': () => notesView(),
   'hanh-trinh': () => travelView(),
+  'cai-dat': () => settingsView(),
   viec: () => V.tasksView(),
   'van-ban': () => V.docsView(),
   lich: () => V.calendarView(),
@@ -47,6 +49,7 @@ function render() {
   document.querySelectorAll('.nav a').forEach((a) => a.classList.toggle('on', a.dataset.route === route || (route === 'bang' && a.dataset.route === 'them')));
   if (route === 'ghi-chu') bindNotes(main, render);
   if (route === 'hanh-trinh') bindTravel(main, render);
+  if (route === 'cai-dat') bindSettings(main, render);
   if (keepFocus || route === 'tim') {
     const inp = document.getElementById(focusId || 'search-input');
     if (inp) { inp.focus(); if (keepFocus) inp.setSelectionRange(caret, caret); }
@@ -56,7 +59,7 @@ function render() {
 
 function renderLogin() {
   main.innerHTML = `<div class="login">
-    <div class="login-logo">🧠</div>
+    <img class="login-logo" src="icons/icon.svg" alt="" width="72" height="72">
     <h1>${esc(CONFIG.APP_NAME)}</h1>
     <p>Đăng nhập bằng tài khoản Google chủ sở hữu để mở dữ liệu của bạn.</p>
     <div id="gsi-btn"></div>
@@ -227,6 +230,7 @@ main.addEventListener('touchend', () => {
 
 // ---------------- Khởi động ----------------
 async function start() {
+  applyPrefs();
   if (isDemo()) document.body.classList.add('demo');
   Auth.load();
   await store.init();

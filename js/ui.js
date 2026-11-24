@@ -1,21 +1,22 @@
 // Thành phần giao diện dùng chung.
 import { html, raw, esc, whenLabel, dayOf, today } from './util.js';
 import * as store from './store.js';
+import { icon, iconHtml } from './icons.js';
 
 export const TABLE_META = {
-  viec: { icon: '✅', label: 'Việc', plural: 'Việc' },
-  van_ban: { icon: '📄', label: 'Văn bản', plural: 'Văn bản' },
-  su_kien: { icon: '📅', label: 'Sự kiện', plural: 'Sự kiện' },
-  ghi_chu: { icon: '🗒', label: 'Ghi chú', plural: 'Ghi chú' },
-  dia_diem: { icon: '📍', label: 'Địa điểm', plural: 'Địa điểm' },
-  nguoi: { icon: '👤', label: 'Người liên hệ', plural: 'Người liên hệ' },
-  du_an: { icon: '📁', label: 'Dự án', plural: 'Dự án' },
-  linh_vuc: { icon: '🗂', label: 'Lĩnh vực', plural: 'Lĩnh vực' },
-  inbox: { icon: '📥', label: 'Inbox', plural: 'Inbox' },
-  don_vi: { icon: '🏢', label: 'Đơn vị', plural: 'Đơn vị' },
-  theo_doi_dv: { icon: '📮', label: 'Theo dõi đơn vị', plural: 'Theo dõi đơn vị' },
-  chuyen_di: { icon: '✈️', label: 'Chuyến đi', plural: 'Chuyến đi' },
-  nhat_ky_chuyen_di: { icon: '📓', label: 'Nhật ký chuyến đi', plural: 'Nhật ký chuyến đi' }
+  viec: { icon: '✅', ic: 'task', label: 'Việc', plural: 'Việc' },
+  van_ban: { icon: '📄', ic: 'doc', label: 'Văn bản', plural: 'Văn bản' },
+  su_kien: { icon: '📅', ic: 'event', label: 'Sự kiện', plural: 'Sự kiện' },
+  ghi_chu: { icon: '🗒', ic: 'note', label: 'Ghi chú', plural: 'Ghi chú' },
+  dia_diem: { icon: '📍', ic: 'place', label: 'Địa điểm', plural: 'Địa điểm' },
+  nguoi: { icon: '👤', ic: 'user', label: 'Người liên hệ', plural: 'Người liên hệ' },
+  du_an: { icon: '📁', ic: 'folder', label: 'Dự án', plural: 'Dự án' },
+  linh_vuc: { icon: '🗂', ic: 'grid', label: 'Lĩnh vực', plural: 'Lĩnh vực' },
+  inbox: { icon: '📥', ic: 'inbox', label: 'Inbox', plural: 'Inbox' },
+  don_vi: { icon: '🏢', ic: 'building', label: 'Đơn vị', plural: 'Đơn vị' },
+  theo_doi_dv: { icon: '📮', ic: 'list', label: 'Theo dõi đơn vị', plural: 'Theo dõi đơn vị' },
+  chuyen_di: { icon: '✈️', ic: 'travel', label: 'Chuyến đi', plural: 'Chuyến đi' },
+  nhat_ky_chuyen_di: { icon: '📓', ic: 'note', label: 'Nhật ký chuyến đi', plural: 'Nhật ký chuyến đi' }
 };
 
 export const LABELS = {
@@ -60,7 +61,7 @@ export function openSheet(content, { title = '', onClose } = {}) {
   const wrap = document.createElement('div');
   wrap.className = 'sheet-wrap';
   wrap.innerHTML = `<div class="sheet-backdrop"></div><section class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}">
-    <header class="sheet-head"><h2>${esc(title)}</h2><button class="icon-btn" data-close aria-label="Đóng">✕</button></header>
+    <header class="sheet-head"><h2>${esc(title)}</h2><button class="icon-btn" data-close aria-label="Đóng">${iconHtml('close')}</button></header>
     <div class="sheet-body"></div></section>`;
   const body = wrap.querySelector('.sheet-body');
   if (typeof content === 'string') body.innerHTML = content; else body.appendChild(content);
@@ -135,7 +136,7 @@ export function docRow(d) {
     }
   }
   return html`<li class="row doc ${done ? 'is-done' : ''}" data-open="van_ban/${d.id}">
-    <div class="doc-icon">📄</div>
+    <div class="doc-icon">${icon('doc')}</div>
     <div class="row-main">
       <div class="row-title"><b>${d.so_hieu}</b>${d.trich_yeu ? html` · ${d.trich_yeu}` : ''}</div>
       <div class="row-meta">
@@ -163,15 +164,17 @@ export function genericRow(table, r) {
   const title = store.titleOf(table, r);
   const sub = r.trich_yeu || r.dia_chi || r.don_vi || r.mo_ta || (r.noi_dung && r.noi_dung !== title ? r.noi_dung : '') || '';
   return html`<li class="row" data-open="${table}/${r.id}">
-    <div class="doc-icon">${r.ghim ? '📌' : meta.icon}</div>
+    <div class="doc-icon">${icon(r.ghim ? 'pin' : meta.ic)}</div>
     <div class="row-main"><div class="row-title">${title}</div>
       ${sub ? html`<div class="row-sub">${String(sub).slice(0, 140)}</div>` : ''}
       <div class="row-meta">${(r.nhan || []).map((n) => html`<span class="tag">${n}</span>`)}${r.trang_thai ? html`<span class="tag">${r.trang_thai}</span>` : ''}</div>
     </div></li>`;
 }
 
+const EMOJI_HEAD = /^(?:\p{Extended_Pictographic}|\p{Regional_Indicator}|[\u2600-\u27BF])\uFE0F?\s*/u;
 export function section(title, items, { empty = '', count = true, more, limit = 0 } = {}) {
   if (!items.length && !empty) return raw('');
+  title = String(title).replace(EMOJI_HEAD, ''); // tiêu đề tối giản, không emoji
   const shown = limit && items.length > limit + 1 ? items.slice(0, limit) : items;
   const rest = shown.length < items.length ? items.slice(limit) : [];
   return html`<section class="card">

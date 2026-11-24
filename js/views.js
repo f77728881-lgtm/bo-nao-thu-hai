@@ -3,6 +3,7 @@ import * as store from './store.js';
 import { html, raw, today, addDays, dayOf, weekdayName, fmtDate, fold, pad, vnNow, whenLabel } from './util.js';
 import { taskRow, docRow, eventRow, genericRow, section, TABLE_META, quadrant, areaName } from './ui.js';
 import { lunarInfo, hourChiIndex } from './lunar.js';
+import { icon } from './icons.js';
 import { upcomingTripCard } from './travel.js';
 
 const isOpen = (v) => v.trang_thai !== 'Xong';
@@ -206,7 +207,7 @@ export function searchView(q) {
   return html`
     <header class="page-head"><h1>Tìm kiếm</h1></header>
     <div class="search-box"><input id="search-input" type="search" placeholder="Gõ không cần dấu: lam thao, bao cao, pho…" value="${q}" autocomplete="off" enterkeyhint="search"></div>
-    ${q ? (hits.length ? html`<div class="grid">${Object.entries(groups).map(([t, recs]) => section(`${TABLE_META[t].icon} ${TABLE_META[t].plural}`, recs.map((r) => (t === 'viec' ? taskRow(r) : t === 'van_ban' ? docRow(r) : t === 'su_kien' ? eventRow(r) : genericRow(t, r)))))}</div>`
+    ${q ? (hits.length ? html`<div class="grid">${Object.entries(groups).map(([t, recs]) => section(TABLE_META[t].plural, recs.map((r) => (t === 'viec' ? taskRow(r) : t === 'van_ban' ? docRow(r) : t === 'su_kien' ? eventRow(r) : genericRow(t, r)))))}</div>`
       : html`<p class="empty big">Không thấy kết quả cho “${q}”.</p>`)
       : html`<p class="empty big">Tìm trong việc, văn bản, sự kiện, ghi chú, địa điểm, người liên hệ, dự án và inbox.</p>`}`;
 }
@@ -219,30 +220,31 @@ export function tableView(table) {
   if (table === 'don_vi') recs.sort((a, b) => (a.stt || 999) - (b.stt || 999));
   else recs.sort((a, b) => (b.ghim ? 1 : 0) - (a.ghim ? 1 : 0) || (a.updated_at < b.updated_at ? 1 : -1));
   if (table === 'du_an') {
-    return html`<header class="page-head"><h1>${meta.icon} ${meta.plural}</h1></header>
+    return html`<header class="page-head"><h1>${meta.plural}</h1></header>
       <div class="filters"><button class="btn btn-ghost" data-new="du_an">+ Dự án mới</button></div>
       <div class="grid">${recs.map((d) => {
         const tasks = store.all('viec').filter((v) => v.du_an_id === d.id);
         const done = tasks.filter((v) => !isOpen(v)).length;
         const pct = tasks.length ? Math.round((100 * done) / tasks.length) : 0;
-        return html`<section class="card project" data-open="du_an/${d.id}"><h3 class="card-title">📁 ${d.ten}</h3>
+        return html`<section class="card project" data-open="du_an/${d.id}"><h3 class="card-title">${icon('folder')} ${d.ten}</h3>
           <p class="row-meta">${d.trang_thai}${d.han ? html` · hạn ${whenLabel(d.han)}` : ''}${d.linh_vuc_id ? html` · ${areaName(d.linh_vuc_id)}` : ''}</p>
           <div class="progress"><span style="width:${pct}%"></span><em>${done}/${tasks.length} việc</em></div></section>`;
       })}</div>`;
   }
-  return html`<header class="page-head"><h1>${meta.icon} ${meta.plural}</h1></header>
+  return html`<header class="page-head"><h1>${meta.plural}</h1></header>
     <div class="filters"><button class="btn btn-ghost" data-new="${table}">+ Thêm</button></div>
     ${section(`${recs.length} mục`, recs.map((r) => (table === 'su_kien' ? eventRow(r) : genericRow(table, r))), { count: false, empty: 'Chưa có gì ở đây.' })}`;
 }
 
 export function moreView() {
-  const items = [['hanh-trinh', 'Hành trình'], ['lich', 'Lịch'], ['inbox', 'Inbox'], ['du_an', 'Dự án'], ['dia_diem', 'Địa điểm'], ['nguoi', 'Người liên hệ'], ['su_kien', 'Sự kiện'], ['linh_vuc', 'Lĩnh vực'], ['don_vi', 'Đơn vị']];
+  const items = [['cai-dat', 'Cài đặt'], ['hanh-trinh', 'Hành trình'], ['lich', 'Lịch'], ['inbox', 'Inbox'], ['du_an', 'Dự án'], ['dia_diem', 'Địa điểm'], ['nguoi', 'Người liên hệ'], ['su_kien', 'Sự kiện'], ['linh_vuc', 'Lĩnh vực'], ['don_vi', 'Đơn vị']];
   return html`<header class="page-head"><h1>Thêm</h1></header>
     <div class="tiles">${items.map(([t, l]) => {
-      if (t === 'hanh-trinh') return html`<a class="tile" href="#/hanh-trinh"><span class="tile-icon">✈️</span><span>${l}</span><em>${store.all('chuyen_di').length} chuyến</em></a>`;
-      if (t === 'lich') return html`<a class="tile" href="#/lich"><span class="tile-icon">📅</span><span>${l}</span><em>tháng này</em></a>`;
+      if (t === 'cai-dat') return html`<a class="tile" href="#/cai-dat"><span class="tile-icon">${icon('settings')}</span><span>${l}</span><em>giao diện, cỡ chữ</em></a>`;
+      if (t === 'hanh-trinh') return html`<a class="tile" href="#/hanh-trinh"><span class="tile-icon">${icon('travel')}</span><span>${l}</span><em>${store.all('chuyen_di').length} chuyến</em></a>`;
+      if (t === 'lich') return html`<a class="tile" href="#/lich"><span class="tile-icon">${icon('calendar')}</span><span>${l}</span><em>tháng này</em></a>`;
       const n = t === 'inbox' ? store.all(t).filter((r) => !r.da_xu_ly).length : store.all(t).length;
-      return html`<a class="tile" href="#/bang/${t}"><span class="tile-icon">${TABLE_META[t].icon}</span><span>${l}</span><em>${n}</em></a>`;
+      return html`<a class="tile" href="#/bang/${t}"><span class="tile-icon">${icon(TABLE_META[t].ic)}</span><span>${l}</span><em>${n}</em></a>`;
     })}</div>
     <p class="hint center">Dữ liệu được lưu trong Google Sheets của bạn và đồng bộ với lịch “🧠 Bộ não thứ hai”.</p>`;
 }
@@ -260,7 +262,7 @@ export function lunarCard(ymd, { compact = false } = {}) {
   const isToday = ymd === today();
   const nowIdx = isToday ? hourChiIndex(vnNow().h) : -1;
   return html`<section class="card lunar-card" data-lunar="${ymd}">
-    <h3 class="card-title">🌙 Âm lịch ${compact ? html`<span class="muted-inline">${l.label} · ngày ${l.canChiDay}</span>` : ''}${l.le ? html` <span class="tag tag-le">${l.le}</span>` : ''}</h3>
+    <h3 class="card-title">${icon('moon')} Âm lịch ${compact ? html`<span class="muted-inline">${l.label} · ngày ${l.canChiDay}</span>` : ''}${l.le ? html` <span class="tag tag-le">${l.le}</span>` : ''}</h3>
     ${compact ? '' : html`<p class="lunar-line"><b>${l.label}</b> năm ${l.canChiYear} · tháng ${l.canChiMonth} · ngày ${l.canChiDay}</p>`}
     <p class="lunar-line">${l.hoangDao ? html`<span class="good">● Ngày hoàng đạo</span>` : html`<span class="bad">● Ngày hắc đạo</span>`} (${l.than}) · trực <b>${l.truc}</b> · tiết <b>${l.tietKhi}</b></p>
     <div class="hours">${l.goodHours.map((h) => html`<span class="hour ${CHI_INDEX[h.chi] === nowIdx ? 'now' : ''}">${h.chi} <small>${h.range}h</small></span>`)}</div>

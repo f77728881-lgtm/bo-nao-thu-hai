@@ -229,9 +229,10 @@ export function tableView(table) {
 }
 
 export function moreView() {
-  const items = [['ghi_chu', 'Ghi chú'], ['inbox', 'Inbox'], ['du_an', 'Dự án'], ['dia_diem', 'Địa điểm'], ['nguoi', 'Người liên hệ'], ['su_kien', 'Sự kiện'], ['linh_vuc', 'Lĩnh vực'], ['don_vi', 'Đơn vị']];
+  const items = [['lich', 'Lịch'], ['inbox', 'Inbox'], ['du_an', 'Dự án'], ['dia_diem', 'Địa điểm'], ['nguoi', 'Người liên hệ'], ['su_kien', 'Sự kiện'], ['linh_vuc', 'Lĩnh vực'], ['don_vi', 'Đơn vị']];
   return html`<header class="page-head"><h1>Thêm</h1></header>
     <div class="tiles">${items.map(([t, l]) => {
+      if (t === 'lich') return html`<a class="tile" href="#/lich"><span class="tile-icon">📅</span><span>${l}</span><em>tháng này</em></a>`;
       const n = t === 'inbox' ? store.all(t).filter((r) => !r.da_xu_ly).length : store.all(t).length;
       return html`<a class="tile" href="#/bang/${t}"><span class="tile-icon">${TABLE_META[t].icon}</span><span>${l}</span><em>${n}</em></a>`;
     })}</div>

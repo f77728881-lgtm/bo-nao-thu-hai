@@ -5,6 +5,7 @@ import * as store from './store.js';
 import * as V from './views.js';
 import { openRecord } from './form.js';
 import { parse } from './quickadd.js';
+import { notesView, bindNotes, openNote } from './notes.js';
 import { toast, errorToast, openSheet, closeSheet, TABLE_META } from './ui.js';
 import { html, esc, whenLabel, debounce } from './util.js';
 
@@ -14,6 +15,7 @@ let searchQ = '';
 // ---------------- Điều hướng ----------------
 const ROUTES = {
   'hom-nay': () => V.todayView(),
+  'ghi-chu': () => notesView(),
   viec: () => V.tasksView(),
   'van-ban': () => V.docsView(),
   lich: () => V.calendarView(),
@@ -33,15 +35,17 @@ function render() {
   // Liên kết từ Google Calendar: #/viec/V-xxx → mở bản ghi
   if (arg && store.schema()?.[route.replace('-', '_')] && route !== 'bang') {
     const table = route.replace('-', '_');
-    setTimeout(() => openRecord(table, arg), 0);
+    setTimeout(() => (table === 'ghi_chu' ? openNote(arg) : openRecord(table, arg)), 0);
   }
   const view = ROUTES[route] || ROUTES['hom-nay'];
-  const keepFocus = document.activeElement?.id === 'search-input';
+  const focusId = ['search-input', 'note-search'].includes(document.activeElement?.id) ? document.activeElement.id : null;
+  const keepFocus = !!focusId;
   const caret = keepFocus ? document.activeElement.selectionStart : 0;
   main.innerHTML = view(arg).__raw;
   document.querySelectorAll('.nav a').forEach((a) => a.classList.toggle('on', a.dataset.route === route || (route === 'bang' && a.dataset.route === 'them')));
+  if (route === 'ghi-chu') bindNotes(main, render);
   if (keepFocus || route === 'tim') {
-    const inp = document.getElementById('search-input');
+    const inp = document.getElementById(focusId || 'search-input');
     if (inp) { inp.focus(); if (keepFocus) inp.setSelectionRange(caret, caret); }
   }
   renderStatus();
@@ -88,7 +92,11 @@ document.addEventListener('click', async (e) => {
     } catch (err) { errorToast(err); }
     return;
   }
-  if (t.matches('[data-open]')) { const [table, id] = t.dataset.open.split('/'); openRecord(table, id); return; }
+  if (t.matches('[data-open]')) {
+    const [table, id] = t.dataset.open.split('/');
+    if (table === 'ghi_chu') openNote(id); else openRecord(table, id);
+    return;
+  }
   if (t.matches('[data-new]')) { openRecord(t.dataset.new, null); return; }
   if (t.matches('[data-task-mode]')) { V.setTaskMode(t.dataset.taskMode); render(); return; }
   if (t.matches('[data-doc-filter]')) { V.setDocFilter(t.dataset.docFilter); render(); return; }
@@ -99,7 +107,7 @@ document.addEventListener('click', async (e) => {
     if (!Auth.valid() && !isDemo()) { Auth.refresh(); return; }
     store.sync(); return;
   }
-  if (t.id === 'fab') openQuickAdd();
+  if (t.id === 'fab') { if (parseHash()[0] === 'ghi-chu') openNote(null); else openQuickAdd(); }
 });
 
 document.addEventListener('change', (e) => {
@@ -113,7 +121,7 @@ document.addEventListener('input', (e) => { if (e.target.id === 'search-input') 
 document.addEventListener('keydown', (e) => {
   const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName);
   if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
-  if (e.key === 'n' || e.key === '+') { e.preventDefault(); openQuickAdd(); }
+  if (e.key === 'n' || e.key === '+') { e.preventDefault(); if (parseHash()[0] === 'ghi-chu') openNote(null); else openQuickAdd(); }
   if (e.key === '/') { e.preventDefault(); location.hash = '#/tim'; }
 });
 
@@ -154,6 +162,7 @@ function openQuickAdd() {
     const p = parsed;
     sheet.close();
     try {
+      if (p.type === 'ghi_chu' && !p.data.nhan) p.data.nhan = ['#0_Inbox'];
       await store.create(p.type, p.data);
       toast(`Đã thêm ${TYPE_LABEL[p.type].slice(2).toLowerCase()}: ${p.title || p.data.noi_dung}`, { kind: 'ok' });
     } catch (err) { errorToast(err); }

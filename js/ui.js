@@ -20,7 +20,8 @@ export const TABLE_META = {
   thoi_quen: { icon: '🔁', ic: 'check', label: 'Thói quen', plural: 'Thói quen' },
   diem_danh: { icon: '✔️', ic: 'check', label: 'Điểm danh', plural: 'Điểm danh' },
   lo_trinh: { icon: '🧭', ic: 'travel', label: 'Lộ trình', plural: 'Lộ trình' },
-  buoi_hoc: { icon: '📘', ic: 'note', label: 'Buổi học/tập', plural: 'Buổi học/tập' }
+  buoi_hoc: { icon: '📘', ic: 'note', label: 'Buổi học/tập', plural: 'Buổi học/tập' },
+  nhat_ky_ngay: { icon: '🌙', ic: 'moon', label: 'Nhật ký ngày', plural: 'Nhật ký ngày' }
 };
 
 export const LABELS = {

@@ -9,6 +9,7 @@ import { notesView, bindNotes, openNote } from './notes.js';
 import { travelView, bindTravel, openTrip } from './travel.js';
 import { settingsView, bindSettings, applyPrefs } from './settings.js';
 import { captureShare, handlePendingShare } from './share.js';
+import { journalView, bindJournal, openReview } from './review.js';
 import { trainingView, bindTraining, toggleHabit, openSession, openProgram } from './training.js';
 import { toast, errorToast, openSheet, closeSheet, TABLE_META } from './ui.js';
 import { html, esc, whenLabel, debounce } from './util.js';
@@ -23,6 +24,7 @@ const ROUTES = {
   'hanh-trinh': () => travelView(),
   'cai-dat': () => settingsView(),
   'ren-luyen': () => trainingView(),
+  'nhat-ky': () => journalView(),
   viec: () => V.tasksView(),
   'van-ban': () => V.docsView(),
   lich: () => V.calendarView(),
@@ -54,6 +56,7 @@ function render() {
   if (route === 'hanh-trinh') bindTravel(main, render);
   if (route === 'cai-dat') bindSettings(main, render);
   if (route === 'ren-luyen') bindTraining(main, render);
+  if (route === 'nhat-ky') bindJournal(main);
   if (keepFocus || route === 'tim') {
     const inp = document.getElementById(focusId || 'search-input');
     if (inp) { inp.focus(); if (keepFocus) inp.setSelectionRange(caret, caret); }
@@ -88,7 +91,7 @@ function renderStatus() {
 
 // ---------------- Sự kiện giao diện ----------------
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-habit-toggle],[data-session],[data-trip],[data-lunar],[data-toggle-task],[data-open],[data-new],[data-task-mode],[data-doc-filter],[data-cal-day],[data-cal-nav],[data-cal-today],#sync-status,#fab');
+  const t = e.target.closest('[data-review],[data-habit-toggle],[data-session],[data-trip],[data-lunar],[data-toggle-task],[data-open],[data-new],[data-task-mode],[data-doc-filter],[data-cal-day],[data-cal-nav],[data-cal-today],#sync-status,#fab');
   if (!t) return;
   if (t.closest('.sheet') && !t.matches('[data-toggle-task]')) return; // trong biểu mẫu tự xử lý
   if (t.matches('[data-toggle-task]')) {
@@ -102,6 +105,7 @@ document.addEventListener('click', async (e) => {
     } catch (err) { errorToast(err); }
     return;
   }
+  if (t.matches('[data-review]')) { openReview(); return; }
   if (t.matches('[data-habit-toggle]')) { toggleHabit(t.dataset.habitToggle); return; }
   if (t.matches('[data-session]')) { openSession(t.dataset.session); return; }
   if (t.matches('[data-trip]')) { openTrip(t.dataset.trip); return; }

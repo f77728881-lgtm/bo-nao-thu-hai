@@ -6,6 +6,7 @@ import { lunarInfo, hourChiIndex } from './lunar.js';
 import { icon } from './icons.js';
 import { upcomingTripCard } from './travel.js';
 import { habitStrip, todaySessions } from './training.js';
+import { todayReviewCards } from './review.js';
 
 const isOpen = (v) => v.trang_thai !== 'Xong';
 const byWhen = (f) => (a, b) => ((a[f] || '9999') < (b[f] || '9999') ? -1 : (a[f] || '9999') > (b[f] || '9999') ? 1 : 0);
@@ -45,6 +46,7 @@ export function todayView() {
         <div class="stat stat-green"><b>${doneToday}</b><span>đã xong</span></div>
       </div>
     </header>
+    ${todayReviewCards()}
     ${upcomingTripCard()}
     ${habitStrip()}
     <div class="grid">
@@ -240,9 +242,10 @@ export function tableView(table) {
 }
 
 export function moreView() {
-  const items = [['ren-luyen', 'Rèn luyện'], ['cai-dat', 'Cài đặt'], ['hanh-trinh', 'Hành trình'], ['lich', 'Lịch'], ['inbox', 'Inbox'], ['du_an', 'Dự án'], ['dia_diem', 'Địa điểm'], ['nguoi', 'Người liên hệ'], ['su_kien', 'Sự kiện'], ['linh_vuc', 'Lĩnh vực'], ['don_vi', 'Đơn vị']];
+  const items = [['nhat-ky', 'Nhật ký & tâm trạng'], ['ren-luyen', 'Rèn luyện'], ['cai-dat', 'Cài đặt'], ['hanh-trinh', 'Hành trình'], ['lich', 'Lịch'], ['inbox', 'Inbox'], ['du_an', 'Dự án'], ['dia_diem', 'Địa điểm'], ['nguoi', 'Người liên hệ'], ['su_kien', 'Sự kiện'], ['linh_vuc', 'Lĩnh vực'], ['don_vi', 'Đơn vị']];
   return html`<header class="page-head"><h1>Thêm</h1></header>
     <div class="tiles">${items.map(([t, l]) => {
+      if (t === 'nhat-ky') return html`<a class="tile" href="#/nhat-ky"><span class="tile-icon">${icon('moon')}</span><span>${l}</span><em>tổng kết cuối ngày</em></a>`;
       if (t === 'ren-luyen') return html`<a class="tile" href="#/ren-luyen"><span class="tile-icon">${icon('spark')}</span><span>${l}</span><em>thói quen, lộ trình</em></a>`;
       if (t === 'cai-dat') return html`<a class="tile" href="#/cai-dat"><span class="tile-icon">${icon('settings')}</span><span>${l}</span><em>giao diện, cỡ chữ</em></a>`;
       if (t === 'hanh-trinh') return html`<a class="tile" href="#/hanh-trinh"><span class="tile-icon">${icon('travel')}</span><span>${l}</span><em>${store.all('chuyen_di').length} chuyến</em></a>`;

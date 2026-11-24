@@ -8,6 +8,7 @@ import { parse } from './quickadd.js';
 import { notesView, bindNotes, openNote } from './notes.js';
 import { travelView, bindTravel, openTrip } from './travel.js';
 import { settingsView, bindSettings, applyPrefs } from './settings.js';
+import { captureShare, handlePendingShare } from './share.js';
 import { toast, errorToast, openSheet, closeSheet, TABLE_META } from './ui.js';
 import { html, esc, whenLabel, debounce } from './util.js';
 
@@ -231,6 +232,7 @@ main.addEventListener('touchend', () => {
 // ---------------- Khởi động ----------------
 async function start() {
   applyPrefs();
+  captureShare(); // nội dung chia sẻ từ app khác (Zalo, tin nhắn…)
   if (isDemo()) document.body.classList.add('demo');
   Auth.load();
   await store.init();
@@ -238,6 +240,7 @@ async function start() {
   Auth.onChange((ok) => { if (ok) store.sync(); render(); });
   window.addEventListener('hashchange', () => { closeSheet(); render(); });
   render();
+  setTimeout(handlePendingShare, 300);
   Auth.init().then(() => {
     if (Auth.valid() || isDemo()) return;
     // Có dữ liệu trên máy: vẫn cho xem (ngoại tuyến), thử xin phiên mới lặng lẽ. Chưa có gì: hiện màn đăng nhập.

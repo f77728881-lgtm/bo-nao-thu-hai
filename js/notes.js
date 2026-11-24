@@ -4,6 +4,7 @@ import * as store from './store.js';
 import { html, raw, esc, fold, whenLabel } from './util.js';
 import { openSheet, toast, errorToast } from './ui.js';
 import { icon } from './icons.js';
+import { PROMPT_LABEL, isPrompt, promptCardExtra, usePrompt, addStarterPrompts } from './prompts.js';
 
 export const MAIN_LABELS = [
   { key: '#0_Inbox', name: 'Inbox', ic: 'inbox', hint: 'Mới nhập, chưa phân loại' },
@@ -54,8 +55,10 @@ function visibleNotes() {
   if (query) {
     const q = fold(query).split(' ');
     notes = notes.filter((n) => { const t = fold([n.tieu_de, n.noi_dung, (n.nhan || []).join(' '), n.url].join(' ')); return q.every((x) => t.includes(x)); });
+  } else if (tab === PROMPT_LABEL) {
+    notes = notes.filter(isPrompt);
   } else if (tab !== 'all') {
-    notes = notes.filter((n) => (MAIN_KEYS.includes(tab) ? mainLabel(n) === tab : (n.nhan || []).includes(tab)));
+    notes = notes.filter((n) => !isPrompt(n) && (MAIN_KEYS.includes(tab) ? mainLabel(n) === tab : (n.nhan || []).includes(tab)));
   }
   return notes.sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1));
 }
@@ -74,9 +77,10 @@ function card(n) {
     const text = String(n.noi_dung || '');
     body = text ? html`<div class="n-text">${text.length > 600 ? text.slice(0, 600) + '…' : text}</div>` : '';
   }
-  const showMain = tab === 'all' || query;
-  const tags = [...(showMain ? [mainLabel(n)] : []), ...extraLabels(n)];
-  return html`<article class="note ${colorClass(n.mau)} ${n._pending ? 'is-pending' : ''}" data-note="${n.id}" tabindex="0">
+  const showMain = (tab === 'all' || query) && !isPrompt(n);
+  const tags = [...(showMain ? [mainLabel(n)] : []), ...extraLabels(n).filter((x) => x !== PROMPT_LABEL || tab !== PROMPT_LABEL)];
+  if (isPrompt(n)) body = html`<div class="n-text n-prompt">${String(n.noi_dung || '').slice(0, 280)}${String(n.noi_dung || '').length > 280 ? '…' : ''}</div>${promptCardExtra(n)}`;
+  return html`<article class="note ${isPrompt(n) ? 'is-prompt' : ''} ${colorClass(n.mau)} ${n._pending ? 'is-pending' : ''}" data-note="${n.id}" tabindex="0">
     ${n.ghim ? html`<span class="n-pin" title="Đã ghim">${icon('pin')}</span>` : ''}
     ${n.tieu_de && n.tieu_de !== n.noi_dung ? html`<h3 class="n-title">${n.tieu_de}</h3>` : ''}
     ${body}
@@ -92,8 +96,11 @@ function card(n) {
 
 export function notesView() {
   const all = store.all('ghi_chu');
-  const counts = Object.fromEntries(MAIN_KEYS.map((k) => [k, all.filter((n) => mainLabel(n) === k).length]));
-  const others = [...new Set(all.flatMap(extraLabels))].sort((a, b) => fold(a).localeCompare(fold(b)));
+  const plain = all.filter((n) => !isPrompt(n));
+  const prompts = all.filter(isPrompt);
+  const counts = Object.fromEntries(MAIN_KEYS.map((k) => [k, plain.filter((n) => mainLabel(n) === k).length]));
+  const others = [...new Set(plain.flatMap(extraLabels))].sort((a, b) => fold(a).localeCompare(fold(b)));
+  const isPromptTab = tab === PROMPT_LABEL && !query;
   const notes = visibleNotes();
   const pinned = notes.filter((n) => n.ghim), rest = notes.filter((n) => !n.ghim);
   const cur = MAIN_LABELS.find((l) => l.key === tab);
@@ -102,13 +109,14 @@ export function notesView() {
       <input class="n-search" type="search" id="note-search" placeholder="Tìm trong ghi chú…" value="${query}" autocomplete="off"></header>
     <nav class="label-tabs" aria-label="Nhãn">
       ${MAIN_LABELS.map((l) => html`<button class="ltab ${tab === l.key && !query ? 'on' : ''}" data-note-tab="${l.key}" title="${l.hint}">${icon(l.ic)} ${l.key}<em>${counts[l.key]}</em></button>`)}
-      <button class="ltab ${tab === 'all' && !query ? 'on' : ''}" data-note-tab="all">Tất cả<em>${all.length}</em></button>
+      <button class="ltab ltab-prompt ${isPromptTab ? 'on' : ''}" data-note-tab="${PROMPT_LABEL}" title="Mẫu prompt cho công cụ AI">${icon('spark')} Prompt<em>${prompts.length}</em></button>
+      <button class="ltab ${tab === 'all' && !query ? 'on' : ''}" data-note-tab="all">Tất cả<em>${plain.length}</em></button>
       ${others.map((o) => html`<button class="ltab small ${tab === o && !query ? 'on' : ''}" data-note-tab="${o}">🏷 ${o}</button>`)}
     </nav>
     <div class="composer-row"><button class="composer" data-note-new>
-      <span>${tab === '#3_Archive' ? 'Lưu một ghi chú tra cứu…' : 'Ghi chú mới…'}</span><span class="composer-icons"><i data-note-new-check title="Danh sách việc">${icon('list')}</i></span>
+      <span>${isPromptTab ? 'Prompt mới… (dùng {{tên biến}} cho chỗ cần điền)' : tab === '#3_Archive' ? 'Lưu một ghi chú tra cứu…' : 'Ghi chú mới…'}</span><span class="composer-icons"><i data-note-new-check title="Danh sách việc">${icon('list')}</i></span>
     </button><button class="paste-btn" data-note-paste title="Dán từ bộ nhớ tạm thành ghi chú mới">${icon('paste')}<span>Dán</span></button></div>
-    ${query ? html`<p class="hint">${notes.length} ghi chú khớp “${query}” trong mọi nhãn.</p>` : cur ? html`<p class="hint">${cur.hint}</p>` : ''}
+    ${query ? html`<p class="hint">${notes.length} ghi chú khớp “${query}” trong mọi nhãn.</p>` : cur ? html`<p class="hint">${cur.hint}</p>` : isPromptTab ? html`<p class="hint">Viết prompt có chỗ trống {{…}}, bấm “Dùng” để điền rồi sao chép sang ChatGPT, Claude, Gemini. <button class="link" data-prompt-starter>Thêm bộ prompt mẫu</button></p>` : ''}
     ${pinned.length ? html`<h4 class="n-group">Đã ghim</h4><div class="masonry">${pinned.map(card)}</div>` : ''}
     ${pinned.length && rest.length ? html`<h4 class="n-group">Khác</h4>` : ''}
     ${rest.length ? html`<div class="masonry">${rest.map(card)}</div>` : ''}
@@ -142,6 +150,8 @@ export function bindNotes(root, rerender) {
     b.classList.add('done');
     try { await store.update('ghi_chu', id, { noi_dung: lines.join('\n') }); } catch (err) { errorToast(err); }
   }));
+  root.querySelectorAll('[data-prompt-use]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); usePrompt(b.dataset.promptUse, copyText); }));
+  root.querySelector('[data-prompt-starter]')?.addEventListener('click', () => addStarterPrompts());
   root.querySelectorAll('[data-note-copy]').forEach((b) => b.addEventListener('click', async (e) => {
     e.stopPropagation();
     const n = store.get('ghi_chu', b.dataset.noteCopy);
@@ -184,7 +194,7 @@ export function bindNotes(root, rerender) {
 // ---------------- Trình soạn (tự lưu khi đóng, như Keep) ----------------
 export function openNote(id, { checklist = false, defaults = {} } = {}) {
   const n = id ? store.get('ghi_chu', id) : null;
-  const startLabel = MAIN_KEYS.includes(tab) ? tab : INBOX;
+  const startLabel = MAIN_KEYS.includes(tab) || tab === PROMPT_LABEL ? tab : INBOX;
   const st = {
     tieu_de: n?.tieu_de || defaults.tieu_de || '',
     noi_dung: n?.noi_dung || defaults.noi_dung || '',
@@ -216,6 +226,7 @@ export function openNote(id, { checklist = false, defaults = {} } = {}) {
       <div class="ne-row colors" role="radiogroup" aria-label="Màu">${COLORS.map((c) => html`<button class="swatch ${colorClass(c)} ${st.mau === c ? 'on' : ''}" data-color="${c}" title="${c}" aria-label="${c}"></button>`)}</div>
       <div class="ne-toolbar">
         <button class="btn btn-ghost" data-pin>${st.ghim ? '📌 Bỏ ghim' : '📌 Ghim'}</button>
+        ${st.nhan.includes(PROMPT_LABEL) ? html`<button class="btn btn-ghost" data-addvar>{{ }} Chèn chỗ trống</button>` : ''}
         <button class="btn btn-ghost" data-copy>${icon('copy')} Sao chép</button>
         <button class="btn btn-ghost" data-mode>${st.checklist ? '📝 Văn bản' : '☑️ Danh sách'}</button>
         ${n ? html`<button class="btn btn-ghost" data-totask>✅ Tạo việc</button><button class="btn btn-ghost danger" data-trash>🗑 Xóa</button>` : ''}
@@ -264,6 +275,12 @@ export function openNote(id, { checklist = false, defaults = {} } = {}) {
     nw?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); collect(); render(); box.querySelector('.ne-new').focus(); } });
     box.querySelector('[data-done]').onclick = () => sheet.close();
     box.querySelector('[data-copy]').onclick = async () => { collect(); if (await copyText(noteText(st))) toast('Đã sao chép'); };
+    box.querySelector('[data-addvar]')?.addEventListener('click', () => {
+      const ta = box.querySelector('.ne-body'); if (!ta) return;
+      const name = prompt('Tên chỗ trống (ví dụ: đơn vị nhận, hạn, nội dung)'); if (!name) return;
+      const ins = `{{${name.trim()}}}`; const a = ta.selectionStart, b = ta.selectionEnd;
+      ta.value = ta.value.slice(0, a) + ins + ta.value.slice(b); ta.focus(); ta.selectionStart = ta.selectionEnd = a + ins.length;
+    });
     box.querySelector('[data-trash]')?.addEventListener('click', async () => {
       closing = 'trash';
       sheet.close();

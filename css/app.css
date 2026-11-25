@@ -587,3 +587,7 @@ html[data-theme="dark"] .care { color: var(--text); }
 .flash-no { color: var(--q1); border-color: var(--q1); }
 .flash-done { text-align: center; display: grid; gap: 10px; justify-items: center; padding: 20px 0; }
 .flash-done .big { font-size: 1.4rem; margin: 0; }
+
+.doffice-form { display: grid; gap: 8px; margin-top: 6px; }
+.doffice-form label { display: grid; gap: 4px; font-size: .92em; }
+.doffice-form input { font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: inherit; }

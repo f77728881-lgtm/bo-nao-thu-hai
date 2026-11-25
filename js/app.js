@@ -248,7 +248,7 @@ async function start() {
   if (isDemo()) document.body.classList.add('demo');
   Auth.load();
   await store.init();
-  const rerender = debounce(() => { if (!document.querySelector('.sheet-wrap')) render(); else renderStatus(); }, 60);
+  const rerender = debounce(() => { if (!document.querySelector('.sheet-wrap') && !document.activeElement?.closest?.('[data-doffice-form]')) render(); else renderStatus(); }, 60);
   store.subscribe(rerender);
   gcal.subscribe(rerender);
   Auth.onChange((ok) => { if (ok) store.sync(); render(); });

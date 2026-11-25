@@ -37,6 +37,30 @@ export function setPref(k, v) {
 }
 
 const backup = { loaded: false, data: null, msg: '' };
+const doff = { loaded: false, data: null, msg: '', busy: false };
+function dofficeCard() {
+  const d = doff.data;
+  const when = (iso) => (iso ? new Date(iso).toLocaleString('vi-VN') : '');
+  let line = 'Chưa nhập tài khoản. App sẽ tự lấy văn bản Chủ trì/Phối hợp và lịch tuần công ty lúc 7:30 và 13:30 mỗi ngày.';
+  if (d && d.da_cai) {
+    line = d.ok === false
+      ? `⚠️ Lần chạy ${when(d.luc)} lỗi: ${d.loi}`
+      : d.luc ? `✅ Lần chạy ${when(d.luc)}: ${d.so_dong ?? 0} văn bản đang giao${d.moi?.length ? `, ${d.moi.length} mới` : ''}${d.lich ? ` · lịch tuần ${d.lich.so_lich} mục` : ''}.` : 'Đã lưu tài khoản, chưa chạy lần nào.';
+  }
+  return html`<section class="card settings">
+    <h3 class="card-title">${icon('doc')} D-Office</h3>
+    <p class="row-meta">${line}</p>
+    ${d && d.loi_lich ? html`<p class="hint">Lịch tuần: ${d.loi_lich}</p>` : ''}
+    <form class="doffice-form" data-doffice-form autocomplete="off">
+      <label>Tên đăng nhập<input name="username" value="${d?.tai_khoan || ''}" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+      <label>Mật khẩu ${d?.da_cai ? html`<i class="hint">(để trống = giữ mật khẩu cũ)</i>` : ''}<input name="password" type="password" autocomplete="new-password"></label>
+      <div class="opts"><button class="btn" type="submit" ${doff.busy ? 'disabled' : ''}>${doff.busy ? 'Đang kiểm tra…' : d?.da_cai ? 'Cập nhật & kiểm tra' : 'Lưu & kiểm tra'}</button>
+        ${d?.da_cai ? html`<button class="btn btn-ghost" type="button" data-doffice-run ${doff.busy ? 'disabled' : ''}>Lấy ngay</button><button class="btn btn-ghost" type="button" data-doffice-del>Xóa tài khoản</button>` : ''}</div>
+    </form>
+    ${doff.msg ? html`<p class="hint">${doff.msg}</p>` : ''}
+    <p class="hint">Mật khẩu chỉ lưu trên máy chủ Google của anh, app không hiện lại. Đổi mật khẩu D-Office (90 ngày) thì nhập mật khẩu mới ở đây. Chỉ đọc, không xử lý gì trên D-Office.</p>
+  </section>`;
+}
 const fmt = (iso) => new Date(iso).toLocaleString('vi-VN');
 function backupLine() {
   const r = backup.data;
@@ -68,6 +92,7 @@ export function settingsView() {
         <div class="opts"><button class="btn btn-ghost" data-sync-now>Đồng bộ ngay</button>${!isDemo() && Auth.email ? html`<button class="btn btn-ghost" data-logout>Đăng xuất</button>` : ''}</div>
         <p class="hint">Cài đặt giao diện lưu riêng trên từng máy.</p>
       </section>
+      ${isDemo() ? '' : dofficeCard()}
       <section class="card settings">
         <h3 class="card-title">${icon('calendar')} Lịch Google hiển thị</h3>
         <p class="row-meta">Sự kiện từ các lịch này hiện chung trên màn Lịch và Hôm nay (chỉ xem; chạm để mở trong Google Calendar).</p>
@@ -90,6 +115,25 @@ export function bindSettings(root, rerender) {
   }));
   root.querySelector('[data-sync-now]')?.addEventListener('click', () => store.sync());
   root.querySelectorAll('[data-gcal]').forEach((cb) => cb.addEventListener('change', () => gcal.setShown(cb.dataset.gcal, cb.checked)));
+  if (!isDemo() && !doff.loaded) {
+    doff.loaded = true;
+    store.action('doffice_trang_thai', {}).then((r) => { doff.data = r; rerender(); }).catch(() => {});
+  }
+  const dofRun = async (action, payload, okMsg) => {
+    doff.busy = true; doff.msg = ''; rerender();
+    try { doff.data = await store.action(action, payload); doff.msg = doff.data.ok === false ? '' : okMsg; }
+    catch (err) { doff.msg = 'Lỗi: ' + (err.message || err); }
+    doff.busy = false; rerender();
+  };
+  root.querySelector('[data-doffice-form]')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    dofRun('doffice_tai_khoan', { username: String(f.get('username') || '').trim(), password: String(f.get('password') || '') }, 'Đăng nhập được. Đã lấy văn bản và lịch tuần.');
+  });
+  root.querySelector('[data-doffice-run]')?.addEventListener('click', () => dofRun('doffice_dong_bo', {}, 'Đã lấy xong.'));
+  root.querySelector('[data-doffice-del]')?.addEventListener('click', () => {
+    if (confirm('Xóa tài khoản D-Office khỏi máy chủ và dừng tự cập nhật?')) dofRun('doffice_tai_khoan', { xoa: true }, 'Đã xóa tài khoản D-Office.');
+  });
   if (!backup.loaded) {
     backup.loaded = true;
     store.action('sao_luu', {}).then((r) => { backup.data = r; rerender(); }).catch(() => {});

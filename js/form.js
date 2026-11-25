@@ -19,6 +19,7 @@ const PRIMARY = {
   chuyen_di: ['ten', 'diem_den', 'tu_ngay', 'den_ngay', 'trang_thai', 'loai', 'phuong_tien', 'di_cung', 'ngan_sach', 'chi_phi', 'danh_gia', 'album', 'ghi_chu'],
   thoi_quen: ['ten', 'bieu_tuong', 'tan_suat', 'ngay_trong_tuan', 'so_lan_tuan', 'gio_nhac', 'thoi_luong_phut', 'muc_tieu', 'bat_dau', 'trang_thai'],
   lo_trinh: ['ten', 'loai', 'muc_tieu', 'bat_dau', 'so_tuan', 'thoi_quen_id', 'trang_thai', 'cach_hoc', 'mo_ta'],
+  the_hoc: ['cau', 'pinyin', 'nghia', 'vi_du', 'chu_de', 'muc', 'on_ngay', 'ghi_chu'],
   buoi_hoc: ['tieu_de', 'ngay', 'gio', 'tuan', 'thu_tu', 'muc_tieu', 'noi_dung', 'bai_tap', 'tai_lieu', 'trang_thai'],
   nhat_ky_chuyen_di: ['ngay', 'tieu_de', 'noi_dung', 'tam_trang', 'dia_diem_ids', 'chi_tieu', 'chuyen_di_id']
 };

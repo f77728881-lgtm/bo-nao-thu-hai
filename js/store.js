@@ -3,7 +3,7 @@ import { call, isDemo, ApiError } from './api.js';
 import { fold } from './util.js';
 
 const DB_NAME = isDemo() ? 'bnth-demo' : 'bnth';
-const TABLES = ['linh_vuc', 'du_an', 'viec', 'van_ban', 'don_vi', 'theo_doi_dv', 'su_kien', 'ghi_chu', 'dia_diem', 'nguoi', 'inbox', 'chuyen_di', 'nhat_ky_chuyen_di', 'thoi_quen', 'diem_danh', 'lo_trinh', 'buoi_hoc', 'nhat_ky_ngay'];
+const TABLES = ['linh_vuc', 'du_an', 'viec', 'van_ban', 'don_vi', 'theo_doi_dv', 'su_kien', 'ghi_chu', 'dia_diem', 'nguoi', 'inbox', 'chuyen_di', 'nhat_ky_chuyen_di', 'thoi_quen', 'diem_danh', 'lo_trinh', 'buoi_hoc', 'nhat_ky_ngay', 'the_hoc'];
 
 const state = {
   tables: Object.fromEntries(TABLES.map((t) => [t, new Map()])),
@@ -216,7 +216,7 @@ async function flushOutbox() {
 }
 
 // ---------------- Tìm kiếm trên máy ----------------
-const SEARCH_TABLES = ['viec', 'van_ban', 'su_kien', 'ghi_chu', 'dia_diem', 'nguoi', 'du_an', 'inbox', 'don_vi', 'chuyen_di', 'nhat_ky_chuyen_di', 'thoi_quen', 'lo_trinh', 'buoi_hoc'];
+const SEARCH_TABLES = ['viec', 'van_ban', 'su_kien', 'ghi_chu', 'dia_diem', 'nguoi', 'du_an', 'inbox', 'don_vi', 'chuyen_di', 'nhat_ky_chuyen_di', 'thoi_quen', 'lo_trinh', 'buoi_hoc', 'the_hoc'];
 
 export function search(q, { limit = 60 } = {}) {
   const query = fold(q);

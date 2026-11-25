@@ -5,6 +5,7 @@ import { openSheet, toast, errorToast, closeSheet } from './ui.js';
 import { openRecord } from './form.js';
 import { icon } from './icons.js';
 import { copyText } from './notes.js';
+import { flashStrip } from './flashcards.js';
 
 let tab = 'habits';
 export const setTrainingTab = (t) => { tab = t; };
@@ -140,6 +141,7 @@ export function trainingView() {
       <div class="filters" style="margin:0"><button class="btn btn-ghost" data-new="${tab === 'programs' ? 'lo_trinh' : 'thoi_quen'}">+ ${tab === 'programs' ? 'Lộ trình' : 'Thói quen'}</button></div></header>
     <div class="seg" style="margin-bottom:14px">${[['habits', 'Thói quen'], ['programs', 'Lộ trình']].map(([k, l]) => html`<button class="${tab === k ? 'on' : ''}" data-training-tab="${k}">${l}</button>`)}</div>
     ${tab === 'habits' ? habitStrip() : todaySessions()}
+    ${tab === 'programs' ? flashStrip() : ''}
     ${body}`;
 }
 

@@ -14,6 +14,7 @@ import { trainingView, bindTraining, toggleHabit, openSession, openProgram } fro
 import { toast, errorToast, openSheet, closeSheet, TABLE_META } from './ui.js';
 import { html, esc, whenLabel, debounce } from './util.js';
 import * as gcal from './extcal.js';
+import { handleFlash } from './flashcards.js';
 
 const main = document.getElementById('main');
 let searchQ = '';
@@ -92,7 +93,7 @@ function renderStatus() {
 
 // ---------------- Sự kiện giao diện ----------------
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-review],[data-habit-toggle],[data-session],[data-trip],[data-lunar],[data-toggle-task],[data-open],[data-new],[data-task-mode],[data-doc-filter],[data-cal-day],[data-cal-nav],[data-cal-today],#sync-status,#fab');
+  const t = e.target.closest('[data-flash],[data-review],[data-habit-toggle],[data-session],[data-trip],[data-lunar],[data-toggle-task],[data-open],[data-new],[data-task-mode],[data-doc-filter],[data-cal-day],[data-cal-nav],[data-cal-today],#sync-status,#fab');
   if (!t) return;
   if (t.closest('.sheet') && !t.matches('[data-toggle-task]')) return; // trong biểu mẫu tự xử lý
   if (t.matches('[data-toggle-task]')) {
@@ -120,6 +121,7 @@ document.addEventListener('click', async (e) => {
     if (table === 'ghi_chu') openNote(id); else if (table === 'chuyen_di') openTrip(id); else if (table === 'lo_trinh') openProgram(id); else if (table === 'buoi_hoc') openSession(id); else openRecord(table, id);
     return;
   }
+  if (t.matches('[data-flash]')) { handleFlash(t.dataset.flash); return; }
   if (t.matches('[data-new]')) { openRecord(t.dataset.new, null); return; }
   if (t.matches('[data-task-mode]')) { V.setTaskMode(t.dataset.taskMode); render(); return; }
   if (t.matches('[data-doc-filter]')) { V.setDocFilter(t.dataset.docFilter); render(); return; }

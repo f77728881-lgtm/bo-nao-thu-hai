@@ -21,7 +21,8 @@ export const TABLE_META = {
   diem_danh: { icon: '✔️', ic: 'check', label: 'Điểm danh', plural: 'Điểm danh' },
   lo_trinh: { icon: '🧭', ic: 'travel', label: 'Lộ trình', plural: 'Lộ trình' },
   buoi_hoc: { icon: '📘', ic: 'note', label: 'Buổi học/tập', plural: 'Buổi học/tập' },
-  nhat_ky_ngay: { icon: '🌙', ic: 'moon', label: 'Nhật ký ngày', plural: 'Nhật ký ngày' }
+  nhat_ky_ngay: { icon: '🌙', ic: 'moon', label: 'Nhật ký ngày', plural: 'Nhật ký ngày' },
+  the_hoc: { icon: '🀄', ic: 'note', label: 'Câu cần nhớ', plural: 'Sổ câu' }
 };
 
 export const LABELS = {

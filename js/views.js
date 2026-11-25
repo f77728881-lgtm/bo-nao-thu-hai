@@ -8,6 +8,7 @@ import { upcomingTripCard } from './travel.js';
 import { habitStrip, todaySessions } from './training.js';
 import { todayReviewCards } from './review.js';
 import * as gcal from './extcal.js';
+import { flashStrip } from './flashcards.js';
 
 const isOpen = (v) => v.trang_thai !== 'Xong';
 const byWhen = (f) => (a, b) => ((a[f] || '9999') < (b[f] || '9999') ? -1 : (a[f] || '9999') > (b[f] || '9999') ? 1 : 0);
@@ -57,6 +58,7 @@ export function todayView() {
     ${habitStrip()}
     <div class="grid">
       ${todaySessions()}
+      ${flashStrip({ compact: true })}
       ${lunarCard(t)}
       ${section('⏰ Quá hạn', overdue.map((v) => taskRow(v)), { limit: 5 })}
       ${section('📅 Hôm nay', [...agenda, ...due.map((v) => taskRow(v))], { empty: 'Không có việc hay lịch nào hôm nay.', limit: 10 })}

@@ -37,6 +37,18 @@ export function setPref(k, v) {
 }
 
 const backup = { loaded: false, data: null, msg: '' };
+const devs = { loaded: false, items: null, msg: '' };
+function devicesCard() {
+  const when = (iso) => (iso ? new Date(iso).toLocaleString('vi-VN') : '');
+  return html`<section class="card settings">
+    <h3 class="card-title">${icon('user')} Thiết bị đang đăng nhập</h3>
+    <p class="row-meta">Mỗi thiết bị giữ đăng nhập 90 ngày, không phải bấm đăng nhập lại.</p>
+    ${devs.items ? html`<ul class="backup-list">${devs.items.map((d) => html`<li>${d.ten}${d.hien_tai ? ' (máy này)' : ''} · dùng ${when(d.dung)} · hết hạn ${new Date(d.het_han).toLocaleDateString('vi-VN')}
+      ${d.hien_tai ? '' : html` <button class="btn btn-ghost btn-xs" data-dev-off="${d.id}">Đăng xuất</button>`}</li>`)}</ul>` : html`<p class="hint">Đang tải…</p>`}
+    ${devs.items && devs.items.length > 1 ? html`<div class="opts"><button class="btn btn-ghost" data-dev-others>Đăng xuất các thiết bị khác</button></div>` : ''}
+    ${devs.msg ? html`<p class="hint">${devs.msg}</p>` : ''}
+  </section>`;
+}
 const doff = { loaded: false, data: null, msg: '', busy: false, key: '' };
 function dofficeCard() {
   const d = doff.data;
@@ -101,6 +113,7 @@ export function settingsView() {
         <div class="opts"><button class="btn btn-ghost" data-sync-now>Đồng bộ ngay</button>${!isDemo() && Auth.email ? html`<button class="btn btn-ghost" data-logout>Đăng xuất</button>` : ''}</div>
         <p class="hint">Cài đặt giao diện lưu riêng trên từng máy.</p>
       </section>
+      ${isDemo() ? '' : devicesCard()}
       ${isDemo() ? '' : dofficeCard()}
       <section class="card settings">
         <h3 class="card-title">${icon('calendar')} Lịch Google hiển thị</h3>
@@ -124,6 +137,15 @@ export function bindSettings(root, rerender) {
   }));
   root.querySelector('[data-sync-now]')?.addEventListener('click', () => store.sync());
   root.querySelectorAll('[data-gcal]').forEach((cb) => cb.addEventListener('change', () => gcal.setShown(cb.dataset.gcal, cb.checked)));
+  const loadDevs = () => store.action('phien_ds', {}).then((r) => { devs.items = r.items; rerender(); }).catch(() => {});
+  if (!isDemo() && !devs.loaded && Auth.session) { devs.loaded = true; loadDevs(); }
+  root.querySelectorAll('[data-dev-off]').forEach((b) => b.addEventListener('click', async () => {
+    await store.action('phien_huy', { id: b.dataset.devOff }).catch(() => {}); devs.msg = 'Đã đăng xuất thiết bị đó.'; loadDevs();
+  }));
+  root.querySelector('[data-dev-others]')?.addEventListener('click', async () => {
+    if (!confirm('Đăng xuất tất cả thiết bị khác?')) return;
+    await store.action('phien_huy', { tat_ca: true, tru_may_nay: true }).catch(() => {}); devs.msg = 'Đã đăng xuất các thiết bị khác.'; loadDevs();
+  });
   if (!isDemo() && !doff.loaded) {
     doff.loaded = true;
     store.action('doffice_trang_thai', {}).then((r) => { doff.data = r; rerender(); }).catch(() => {});
@@ -160,7 +182,8 @@ export function bindSettings(root, rerender) {
     catch (err) { backup.msg = 'Sao lưu lỗi: ' + (err.message || err); }
     rerender();
   });
-  root.querySelector('[data-logout]')?.addEventListener('click', () => {
+  root.querySelector('[data-logout]')?.addEventListener('click', async () => {
+    try { if (Auth.session) await store.action('phien_huy', { hien_tai: true }); } catch { /* vẫn đăng xuất trên máy */ }
     Auth.clear();
     if (typeof google !== 'undefined') google.accounts.id.disableAutoSelect();
     location.hash = '#/hom-nay';

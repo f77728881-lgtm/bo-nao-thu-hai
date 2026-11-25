@@ -158,13 +158,23 @@ export function docRow(d) {
   </li>`;
 }
 
+/** Tiêu đề gọn: bỏ "[Doffice]", "PC:" và hiện thành nhãn nhỏ. */
+export function shortTitle(t) {
+  let s = String(t || '');
+  const tags = [];
+  if (/\[P3\]/i.test(s)) tags.push('P3');
+  if (/(^|\s)PC:/.test(s)) tags.push('PC');
+  s = s.replace(/\[Doffice\]\s*/gi, '').replace(/\[P3\]\s*/gi, '').replace(/^\s*PC:\s*/i, '').trim();
+  return { text: s, tags };
+}
+
 export function eventRow(e) {
   const t = e.bat_dau && e.bat_dau.length > 10 ? e.bat_dau.slice(11, 16) : 'Cả ngày';
   const end = e.ket_thuc && e.ket_thuc.length > 10 ? '–' + e.ket_thuc.slice(11, 16) : '';
   return html`<li class="row event ${e.trang_thai === 'Đã diễn ra' ? 'is-done' : ''} ${e.trang_thai === 'Hủy' ? 'is-cancel' : ''}" data-open="su_kien/${e.id}">
     <div class="ev-time">${t}${end}</div>
-    <div class="row-main"><div class="row-title">${e.ten}</div>
-      <div class="row-meta">${e.dia_diem ? html`<span>📍 ${e.dia_diem}</span>` : ''}${e.lap_lai ? html`<span class="tag">🔁 lặp lại</span>` : ''}</div></div>
+    <div class="row-main"><div class="row-title">${shortTitle(e.ten).tags.map((x) => html`<span class="tag tag-src ${x === 'P3' ? 'tag-p3' : ''}">${x}</span> `)}${shortTitle(e.ten).text}</div>
+      <div class="row-meta">${e.dia_diem ? html`<span class="loc">📍 ${e.dia_diem}</span>` : ''}${e.lap_lai ? html`<span class="tag">🔁 lặp lại</span>` : ''}</div></div>
   </li>`;
 }
 

@@ -9,15 +9,30 @@ import { habitStrip, todaySessions } from './training.js';
 import { todayReviewCards } from './review.js';
 import * as gcal from './extcal.js';
 import { flashStrip } from './flashcards.js';
+import * as weather from './weather.js';
 
 const isOpen = (v) => v.trang_thai !== 'Xong';
 const byWhen = (f) => (a, b) => ((a[f] || '9999') < (b[f] || '9999') ? -1 : (a[f] || '9999') > (b[f] || '9999') ? 1 : 0);
 
 // ---------------- Hôm nay ----------------
+let todayTab = localStorage.getItem('bnth.todayTab') || 'tat_ca';   // tat_ca | ca_nhan | doffice
+let statFilter = '';                                                  // '' | quahan | homnay | daxong
+export function setTodayTab(t) { todayTab = t; statFilter = ''; localStorage.setItem('bnth.todayTab', t); }
+export function setStatFilter(f) { statFilter = statFilter === f ? '' : f; }
+
+// Phân loại D-Office (công việc cơ quan) và cá nhân.
+const DOF_TITLE = /^\s*(\[Doffice\]|\[P3\]|PC:|EVN:|NPC:)/i;
+const isDofTask = (v) => v.nguon === 'Doffice' || (v.van_ban_ids || []).length > 0;
+const isDofEvent = (e) => e.nguon === 'Doffice' || !!e.doffice_id || DOF_TITLE.test(e.ten || '');
+const isMine = (title) => /\[P3\]/.test(title || '');
+const isUpper = (title) => /^\s*(\[Doffice\]\s*)?(\[P3\]\s*)?(EVN|NPC):/i.test(title || ''); // lịch cấp trên: không hiện (chỉ lấy lịch công ty)
+const inTab = (isDof) => todayTab === 'tat_ca' || (todayTab === 'doffice' ? isDof : !isDof);
+
 export function todayView() {
   const t = today();
   const in7 = addDays(t, 7);
-  const tasks = store.all('viec').filter(isOpen);
+  const allTasks = store.all('viec');
+  const tasks = allTasks.filter(isOpen).filter((v) => inTab(isDofTask(v)));
   const overdue = tasks.filter((v) => v.han && dayOf(v.han) < t).sort(byWhen('han'));
   const due = tasks.filter((v) => dayOf(v.han) === t).sort(byWhen('han'));
   const shown = new Set([...overdue, ...due].map((v) => v.id));
@@ -25,49 +40,88 @@ export function todayView() {
   q1.forEach((v) => shown.add(v.id));
   const doing = tasks.filter((v) => v.trang_thai === 'Đang làm' && !shown.has(v.id));
   const soon = tasks.filter((v) => { const d = dayOf(v.han); return d > t && d <= in7 && !shown.has(v.id) && !doing.includes(v); }).sort(byWhen('han'));
+  const doneToday = allTasks.filter((v) => v.trang_thai === 'Xong' && inTab(isDofTask(v)) && (v.hoan_thanh_luc || '').slice(0, 10) === new Date().toISOString().slice(0, 10));
 
+  // Lịch hôm nay: sự kiện trong app + lịch Google khác; bỏ lịch cấp trên.
   const events = store.all('su_kien').filter((e) => e.trang_thai !== 'Hủy').filter((e) => {
-    const s = dayOf(e.bat_dau), en = dayOf(e.ket_thuc) || s;
-    return (s <= t && en >= t) || (e.lap_lai && /FREQ=DAILY/.test(e.lap_lai) && s <= t);
-  }).sort((a, b) => (a.bat_dau.slice(11) || '00') < (b.bat_dau.slice(11) || '00') ? -1 : 1);
-
+    const st = dayOf(e.bat_dau), en = dayOf(e.ket_thuc) || st;
+    return (st <= t && en >= t) || (e.lap_lai && /FREQ=DAILY/.test(e.lap_lai) && st <= t);
+  }).filter((e) => !isUpper(e.ten) && inTab(isDofEvent(e)));
   const [gTu, gDen] = gridRange(t.slice(0, 7));
-  const gToday = gcal.eventsOn(t, gcal.eventsIn(gTu, gDen));
-  const agenda = [...events.map((e) => [gcal.timeKey(e.bat_dau), eventRow(e)]), ...gToday.map((e) => [gcal.timeKey(e.bat_dau), gcal.gcalRow(e)])]
-    .sort((a, b) => (a[0] < b[0] ? -1 : 1)).map((x) => x[1]);
+  const gToday = gcal.eventsOn(t, gcal.eventsIn(gTu, gDen)).filter((e) => !isUpper(e.ten) && inTab(DOF_TITLE.test(e.ten)));
+  const items = [...events.map((e) => ({ k: gcal.timeKey(e.bat_dau), mine: !isDofEvent(e) || isMine(e.ten), row: eventRow(e) })),
+    ...gToday.map((e) => ({ k: gcal.timeKey(e.bat_dau), mine: !DOF_TITLE.test(e.ten) || isMine(e.ten), row: gcal.gcalRow(e) }))]
+    .sort((a, b) => (a.k < b.k ? -1 : 1));
+  const mineRows = items.filter((x) => x.mine).map((x) => x.row);
+  const otherRows = items.filter((x) => !x.mine).map((x) => x.row);
 
-  const docs = store.all('van_ban').filter((d) => d.trang_thai !== 'Xong' && d.vai_tro !== 'Xem để biết' && d.han_xu_ly && dayOf(d.han_xu_ly) <= in7).sort(byWhen('han_xu_ly'));
+  const docs = store.all('van_ban').filter((d) => todayTab !== 'ca_nhan' && d.trang_thai !== 'Xong' && d.vai_tro !== 'Xem để biết' && d.han_xu_ly && dayOf(d.han_xu_ly) <= in7).sort(byWhen('han_xu_ly'));
   const inbox = store.all('inbox').filter((i) => !i.da_xu_ly);
+  const personal = todayTab !== 'doffice';
 
   const p = vnNow();
   const hello = p.h < 11 ? 'Chào buổi sáng' : p.h < 14 ? 'Chào buổi trưa' : p.h < 18 ? 'Chào buổi chiều' : 'Chào buổi tối';
-  const doneToday = store.all('viec').filter((v) => v.trang_thai === 'Xong' && (v.hoan_thanh_luc || '').slice(0, 10) === new Date().toISOString().slice(0, 10)).length;
+  const todayCount = due.length + items.length;
+  const stat = (k, n, label, cls = '') => html`<button class="stat ${cls} ${statFilter === k ? 'on' : ''}" data-stat="${k}" aria-pressed="${statFilter === k}"><b>${n}</b><span>${label}</span></button>`;
+  const agenda = html`${mineRows}${otherRows.length ? html`<li class="row more-company"><details><summary>${otherRows.length} lịch công ty khác</summary><ul class="list">${otherRows}</ul></details></li>` : ''}`;
+  const agendaSection = section('Lịch & việc hôm nay', [...(items.length ? [agenda] : []), ...due.map((v) => taskRow(v))], { empty: 'Không có việc hay lịch nào hôm nay.', count: false, limit: 0 });
+
+  let body;
+  if (statFilter === 'quahan') body = section('Quá hạn', overdue.map((v) => taskRow(v)), { empty: 'Không có việc quá hạn 👏' });
+  else if (statFilter === 'homnay') body = agendaSection;
+  else if (statFilter === 'daxong') body = section('Đã xong hôm nay', doneToday.map((v) => taskRow(v)), { empty: 'Chưa xong việc nào hôm nay.' });
+  else body = html`
+      ${section('Quá hạn', overdue.map((v) => taskRow(v)), { limit: 5 })}
+      ${agendaSection}
+      ${section('Gấp & Quan trọng', q1.map((v) => taskRow(v)), { limit: 5 })}
+      ${section('Đang làm', doing.map((v) => taskRow(v)), { limit: 5 })}
+      ${section('Văn bản sắp hạn (7 ngày)', docs.map(docRow), { limit: 5 })}
+      ${section('7 ngày tới', soon.map((v) => taskRow(v)), { limit: 5 })}
+      ${personal && inbox.length ? section('Inbox chưa xử lý', inbox.slice(0, 5).map((r) => genericRow('inbox', r)), { more: html`<a class="more-link" href="#/bang/inbox">Xem tất cả →</a>` }) : ''}`;
 
   return html`
-    <header class="page-head">
-      <div><p class="eyebrow">${weekdayName(t, true)}, ${fmtDate(t, true)}</p><h1>${hello} 👋</h1>
-        ${lunarChip(t)}</div>
-      <div class="stat-row">
-        <div class="stat ${overdue.length ? 'stat-red' : ''}"><b>${overdue.length}</b><span>quá hạn</span></div>
-        <div class="stat"><b>${due.length}</b><span>hôm nay</span></div>
-        <div class="stat stat-green"><b>${doneToday}</b><span>đã xong</span></div>
-      </div>
+    <header class="page-head today-head">
+      <div><p class="eyebrow">${weekdayName(t, true)}, ${fmtDate(t, true)}</p><h1>${hello}</h1></div>
     </header>
-    ${todayReviewCards()}
-    ${upcomingTripCard()}
-    ${habitStrip()}
-    <div class="grid">
-      ${todaySessions()}
-      ${flashStrip({ compact: true })}
-      ${lunarCard(t)}
-      ${section('⏰ Quá hạn', overdue.map((v) => taskRow(v)), { limit: 5 })}
-      ${section('📅 Hôm nay', [...agenda, ...due.map((v) => taskRow(v))], { empty: 'Không có việc hay lịch nào hôm nay.', limit: 10 })}
-      ${section('🔥 Gấp & Quan trọng', q1.map((v) => taskRow(v)), { limit: 5 })}
-      ${section('🟡 Đang làm', doing.map((v) => taskRow(v)), { limit: 5 })}
-      ${section('📄 Văn bản sắp hạn (7 ngày)', docs.map(docRow), { limit: 5 })}
-      ${section('🗓 7 ngày tới', soon.map((v) => taskRow(v)), { limit: 5 })}
-      ${inbox.length ? section('📥 Inbox chưa xử lý', inbox.slice(0, 7).map((r) => genericRow('inbox', r)), { more: html`<a class="more-link" href="#/bang/inbox">Xem tất cả →</a>` }) : ''}
+    ${topCard(t)}
+    <div class="seg today-tabs">${[['tat_ca', 'Tất cả'], ['ca_nhan', 'Cá nhân'], ['doffice', 'D-Office']].map(([k, l]) => html`<button class="${todayTab === k ? 'on' : ''}" data-today-tab="${k}">${l}</button>`)}</div>
+    <div class="stat-row stat-bar">
+      ${stat('quahan', overdue.length, 'quá hạn', overdue.length ? 'stat-red' : '')}
+      ${stat('homnay', todayCount, 'hôm nay')}
+      ${stat('daxong', doneToday.length, 'đã xong', 'stat-green')}
+    </div>
+    ${statFilter ? html`<p class="hint filter-hint">Đang lọc. Chạm lại ô số để xem đầy đủ.</p>` : ''}
+    ${personal && !statFilter ? html`${todayReviewCards()}${upcomingTripCard()}${habitStrip()}` : ''}
+    <div class="grid today-grid">
+      ${personal && !statFilter ? html`${todaySessions()}${flashStrip({ compact: true })}` : ''}
+      ${body}
     </div>`;
+}
+
+/** Thẻ đầu trang: âm lịch (chạm xem chi tiết) + thời tiết, gợi ý trang phục, nhắc mang ô. */
+function topCard(t) {
+  const l = lunarInfo(t);
+  const evening = vnNow().h >= 18;
+  const w = weather.summary(evening ? 1 : 0);
+  const good = l.goodHours.map((h) => h.chi).join(', ');
+  return html`<section class="card today-top">
+    <button class="tt-lunar" data-lunar="${t}">
+      <span class="tt-big">${l.label}</span>
+      <span class="tt-sub">${l.canChiYear} · ngày ${l.canChiDay} · <b class="${l.hoangDao ? 'good' : 'bad'}">${l.hoangDao ? 'Hoàng đạo' : 'Hắc đạo'}</b>${l.le ? html` · <b class="le">${l.le}</b>` : ''}</span>
+      <span class="tt-hours">Giờ tốt: ${good}</span>
+    </button>
+    <div class="tt-weather">
+      ${w ? html`<span class="tt-temp">${w.icon} ${w.now !== null ? w.now : w.tmax}°</span>
+        <span class="tt-sub">${evening ? 'Ngày mai · ' : ''}${w.text} · ${w.tmin}–${w.tmax}°</span>
+        <span class="tt-sub">Mưa: sáng ${w.rainAm}% · chiều ${w.rainPm}%</span>`
+      : html`<span class="tt-sub">Đang tải thời tiết…</span>`}
+    </div>
+    ${w ? html`<div class="tt-advice">
+      ${w.umbrella ? html`<span class="tt-umbrella">☔ Nhớ mang ô / áo mưa (${w.rainWork}%)</span>` : w.maybeRain ? html`<span class="tt-maybe">🌂 Có thể mưa (${w.rainWork}%), nên mang ô gấp</span>` : ''}
+      <span>👕 ${w.clothes}</span>
+      <span class="tt-loc">📍 ${w.ten} · <button class="linklike" data-weather-loc>${w.ten === 'Việt Trì' ? 'dùng vị trí hiện tại' : 'về Việt Trì'}</button></span>
+    </div>` : ''}
+  </section>`;
 }
 
 // ---------------- Việc ----------------

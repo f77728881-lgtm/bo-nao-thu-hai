@@ -178,9 +178,9 @@ export function openReview(d = today()) {
       row.querySelectorAll('[data-move]').forEach((b) => b.onclick = async () => {
         const kind = b.dataset.move;
         try {
-          if (kind === 'tomorrow') { const nd = addDays(d, 1) + (v.han.length > 10 ? v.han.slice(10) : ''); await store.update('viec', id, { han: nd }); done('Dời sang mai'); }
-          else if (kind === 'done') { await store.update('viec', id, { trang_thai: 'Xong' }); done('Đã xong'); }
-          else if (kind === 'drop') { await store.archive('viec', id); done('Đã bỏ (lưu trữ)'); }
+          if (kind === 'tomorrow') { const nd = addDays(d, 1) + (v.han.length > 10 ? v.han.slice(10) : ''); store.update('viec', id, { han: nd }).catch(errorToast); done('Dời sang mai'); }
+          else if (kind === 'done') { store.update('viec', id, { trang_thai: 'Xong' }).catch(errorToast); done('Đã xong'); }
+          else if (kind === 'drop') { store.archive('viec', id).catch(errorToast); done('Đã bỏ (lưu trữ)'); }
           else {
             const inp = row.querySelector('.pick-date'); inp.hidden = false; inp.focus(); inp.showPicker?.();
             inp.onchange = async () => { if (!inp.value) return; await store.update('viec', id, { han: inp.value + (v.han.length > 10 ? v.han.slice(10) : '') }); done('Dời sang ' + fmtDate(inp.value)); };

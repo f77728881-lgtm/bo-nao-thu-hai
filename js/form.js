@@ -116,28 +116,27 @@ export function openRecord(table, id, defaults = {}) {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const data = readForm(form, fields);
-    try {
-      if (rec) {
-        const d = changed(rec, data);
-        if (Object.keys(d).length) await store.update(table, rec.id, d);
-        toast('Đã lưu');
-      } else {
-        const clean = Object.fromEntries(Object.entries(data).filter(([, x]) => x !== '' && x !== null && !(Array.isArray(x) && !x.length) && x !== false));
-        await store.create(table, clean);
-        toast(`Đã thêm ${TABLE_META[table].label.toLowerCase()}`);
-      }
-      sheet.close();
-    } catch (err) { errorToast(err); }
+    // Lưu tức thì: dữ liệu hiện ngay trên máy, form đóng luôn; gửi lên máy chủ chạy ngầm (lỗi mới báo).
+    let p;
+    if (rec) {
+      const d = changed(rec, data);
+      p = Object.keys(d).length ? store.update(table, rec.id, d) : Promise.resolve();
+      toast('Đã lưu');
+    } else {
+      const clean = Object.fromEntries(Object.entries(data).filter(([, x]) => x !== '' && x !== null && !(Array.isArray(x) && !x.length) && x !== false));
+      p = store.create(table, clean);
+      toast(`Đã thêm ${TABLE_META[table].label.toLowerCase()}`);
+    }
+    sheet.close();
+    p.catch((err) => errorToast(err));
   });
-  form.querySelector('[data-archive]')?.addEventListener('click', async () => {
-    try {
-      if (rec.archived) { await store.restore(table, rec.id); toast('Đã khôi phục'); }
-      else {
-        await store.archive(table, rec.id);
-        toast('Đã lưu trữ', { actionLabel: 'Hoàn tác', onAction: () => store.restore(table, rec.id) });
-      }
-      sheet.close();
-    } catch (err) { errorToast(err); }
+  form.querySelector('[data-archive]')?.addEventListener('click', () => {
+    if (rec.archived) { store.restore(table, rec.id).catch(errorToast); toast('Đã khôi phục'); }
+    else {
+      store.archive(table, rec.id).catch(errorToast);
+      toast('Đã lưu trữ', { actionLabel: 'Hoàn tác', onAction: () => store.restore(table, rec.id) });
+    }
+    sheet.close();
   });
   wireExtra(form, table, rec);
   if (table === 'dia_diem') wirePlaceTools(form);

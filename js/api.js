@@ -10,18 +10,32 @@ export class ApiError extends Error {
 
 // ---------------- Đăng nhập Google ----------------
 const TOKEN_KEY = 'bnth.id_token';
+const SESSION_KEY = 'bnth.session';
 const listeners = new Set();
 
+/** Tên thiết bị để hiện trong danh sách "thiết bị đang đăng nhập". */
+function deviceName() {
+  const ua = navigator.userAgent;
+  const os = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android' : /Mac OS X/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : 'Máy khác';
+  const br = /Edg\//.test(ua) ? 'Edge' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : '';
+  const app = matchMedia('(display-mode: standalone)').matches ? ' (app)' : '';
+  return `${os}${br ? ' · ' + br : ''}${app}`;
+}
+
 export const Auth = {
-  token: null,
+  token: null,       // mã Google (sống ~1 giờ), chỉ dùng để xin phiên
   exp: 0,
+  session: null,     // phiên riêng của app, sống 90 ngày
+  sessionExp: 0,
   email: '',
 
   load() {
     try {
       const saved = JSON.parse(localStorage.getItem(TOKEN_KEY) || 'null');
       if (saved) this.email = saved.email || '';
-      if (saved && saved.exp * 1000 > Date.now() + 60e3) Object.assign(this, saved);
+      if (saved && saved.exp * 1000 > Date.now() + 60e3) Object.assign(this, { token: saved.token, exp: saved.exp });
+      const ss = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
+      if (ss && Date.parse(ss.het_han) > Date.now()) { this.session = ss.session; this.sessionExp = Date.parse(ss.het_han); this.email = ss.email || this.email; }
     } catch { /* bỏ qua */ }
   },
 
@@ -31,15 +45,27 @@ export const Auth = {
     this.token = token; this.exp = p.exp; this.email = p.email;
     localStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp: p.exp, email: p.email }));
     listeners.forEach((fn) => fn(true));
+    if (!this.session) this.exchange();
+  },
+
+  /** Đổi mã Google (1 giờ) lấy phiên 90 ngày. */
+  async exchange() {
+    try {
+      const r = await call('phien_tao', { thiet_bi: deviceName() });
+      this.session = r.session; this.sessionExp = Date.parse(r.het_han);
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ session: r.session, het_han: r.het_han, email: this.email }));
+    } catch { /* lần sau thử lại */ }
   },
 
   clear() {
-    this.token = null; this.exp = 0;
-    localStorage.removeItem(TOKEN_KEY);
+    this.token = null; this.exp = 0; this.session = null; this.sessionExp = 0;
+    localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(SESSION_KEY);
     listeners.forEach((fn) => fn(false));
   },
 
-  valid() { return isDemo() || (!!this.token && this.exp * 1000 > Date.now() + 60e3); },
+  valid() {
+    return isDemo() || (!!this.session && this.sessionExp > Date.now()) || (!!this.token && this.exp * 1000 > Date.now() + 60e3);
+  },
   hadSession() { return !!this.email; },
   onChange(fn) { listeners.add(fn); },
 
@@ -89,7 +115,7 @@ export async function call(action, payload = {}) {
       method: 'POST',
       // text/plain để không phát sinh yêu cầu CORS preflight (Apps Script không trả lời OPTIONS)
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action, payload, id_token: Auth.token }),
+      body: JSON.stringify(Auth.session && action !== 'phien_tao' ? { action, payload, session: Auth.session } : { action, payload, id_token: Auth.token }),
       redirect: 'follow',
       signal: ctrl.signal
     });

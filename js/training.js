@@ -50,18 +50,61 @@ function weekCount(h) {
   return n;
 }
 
-/** Hàng chip tick nhanh cho màn Hôm nay. */
+/** Tỉ lệ hoàn thành các thói quen cần làm trong một ngày (null nếu hôm đó không có thói quen nào). */
+function dayRate(list, ymd) {
+  const due = list.filter((h) => dueOn(h, ymd));
+  if (!due.length) return null;
+  return due.filter((h) => checkins(h.id).has(ymd)).length / due.length;
+}
+
+function ring(done, total) {
+  const r = 30, c = 2 * Math.PI * r, pct = total ? done / total : 0;
+  return html`<svg class="hb-ring" viewBox="0 0 76 76" aria-label="${done}/${total} thói quen">
+    <circle cx="38" cy="38" r="${r}" class="ring-bg"/>
+    <circle cx="38" cy="38" r="${r}" class="ring-fg ${pct >= 1 ? 'full' : ''}" stroke-dasharray="${(c * pct).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 38 38)"/>
+    <text x="38" y="36" class="ring-num">${done}/${total}</text><text x="38" y="51" class="ring-sub">${Math.round(pct * 100)}%</text></svg>`;
+}
+
+function bars(list, t) {
+  const days = Array.from({ length: 7 }, (_, i) => addDays(t, i - 6));
+  const W = 22, GAP = 8, H = 46;
+  const rates = days.map((d) => dayRate(list, d));
+  const valid = rates.filter((x) => x !== null);
+  const avg = valid.length ? Math.round(100 * valid.reduce((a, b) => a + b, 0) / valid.length) : 0;
+  return html`<div class="hb-bars"><svg viewBox="0 0 ${7 * W + 6 * GAP} ${H + 16}" aria-label="Tỉ lệ hoàn thành 7 ngày">
+    ${days.map((d, i) => {
+      const r = rates[i];
+      const h = r === null ? 3 : Math.max(3, Math.round(r * H));
+      const x = i * (W + GAP);
+      return html`<rect x="${x}" y="${H - h}" width="${W}" height="${h}" rx="4" class="bar ${r === null ? 'rest' : r >= 1 ? 'full' : r > 0 ? 'part' : 'zero'} ${d === t ? 'today' : ''}"><title>${fmtDate(d)}: ${r === null ? 'nghỉ' : Math.round(r * 100) + '%'}</title></rect>
+        <text x="${x + W / 2}" y="${H + 13}" class="bar-lb ${d === t ? 'today' : ''}">${weekdayName(d)}</text>`;
+    })}</svg><p class="hb-avg">7 ngày: <b>${avg}%</b></p></div>`;
+}
+
+/** Thẻ theo dõi thói quen cho màn Hôm nay: vòng tiến độ, biểu đồ 7 ngày, bảng theo dõi từng thói quen. */
 export function habitStrip() {
   const t = today();
-  const list = activeHabits().filter((h) => dueOn(h, t) || h.tan_suat === 'X lần/tuần');
+  const all = activeHabits().filter((h) => h.trang_thai === 'Đang theo');
+  const list = all.filter((h) => dueOn(h, t) || h.tan_suat === 'X lần/tuần');
   if (!list.length) return raw('');
-  return html`<section class="card habits-today"><h3 class="card-title">${icon('check')} Thói quen hôm nay</h3>
-    <div class="habit-chips">${list.map((h) => {
-      const done = checkins(h.id).has(t);
+  const doneN = list.filter((h) => checkins(h.id).has(t)).length;
+  const last7 = Array.from({ length: 7 }, (_, i) => addDays(t, i - 6));
+  return html`<section class="card habits-today">
+    <h3 class="card-title">${icon('check')} Thói quen hôm nay</h3>
+    <div class="hb-top">${ring(doneN, list.length)}${bars(all, t)}</div>
+    <ul class="hb-table">${list.map((h) => {
+      const days = checkins(h.id);
+      const done = days.has(t);
       const s = streak(h);
-      return html`<button class="habit-chip ${done ? 'done' : ''}" data-habit-toggle="${h.id}" aria-pressed="${done}">
-        <span class="hc-ic">${done ? icon('check') : h.bieu_tuong || '•'}</span><span class="hc-name">${h.ten}${h.gio_nhac ? html` <small>${h.gio_nhac}</small>` : ''}</span>${s ? html`<span class="hc-streak">🔥${s}</span>` : ''}</button>`;
-    })}</div></section>`;
+      const missedY = !done && dueOn(h, addDays(t, -1)) && !days.has(addDays(t, -1));
+      return html`<li class="hb-row ${done ? 'done' : ''}">
+        <button class="hb-check" data-habit-toggle="${h.id}" aria-pressed="${done}" aria-label="${done ? 'Bỏ đánh dấu' : 'Đánh dấu xong'} ${h.ten}">${done ? icon('check') : h.bieu_tuong || ''}</button>
+        <div class="hb-name" data-open="thoi_quen/${h.id}"><b>${h.ten}</b><small>${h.gio_nhac || ''}${missedY ? html` <em class="hb-warn">· đừng bỏ 2 lần liền</em>` : ''}</small></div>
+        <div class="hb-dots">${last7.map((d) => html`<i class="${days.has(d) ? 'on' : dueOn(h, d) ? (d === t ? 'todo' : 'miss') : 'rest'}"></i>`)}</div>
+        <span class="hb-streak ${s ? '' : 'zero'}">🔥${s}</span>
+      </li>`;
+    })}</ul>
+  </section>`;
 }
 
 function heatmap(h, weeks = 18) {

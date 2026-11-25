@@ -15,6 +15,7 @@ import { toast, errorToast, openSheet, closeSheet, TABLE_META } from './ui.js';
 import { html, esc, whenLabel, debounce } from './util.js';
 import * as gcal from './extcal.js';
 import { handleFlash } from './flashcards.js';
+import * as weather from './weather.js';
 
 const main = document.getElementById('main');
 let searchQ = '';
@@ -93,7 +94,7 @@ function renderStatus() {
 
 // ---------------- Sự kiện giao diện ----------------
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-flash],[data-review],[data-habit-toggle],[data-session],[data-trip],[data-lunar],[data-toggle-task],[data-open],[data-new],[data-task-mode],[data-doc-filter],[data-cal-day],[data-cal-nav],[data-cal-today],#sync-status,#fab');
+  const t = e.target.closest('[data-today-tab],[data-stat],[data-weather-loc],[data-flash],[data-review],[data-habit-toggle],[data-session],[data-trip],[data-lunar],[data-toggle-task],[data-open],[data-new],[data-task-mode],[data-doc-filter],[data-cal-day],[data-cal-nav],[data-cal-today],#sync-status,#fab');
   if (!t) return;
   if (t.closest('.sheet') && !t.matches('[data-toggle-task]')) return; // trong biểu mẫu tự xử lý
   if (t.matches('[data-toggle-task]')) {
@@ -101,10 +102,9 @@ document.addEventListener('click', async (e) => {
     const v = store.get('viec', t.dataset.toggleTask);
     if (!v) return;
     const done = v.trang_thai !== 'Xong';
-    try {
-      await store.update('viec', v.id, { trang_thai: done ? 'Xong' : 'Chưa bắt đầu' });
-      if (done) toast(`Xong: ${v.ten}`, { kind: 'ok', actionLabel: 'Hoàn tác', onAction: () => store.update('viec', v.id, { trang_thai: v.trang_thai }) });
-    } catch (err) { errorToast(err); }
+    store.update('viec', v.id, { trang_thai: done ? 'Xong' : 'Chưa bắt đầu' }).catch(errorToast);
+    if (navigator.vibrate) navigator.vibrate(12);
+    if (done) toast(`Xong: ${v.ten}`, { kind: 'ok', actionLabel: 'Hoàn tác', onAction: () => store.update('viec', v.id, { trang_thai: v.trang_thai }) });
     return;
   }
   if (t.matches('[data-review]')) { openReview(); return; }
@@ -121,6 +121,9 @@ document.addEventListener('click', async (e) => {
     if (table === 'ghi_chu') openNote(id); else if (table === 'chuyen_di') openTrip(id); else if (table === 'lo_trinh') openProgram(id); else if (table === 'buoi_hoc') openSession(id); else openRecord(table, id);
     return;
   }
+  if (t.matches('[data-today-tab]')) { V.setTodayTab(t.dataset.todayTab); render(); return; }
+  if (t.matches('[data-stat]')) { V.setStatFilter(t.dataset.stat); render(); return; }
+  if (t.matches('[data-weather-loc]')) { if (/hiện tại/.test(t.textContent)) weather.useCurrentPosition(); else weather.useDefault(); return; }
   if (t.matches('[data-flash]')) { handleFlash(t.dataset.flash); return; }
   if (t.matches('[data-new]')) { openRecord(t.dataset.new, null); return; }
   if (t.matches('[data-task-mode]')) { V.setTaskMode(t.dataset.taskMode); render(); return; }
@@ -251,6 +254,7 @@ async function start() {
   const rerender = debounce(() => { if (!document.querySelector('.sheet-wrap') && !document.activeElement?.closest?.('[data-doffice-form]')) render(); else renderStatus(); }, 60);
   store.subscribe(rerender);
   gcal.subscribe(rerender);
+  weather.subscribe(rerender);
   Auth.onChange((ok) => { if (ok) store.sync(); render(); });
   window.addEventListener('hashchange', () => { closeSheet(); render(); });
   render();
@@ -262,6 +266,8 @@ async function start() {
     if (Auth.hadSession()) Auth.refresh();
   }).catch(errorToast);
   if (Auth.valid()) store.sync();
+  // Máy đang đăng nhập bằng mã Google cũ: đổi sang phiên 90 ngày.
+  if (!isDemo() && Auth.token && !Auth.session && Auth.valid()) Auth.exchange();
   setInterval(() => { if (document.visibilityState === 'visible' && Auth.valid()) store.sync(); }, CONFIG.SYNC_EVERY_MS);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Auth.valid()) store.sync(); });
 

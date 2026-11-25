@@ -1,6 +1,7 @@
 // Sự kiện từ các lịch Google khác của bạn (chỉ đọc), hiện chung trên màn Lịch và Hôm nay.
 import { call } from './api.js';
 import { html } from './util.js';
+import { shortTitle } from './ui.js';
 
 const LS = 'bnth-gcal';
 const TTL = 5 * 60e3;
@@ -70,8 +71,8 @@ export function gcalRow(e) {
   return html`<li class="row event gcal" style="--cal:${cal.mau}">
     <a class="gcal-link" href="${e.link || 'https://calendar.google.com'}" target="_blank" rel="noopener">
       <div class="ev-time">${t}</div>
-      <div class="row-main"><div class="row-title">${e.ten}</div>
-        <div class="row-meta"><span class="gcal-name"><i class="dot" style="background:${cal.mau}"></i>${cal.ten}</span>${e.dia_diem ? html`<span>📍 ${e.dia_diem}</span>` : ''}</div></div>
+      <div class="row-main"><div class="row-title">${shortTitle(e.ten).tags.map((x) => html`<span class="tag tag-src ${x === 'P3' ? 'tag-p3' : ''}">${x}</span> `)}${shortTitle(e.ten).text}</div>
+        <div class="row-meta"><span class="gcal-name"><i class="dot" style="background:${cal.mau}"></i>${cal.ten}</span>${e.dia_diem ? html`<span class="loc">📍 ${e.dia_diem}</span>` : ''}</div></div>
     </a></li>`;
 }
 

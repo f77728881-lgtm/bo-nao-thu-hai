@@ -9,6 +9,7 @@ import { habitStrip, todaySessions } from './training.js';
 import { todayReviewCards } from './review.js';
 import * as gcal from './extcal.js';
 import { flashStrip } from './flashcards.js';
+import { weeklyCta } from './weekly.js';
 import * as weather from './weather.js';
 
 const isOpen = (v) => v.trang_thai !== 'Xong';
@@ -91,6 +92,7 @@ export function todayView() {
       ${stat('daxong', doneToday.length, 'đã xong', 'stat-green')}
     </div>
     ${statFilter ? html`<p class="hint filter-hint">Đang lọc. Chạm lại ô số để xem đầy đủ.</p>` : ''}
+    ${!statFilter ? weeklyCta() : ''}
     ${personal && !statFilter ? html`${todayReviewCards()}${upcomingTripCard()}${habitStrip()}` : ''}
     <div class="grid today-grid">
       ${personal && !statFilter ? html`${todaySessions()}${flashStrip({ compact: true })}` : ''}
@@ -312,7 +314,10 @@ export function tableView(table) {
         const pct = tasks.length ? Math.round((100 * done) / tasks.length) : 0;
         return html`<section class="card project" data-open="du_an/${d.id}"><h3 class="card-title">${icon('folder')} ${d.ten}</h3>
           <p class="row-meta">${d.trang_thai}${d.han ? html` · hạn ${whenLabel(d.han)}` : ''}${d.linh_vuc_id ? html` · ${areaName(d.linh_vuc_id)}` : ''}</p>
-          <div class="progress"><span style="width:${pct}%"></span><em>${done}/${tasks.length} việc</em></div></section>`;
+          <div class="progress"><span style="width:${pct}%"></span><em>${done}/${tasks.length} việc</em></div>
+          ${d.cau_hemingway ? html`<p class="hemingway">➡️ <b>Lần sau bắt đầu:</b> ${d.cau_hemingway}</p>` : d.trang_thai === 'Đang làm' ? html`<p class="hint">Chưa có “cầu Hemingway”: dừng lại thì ghi một dòng lần sau bắt đầu từ đâu.</p>` : ''}
+          ${(() => { const nx = tasks.filter((v) => v.trang_thai !== 'Xong').sort((a, b) => ((a.han || '9') < (b.han || '9') ? -1 : 1))[0]; return nx ? html`<p class="row-meta">Việc tiếp theo: ${nx.ten}</p>` : ''; })()}
+          ${store.all('ghi_chu').filter((n) => n.du_an_id === d.id).length ? html`<p class="row-meta">🗒 ${store.all('ghi_chu').filter((n) => n.du_an_id === d.id).length} ghi chú gắn dự án</p>` : ''}</section>`;
       })}</div>`;
   }
   return html`<header class="page-head"><h1>${meta.plural}</h1></header>
@@ -321,9 +326,10 @@ export function tableView(table) {
 }
 
 export function moreView() {
-  const items = [['nhat-ky', 'Nhật ký & tâm trạng'], ['ren-luyen', 'Rèn luyện'], ['cai-dat', 'Cài đặt'], ['hanh-trinh', 'Hành trình'], ['lich', 'Lịch'], ['inbox', 'Inbox'], ['du_an', 'Dự án'], ['dia_diem', 'Địa điểm'], ['nguoi', 'Người liên hệ'], ['su_kien', 'Sự kiện'], ['linh_vuc', 'Lĩnh vực'], ['don_vi', 'Đơn vị']];
+  const items = [['on-tuan', 'Ôn tuần'], ['nhat-ky', 'Nhật ký & tâm trạng'], ['ren-luyen', 'Rèn luyện'], ['cai-dat', 'Cài đặt'], ['hanh-trinh', 'Hành trình'], ['lich', 'Lịch'], ['inbox', 'Inbox'], ['du_an', 'Dự án'], ['dia_diem', 'Địa điểm'], ['nguoi', 'Người liên hệ'], ['su_kien', 'Sự kiện'], ['linh_vuc', 'Lĩnh vực'], ['don_vi', 'Đơn vị']];
   return html`<header class="page-head"><h1>Thêm</h1></header>
     <div class="tiles">${items.map(([t, l]) => {
+      if (t === 'on-tuan') return html`<a class="tile" href="#/on-tuan"><span class="tile-icon">${icon('calendar')}</span><span>${l}</span><em>15 phút chiều thứ 6</em></a>`;
       if (t === 'nhat-ky') return html`<a class="tile" href="#/nhat-ky"><span class="tile-icon">${icon('moon')}</span><span>${l}</span><em>tổng kết cuối ngày</em></a>`;
       if (t === 'ren-luyen') return html`<a class="tile" href="#/ren-luyen"><span class="tile-icon">${icon('spark')}</span><span>${l}</span><em>thói quen, lộ trình</em></a>`;
       if (t === 'cai-dat') return html`<a class="tile" href="#/cai-dat"><span class="tile-icon">${icon('settings')}</span><span>${l}</span><em>giao diện, cỡ chữ</em></a>`;

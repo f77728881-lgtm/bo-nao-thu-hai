@@ -673,3 +673,22 @@ html[data-theme="dark"] .care { color: var(--text); }
 .hb-check.mini { background: color-mix(in srgb, var(--green) 55%, transparent) !important; font-size: .8rem; font-weight: 800; }
 .hb-mini { border: 1px dashed var(--line); background: none; color: var(--accent); border-radius: 8px; padding: 0 6px; font-size: .75rem; cursor: pointer; margin-left: 4px; }
 .habit-bad h3 { color: var(--q3); }
+
+/* Second Brain: chắt lọc, khối, câu hỏi */
+.n-sum { font-weight: 700; font-size: .9rem; margin-bottom: 6px; padding-left: 8px; border-left: 3px solid var(--accent); }
+.note mark, .ne-body + mark, .n-text mark { background: color-mix(in srgb, #ffd54a 55%, transparent); color: inherit; padding: 0 2px; border-radius: 3px; }
+.tag-layer { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); font-weight: 700; }
+.n-suggest { display: block; margin-top: 6px; border: 1px dashed var(--accent); background: none; color: var(--accent); border-radius: 8px; padding: 3px 8px; font-size: .78rem; cursor: pointer; text-align: left; }
+.ne-fmt { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 6px; }
+.ne-fmt .chip.on { background: var(--red); color: #fff; }
+.ne-distill { margin: 8px 0; border: 1px solid var(--line); border-radius: 12px; padding: 6px 10px; }
+.ne-distill summary { cursor: pointer; font-weight: 600; font-size: .9rem; }
+.ne-lab2 { display: grid; gap: 4px; font-size: .82rem; color: var(--muted); margin: 8px 0; }
+.ne-lab2 input, .ne-lab2 textarea, .ne-lab2 select { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 7px 9px; }
+.hemingway { margin: 8px 0 2px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 12%, transparent); font-size: .9rem; }
+
+.weekly-cta { margin-bottom: 10px; }
+.wk-proj { border-top: 1px solid var(--line); padding: 10px 0; display: grid; gap: 6px; }
+.wk-proj textarea { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 7px 9px; }
+.wk-day { border-top: 1px solid var(--line); padding: 8px 0; }
+.wk-day ul { margin: 4px 0 0; padding-left: 18px; font-size: .9rem; }

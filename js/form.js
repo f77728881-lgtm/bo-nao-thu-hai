@@ -12,7 +12,7 @@ const PRIMARY = {
   ghi_chu: ['tieu_de', 'noi_dung', 'loai', 'nhan', 'ghim', 'url'],
   dia_diem: ['ten', 'dia_chi', 'loai', 'trang_thai', 'danh_gia', 'mon_nen_thu', 'ghi_chu', 'link_goc'],
   nguoi: ['ten', 'don_vi', 'chuc_vu', 'dien_thoai', 'email', 'ghi_chu'],
-  du_an: ['ten', 'trang_thai', 'han', 'linh_vuc_id', 'ket_qua', 'mo_ta'],
+  du_an: ['ten', 'trang_thai', 'cau_hemingway', 'han', 'linh_vuc_id', 'ket_qua', 'mo_ta'],
   inbox: ['noi_dung', 'da_xu_ly'],
   linh_vuc: ['ten', 'nhom', 'bieu_tuong', 'thu_tu', 'mo_ta'],
   don_vi: ['ten', 'loai', 'dau_moi', 'dien_thoai', 'email', 'ghi_chu'],

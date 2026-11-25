@@ -16,6 +16,7 @@ import { html, esc, whenLabel, debounce } from './util.js';
 import * as gcal from './extcal.js';
 import { handleFlash } from './flashcards.js';
 import * as weather from './weather.js';
+import { openWeekly, weeklyView } from './weekly.js';
 
 const main = document.getElementById('main');
 let searchQ = '';
@@ -28,6 +29,7 @@ const ROUTES = {
   'cai-dat': () => settingsView(),
   'ren-luyen': () => trainingView(),
   'nhat-ky': () => journalView(),
+  'on-tuan': () => weeklyView(),
   viec: () => V.tasksView(),
   'van-ban': () => V.docsView(),
   lich: () => V.calendarView(),
@@ -94,7 +96,7 @@ function renderStatus() {
 
 // ---------------- Sự kiện giao diện ----------------
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-habit-mini],[data-today-tab],[data-stat],[data-weather-loc],[data-flash],[data-review],[data-habit-toggle],[data-session],[data-trip],[data-lunar],[data-toggle-task],[data-open],[data-new],[data-task-mode],[data-doc-filter],[data-cal-day],[data-cal-nav],[data-cal-today],#sync-status,#fab');
+  const t = e.target.closest('[data-weekly],[data-habit-mini],[data-today-tab],[data-stat],[data-weather-loc],[data-flash],[data-review],[data-habit-toggle],[data-session],[data-trip],[data-lunar],[data-toggle-task],[data-open],[data-new],[data-task-mode],[data-doc-filter],[data-cal-day],[data-cal-nav],[data-cal-today],#sync-status,#fab');
   if (!t) return;
   if (t.closest('.sheet') && !t.matches('[data-toggle-task]')) return; // trong biểu mẫu tự xử lý
   if (t.matches('[data-toggle-task]')) {
@@ -108,6 +110,7 @@ document.addEventListener('click', async (e) => {
     return;
   }
   if (t.matches('[data-review]')) { openReview(); return; }
+  if (t.matches('[data-weekly]')) { openWeekly(); return; }
   if (t.matches('[data-habit-mini]')) { e.stopPropagation(); toggleHabit(t.dataset.habitMini, undefined, '2 phút'); return; }
   if (t.matches('[data-habit-toggle]')) { toggleHabit(t.dataset.habitToggle); return; }
   if (t.matches('[data-session]')) { openSession(t.dataset.session); return; }

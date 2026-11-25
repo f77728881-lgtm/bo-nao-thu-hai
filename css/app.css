@@ -591,3 +591,7 @@ html[data-theme="dark"] .care { color: var(--text); }
 .doffice-form { display: grid; gap: 8px; margin-top: 6px; }
 .doffice-form label { display: grid; gap: 4px; font-size: .92em; }
 .doffice-form input { font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: inherit; }
+
+.key-box { display: grid; gap: 6px; margin: 6px 0; }
+.copyable { display: block; padding: 8px 10px; border-radius: 10px; background: var(--chip, rgba(127,127,127,.12)); font-size: .85em; word-break: break-all; cursor: pointer; }
+.copyable.copied { outline: 2px solid var(--accent); }

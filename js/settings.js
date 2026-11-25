@@ -37,28 +37,37 @@ export function setPref(k, v) {
 }
 
 const backup = { loaded: false, data: null, msg: '' };
-const doff = { loaded: false, data: null, msg: '', busy: false };
+const doff = { loaded: false, data: null, msg: '', busy: false, key: '' };
 function dofficeCard() {
   const d = doff.data;
   const when = (iso) => (iso ? new Date(iso).toLocaleString('vi-VN') : '');
-  let line = 'Chưa nhập tài khoản. App sẽ tự lấy văn bản Chủ trì/Phối hợp và lịch tuần công ty lúc 7:30 và 13:30 mỗi ngày.';
+  let line = 'Chưa nhập tài khoản. Máy tính của anh sẽ tự lấy văn bản Chủ trì/Phối hợp và lịch tuần công ty lúc 8:00 và 14:00 (thứ 2–6), lỡ giờ thì lấy bù khi máy bật.';
   if (d && d.da_cai) {
-    line = d.ok === false
-      ? `⚠️ Lần chạy ${when(d.luc)} lỗi: ${d.loi}`
-      : d.luc ? `✅ Lần chạy ${when(d.luc)}: ${d.so_dong ?? 0} văn bản đang giao${d.moi?.length ? `, ${d.moi.length} mới` : ''}${d.lich ? ` · lịch tuần ${d.lich.so_lich} mục` : ''}.` : 'Đã lưu tài khoản, chưa chạy lần nào.';
+    if (d.ok === false) line = `⚠️ ${when(d.luc)}: ${d.loi}`;
+    else if (d.luc_ok) line = `✅ ${d.may || 'Máy tính'} lấy lúc ${when(d.luc_ok)}: ${d.so_dong ?? 0} văn bản đang giao${d.moi?.length ? `, ${d.moi.length} mới` : ''}${d.lich ? ` · lịch tuần ${d.lich.so_lich} mục` : ''}.`;
+    else line = 'Đã lưu tài khoản. Máy tính đang bật sẽ lấy trong vòng 15 phút.';
   }
+  const mays = Object.entries(d?.may_tinh || {}).sort((a, b) => (a[1] < b[1] ? 1 : -1));
   return html`<section class="card settings">
     <h3 class="card-title">${icon('doc')} D-Office</h3>
     <p class="row-meta">${line}</p>
+    ${d?.da_cai && d.can_lay && d.ok !== false ? html`<p class="hint">Đang chờ máy tính bật để lấy khung giờ gần nhất.</p>` : ''}
     ${d && d.loi_lich ? html`<p class="hint">Lịch tuần: ${d.loi_lich}</p>` : ''}
     <form class="doffice-form" data-doffice-form autocomplete="off">
       <label>Tên đăng nhập<input name="username" value="${d?.tai_khoan || ''}" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
       <label>Mật khẩu ${d?.da_cai ? html`<i class="hint">(để trống = giữ mật khẩu cũ)</i>` : ''}<input name="password" type="password" autocomplete="new-password"></label>
-      <div class="opts"><button class="btn" type="submit" ${doff.busy ? 'disabled' : ''}>${doff.busy ? 'Đang kiểm tra…' : d?.da_cai ? 'Cập nhật & kiểm tra' : 'Lưu & kiểm tra'}</button>
+      <div class="opts"><button class="btn" type="submit" ${doff.busy ? 'disabled' : ''}>${doff.busy ? 'Đang lưu…' : d?.da_cai ? 'Cập nhật' : 'Lưu'}</button>
         ${d?.da_cai ? html`<button class="btn btn-ghost" type="button" data-doffice-run ${doff.busy ? 'disabled' : ''}>Lấy ngay</button><button class="btn btn-ghost" type="button" data-doffice-del>Xóa tài khoản</button>` : ''}</div>
     </form>
     ${doff.msg ? html`<p class="hint">${doff.msg}</p>` : ''}
-    <p class="hint">Mật khẩu chỉ lưu trên máy chủ Google của anh, app không hiện lại. Đổi mật khẩu D-Office (90 ngày) thì nhập mật khẩu mới ở đây. Chỉ đọc, không xử lý gì trên D-Office.</p>
+    <h3 class="card-title">Máy tính lấy D-Office</h3>
+    ${mays.length ? html`<ul class="backup-list">${mays.map(([m, t]) => html`<li>${m} · liên lạc ${when(t)}</li>`)}</ul>` : html`<p class="hint">Chưa có máy nào liên lạc.</p>`}
+    <div class="opts"><button class="btn btn-ghost" type="button" data-doffice-key>Khóa cho máy Windows</button></div>
+    ${doff.key ? html`<div class="key-box"><p class="hint">1) Trên máy Windows mở <b>PowerShell</b>, dán lệnh:</p>
+      <code class="copyable" data-copy="irm https://f77728881-lgtm.github.io/bo-nao-thu-hai/may-tinh/cai-dat-windows.ps1 | iex">irm https://f77728881-lgtm.github.io/bo-nao-thu-hai/may-tinh/cai-dat-windows.ps1 | iex</code>
+      <p class="hint">2) Khi được hỏi "Khoa may tinh", dán khóa này (giữ bí mật):</p>
+      <code class="copyable" data-copy="${doff.key}">${doff.key.slice(0, 6)}…${doff.key.slice(-4)} (chạm để sao chép)</code></div>` : ''}
+    <p class="hint">Mật khẩu chỉ lưu trên máy chủ Google của anh, app không hiện lại. Đổi mật khẩu D-Office (90 ngày) thì nhập mật khẩu mới ở đây, các máy tự dùng mật khẩu mới. Sai mật khẩu thì tạm dừng để không bị khóa tài khoản. Chỉ đọc D-Office.</p>
   </section>`;
 }
 const fmt = (iso) => new Date(iso).toLocaleString('vi-VN');
@@ -128,9 +137,16 @@ export function bindSettings(root, rerender) {
   root.querySelector('[data-doffice-form]')?.addEventListener('submit', (e) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    dofRun('doffice_tai_khoan', { username: String(f.get('username') || '').trim(), password: String(f.get('password') || '') }, 'Đăng nhập được. Đã lấy văn bản và lịch tuần.');
+    dofRun('doffice_tai_khoan', { username: String(f.get('username') || '').trim(), password: String(f.get('password') || '') }, 'Đã lưu. Máy tính đang bật sẽ đăng nhập và lấy trong vòng 15 phút, kết quả hiện ở đây.');
   });
-  root.querySelector('[data-doffice-run]')?.addEventListener('click', () => dofRun('doffice_dong_bo', {}, 'Đã lấy xong.'));
+  root.querySelector('[data-doffice-run]')?.addEventListener('click', () => dofRun('doffice_dong_bo', {}, 'Đã gửi yêu cầu. Máy tính đang bật sẽ lấy trong vòng 15 phút.'));
+  root.querySelector('[data-doffice-key]')?.addEventListener('click', async () => {
+    try { doff.key = (await store.action('doffice_khoa_may', {})).khoa; } catch (err) { doff.msg = 'Lỗi: ' + (err.message || err); }
+    rerender();
+  });
+  root.querySelectorAll('[data-copy]').forEach((el) => el.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(el.dataset.copy); el.classList.add('copied'); setTimeout(() => el.classList.remove('copied'), 1200); } catch { /* trình duyệt chặn */ }
+  }));
   root.querySelector('[data-doffice-del]')?.addEventListener('click', () => {
     if (confirm('Xóa tài khoản D-Office khỏi máy chủ và dừng tự cập nhật?')) dofRun('doffice_tai_khoan', { xoa: true }, 'Đã xóa tài khoản D-Office.');
   });

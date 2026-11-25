@@ -661,3 +661,15 @@ html[data-theme="dark"] .care { color: var(--text); }
 .more-company summary { cursor: pointer; color: var(--muted); font-size: .9rem; }
 .today-tabs { display: flex; width: 100%; }
 .today-tabs button { flex: 1; }
+
+/* Atomic Habits */
+.intent { margin: 8px 0 4px; font-size: .92rem; }
+.identity { margin: 0 0 4px; font-size: .88rem; color: var(--accent); }
+.compound svg { width: 100%; height: 56px; display: block; margin-top: 6px; }
+.compound .cp-ideal { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 4 4; opacity: .6; }
+.compound .cp-real { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; }
+.compound .row-meta { margin: 2px 0 0; }
+.wdot.on.mini { background: color-mix(in srgb, var(--green) 45%, transparent); }
+.hb-check.mini { background: color-mix(in srgb, var(--green) 55%, transparent) !important; font-size: .8rem; font-weight: 800; }
+.hb-mini { border: 1px dashed var(--line); background: none; color: var(--accent); border-radius: 8px; padding: 0 6px; font-size: .75rem; cursor: pointer; margin-left: 4px; }
+.habit-bad h3 { color: var(--q3); }

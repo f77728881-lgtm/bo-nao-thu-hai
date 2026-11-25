@@ -1,6 +1,6 @@
 // Service worker: lưu sẵn khung app để mở được khi mất mạng. Dữ liệu nằm ở IndexedDB, không ở đây.
 // Đổi VERSION mỗi lần cập nhật giao diện để máy tải bản mới.
-const VERSION = 'bnth-v1.0.0';
+const VERSION = 'bnth-v1.1.0';
 const SHELL = [
   './', './index.html', './manifest.webmanifest', './css/app.css',
   './js/app.js', './js/notes.js', './js/settings.js', './js/icons.js', './js/share.js', './js/prompts.js', './js/training.js', './js/review.js', './js/travel.js', './js/lunar.js', './js/api.js', './js/config.js', './js/form.js', './js/quickadd.js', './js/store.js', './js/ui.js', './js/util.js', './js/views.js',
@@ -33,4 +33,23 @@ self.addEventListener('fetch', (e) => {
       return res;
     }).catch(() => caches.match(e.request, { ignoreSearch: true }).then((r) => r || caches.match('./index.html')))
   );
+});
+
+// ---------------- Thông báo đẩy ----------------
+self.addEventListener('push', (e) => {
+  let m = {};
+  try { m = e.data ? e.data.json() : {}; } catch { m = { title: 'Bộ não thứ hai', body: e.data && e.data.text() }; }
+  e.waitUntil(self.registration.showNotification(m.title || 'Bộ não thứ hai', {
+    body: m.body || '', tag: m.tag || undefined, icon: './icons/icon-192.png', badge: './icons/icon-192.png',
+    data: { url: m.url || '#/hom-nay' }, renotify: false
+  }));
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const target = new URL('./' + (e.notification.data && e.notification.data.url || '#/hom-nay'), self.registration.scope).href;
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+    for (const c of list) { if (c.url.startsWith(self.registration.scope)) { c.focus(); return c.navigate(target); } }
+    return self.clients.openWindow(target);
+  }));
 });

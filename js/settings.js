@@ -38,6 +38,23 @@ export function setPref(k, v) {
 
 const backup = { loaded: false, data: null, msg: '' };
 const devs = { loaded: false, items: null, msg: '' };
+const push = { state: '', msg: '', busy: false, loai: JSON.parse(localStorage.getItem('bnth.push.loai') || '{"sang":true,"thoi_quen":true,"doffice":true}') };
+const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+function b64uToU8(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return Uint8Array.from(atob(s), (c) => c.charCodeAt(0)); }
+async function pushSub() { const reg = await navigator.serviceWorker.ready; return reg.pushManager.getSubscription(); }
+function pushCard() {
+  const on = push.state === 'on';
+  const opt = (k, l) => html`<label class="ref-opt"><input type="checkbox" data-push-loai="${k}" ${push.loai[k] ? 'checked' : ''} ${on ? '' : 'disabled'}> ${l}</label>`;
+  return html`<section class="card settings">
+    <h3 class="card-title">${icon('spark')} Thông báo trên máy này</h3>
+    ${!pushSupported() ? html`<p class="hint">Trình duyệt này chưa hỗ trợ thông báo. Trên iPhone: thêm app vào Màn hình chính rồi mở từ đó.</p>`
+      : html`<p class="row-meta">${on ? '✅ Đang bật' : push.state === 'denied' ? '⛔ Đã bị chặn trong cài đặt trình duyệt' : 'Đang tắt'}</p>
+      <div class="cal-list">${opt('sang', 'Bản tin 6:30: thời tiết, nhắc mang ô, việc hôm nay')}${opt('thoi_quen', 'Nhắc thói quen đúng giờ (nếu chưa làm)')}${opt('doffice', 'Văn bản / lịch tuần D-Office mới')}</div>
+      <div class="opts">${on ? html`<button class="btn btn-ghost" data-push-test ${push.busy ? 'disabled' : ''}>Gửi thử</button><button class="btn btn-ghost" data-push-off>Tắt</button>`
+        : html`<button class="btn" data-push-on ${push.busy || push.state === 'denied' ? 'disabled' : ''}>Bật thông báo</button>`}</div>`}
+    ${push.msg ? html`<p class="hint">${push.msg}</p>` : ''}
+  </section>`;
+}
 function devicesCard() {
   const when = (iso) => (iso ? new Date(iso).toLocaleString('vi-VN') : '');
   return html`<section class="card settings">
@@ -113,6 +130,7 @@ export function settingsView() {
         <div class="opts"><button class="btn btn-ghost" data-sync-now>Đồng bộ ngay</button>${!isDemo() && Auth.email ? html`<button class="btn btn-ghost" data-logout>Đăng xuất</button>` : ''}</div>
         <p class="hint">Cài đặt giao diện lưu riêng trên từng máy.</p>
       </section>
+      ${isDemo() ? '' : pushCard()}
       ${isDemo() ? '' : devicesCard()}
       ${isDemo() ? '' : dofficeCard()}
       <section class="card settings">
@@ -137,6 +155,42 @@ export function bindSettings(root, rerender) {
   }));
   root.querySelector('[data-sync-now]')?.addEventListener('click', () => store.sync());
   root.querySelectorAll('[data-gcal]').forEach((cb) => cb.addEventListener('change', () => gcal.setShown(cb.dataset.gcal, cb.checked)));
+  if (!isDemo() && pushSupported() && !push.state) {
+    push.state = Notification.permission === 'denied' ? 'denied' : 'checking';
+    pushSub().then((sub) => { push.state = sub && Notification.permission === 'granted' ? 'on' : (Notification.permission === 'denied' ? 'denied' : 'off'); rerender(); }).catch(() => { push.state = 'off'; rerender(); });
+  }
+  const registerPush = async () => {
+    const sub = await pushSub();
+    if (sub) await store.action('thong_bao_dang_ky', { sub: sub.toJSON(), thiet_bi: navigator.userAgent.includes('Android') ? 'Android' : navigator.userAgent.includes('iPhone') ? 'iPhone' : 'Máy tính', loai: push.loai });
+  };
+  root.querySelector('[data-push-on]')?.addEventListener('click', async () => {
+    push.busy = true; push.msg = ''; rerender();
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') { push.state = perm === 'denied' ? 'denied' : 'off'; push.msg = 'Chưa được cho phép thông báo.'; }
+      else {
+        const { pub } = await store.action('thong_bao_khoa', {});
+        const reg = await navigator.serviceWorker.ready;
+        await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToU8(pub) });
+        await registerPush();
+        push.state = 'on'; push.msg = 'Đã bật. Bấm “Gửi thử” để kiểm tra.';
+      }
+    } catch (e) { push.msg = 'Lỗi: ' + (e.message || e); }
+    push.busy = false; rerender();
+  });
+  root.querySelector('[data-push-test]')?.addEventListener('click', async () => {
+    push.busy = true; rerender();
+    try { const r = await store.action('thong_bao_thu', {}); push.msg = r.gui ? 'Đã gửi thử, thông báo sẽ hiện trong vài giây.' : 'Chưa có thiết bị nào đăng ký.'; }
+    catch (e) { push.msg = 'Lỗi: ' + (e.message || e); }
+    push.busy = false; rerender();
+  });
+  root.querySelector('[data-push-off]')?.addEventListener('click', async () => {
+    try { const sub = await pushSub(); if (sub) { await store.action('thong_bao_huy', { endpoint: sub.endpoint }); await sub.unsubscribe(); } } catch { /* bỏ qua */ }
+    push.state = 'off'; push.msg = 'Đã tắt thông báo trên máy này.'; rerender();
+  });
+  root.querySelectorAll('[data-push-loai]').forEach((cb) => cb.addEventListener('change', () => {
+    push.loai[cb.dataset.pushLoai] = cb.checked; localStorage.setItem('bnth.push.loai', JSON.stringify(push.loai)); registerPush().catch(() => {});
+  }));
   const loadDevs = () => store.action('phien_ds', {}).then((r) => { devs.items = r.items; rerender(); }).catch(() => {});
   if (!isDemo() && !devs.loaded && Auth.session) { devs.loaded = true; loadDevs(); }
   root.querySelectorAll('[data-dev-off]').forEach((b) => b.addEventListener('click', async () => {

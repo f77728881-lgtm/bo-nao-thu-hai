@@ -68,6 +68,20 @@ const openTasks = () => store.all('viec').filter((v) => v.trang_thai !== 'Xong')
 // ---------------- Trình hướng dẫn ----------------
 const STEPS = ['Tinh thần', 'Đã xong', 'Việc dở', 'Phân loại', 'Biết ơn', 'Ngày mai'];
 
+/** Bảng chấm gợi ý sẵn từ thói quen hôm nay (+ đã làm / − chưa làm). */
+function scorecardDraft(d) {
+  const wd = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][new Date(d + 'T00:00:00Z').getUTCDay()];
+  const done = new Set(store.all('diem_danh').filter((x) => x.ngay === d).map((x) => x.thoi_quen_id));
+  return store.all('thoi_quen').filter((h) => h.trang_thai === 'Đang theo' && (h.tan_suat !== 'Ngày thường' || !['T7', 'CN'].includes(wd)) && (h.tan_suat !== 'Chọn ngày' || (h.ngay_trong_tuan || []).includes(wd)))
+    .map((h) => (h.loai === 'Bỏ' ? (done.has(h.id) ? `+ Tránh được: ${h.ten}` : `− ${h.ten}`) : (done.has(h.id) ? `+ ${h.ten}` : `− Chưa ${h.ten.toLowerCase()}`)))
+    .join('\n');
+}
+function scoreSummary(text) {
+  const lines = String(text || '').split('\n').map((x) => x.trim()).filter(Boolean);
+  const n = (c) => lines.filter((x) => x.startsWith(c) || (c === '−' && x.startsWith('-'))).length;
+  return lines.length ? `+ ${n('+')} · − ${n('−')} · = ${n('=')}` : '';
+}
+
 export function openReview(d = today()) {
   const prev = entryFor(d);
   const history = store.all('nhat_ky_ngay').filter((r) => r.ngay < d).sort((a, b) => (a.ngay < b.ngay ? -1 : 1));
@@ -75,7 +89,8 @@ export function openReview(d = today()) {
     ngay: d, tam_trang: prev?.tam_trang || null, nang_luong: prev?.nang_luong || null, cang_thang: prev?.cang_thang || null,
     giac_ngu: prev?.giac_ngu || null, cam_xuc: [...(prev?.cam_xuc || [])], nhat_ky: prev?.nhat_ky || '', ban_long: prev?.ban_long || '',
     muon_cai_thien: prev?.muon_cai_thien || '', biet_on: prev?.biet_on || '', dieu_hoc: prev?.dieu_hoc || '',
-    uu_tien_mai: [...(prev?.uu_tien_mai || [])], viec_doi: prev?.viec_doi || ''
+    uu_tien_mai: [...(prev?.uu_tien_mai || [])], viec_doi: prev?.viec_doi || '',
+    cham_diem: prev?.cham_diem || scorecardDraft(d)
   };
   const moved = [];
   let step = 0;
@@ -129,7 +144,11 @@ export function openReview(d = today()) {
       return html`<h3>Khép ngày bằng lòng biết ơn</h3>
         <p class="hint">Ghi 1–3 điều bạn biết ơn hôm nay, dù rất nhỏ (một bữa ăn ngon, một lời hỏi thăm…).</p>
         <div class="field"><textarea data-st="biet_on" rows="4" placeholder="1. …&#10;2. …&#10;3. …">${st.biet_on}</textarea></div>
-        <div class="field"><label>Một điều học được hôm nay</label><textarea data-st="dieu_hoc" rows="2">${st.dieu_hoc}</textarea></div>`;
+        <div class="field"><label>Một điều học được hôm nay</label><textarea data-st="dieu_hoc" rows="2">${st.dieu_hoc}</textarea></div>
+        <h4>Bảng chấm thói quen</h4>
+        <p class="hint">Mỗi dòng một hành vi trong ngày: <b>+</b> có ích cho con người bạn muốn trở thành, <b>−</b> kéo bạn lùi, <b>=</b> trung tính. Chỉ cần nhận ra, không phán xét.</p>
+        <div class="field"><textarea data-st="cham_diem" rows="6" class="scorecard">${st.cham_diem}</textarea></div>
+        <p class="row-meta">${scoreSummary(st.cham_diem)}</p>`;
     }
     const opens = openTasks().sort((a, b) => ((b.gap && b.quan_trong) - (a.gap && a.quan_trong)) || ((a.han || '9') < (b.han || '9') ? -1 : 1)).slice(0, 25);
     return html`<h3>3 ưu tiên cho ngày mai</h3>

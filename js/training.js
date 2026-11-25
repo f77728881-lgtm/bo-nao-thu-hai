@@ -85,7 +85,10 @@ function bars(list, t) {
 export function habitStrip() {
   const t = today();
   const all = activeHabits().filter((h) => h.trang_thai === 'Đang theo');
-  const list = all.filter((h) => dueOn(h, t) || h.tan_suat === 'X lần/tuần');
+  const missedY = (h) => dueOn(h, addDays(t, -1)) && !checkins(h.id).has(addDays(t, -1)) && !checkins(h.id).has(t);
+  const order = (h) => (h.noi_sau ? 1 : 0);
+  const list = all.filter((h) => dueOn(h, t) || h.tan_suat === 'X lần/tuần')
+    .sort((a, b) => (missedY(b) ? 1 : 0) - (missedY(a) ? 1 : 0) || (a.gio_nhac || '99') .localeCompare(b.gio_nhac || '99') || order(a) - order(b));
   if (!list.length) return raw('');
   const doneN = list.filter((h) => checkins(h.id).has(t)).length;
   const last7 = Array.from({ length: 7 }, (_, i) => addDays(t, i - 6));
@@ -98,8 +101,8 @@ export function habitStrip() {
       const s = streak(h);
       const missedY = !done && dueOn(h, addDays(t, -1)) && !days.has(addDays(t, -1));
       return html`<li class="hb-row ${done ? 'done' : ''}">
-        <button class="hb-check" data-habit-toggle="${h.id}" aria-pressed="${done}" aria-label="${done ? 'Bỏ đánh dấu' : 'Đánh dấu xong'} ${h.ten}">${done ? icon('check') : h.bieu_tuong || ''}</button>
-        <div class="hb-name" data-open="thoi_quen/${h.id}"><b>${h.ten}</b><small>${h.gio_nhac || ''}${missedY ? html` <em class="hb-warn">· đừng bỏ 2 lần liền</em>` : ''}</small></div>
+        <button class="hb-check ${done && days.get(t).muc === '2 phút' ? 'mini' : ''}" data-habit-toggle="${h.id}" aria-pressed="${done}" aria-label="${done ? 'Bỏ đánh dấu' : 'Đánh dấu xong'} ${h.ten}">${done ? (days.get(t).muc === '2 phút' ? '2′' : icon('check')) : h.bieu_tuong || ''}</button>
+        <div class="hb-name" data-open="thoi_quen/${h.id}"><b>${h.loai === 'Bỏ' ? 'Tránh: ' : ''}${h.ten}</b><small>${h.gio_nhac || ''}${missedY ? html` <em class="hb-warn">· hôm qua lỡ, đừng bỏ 2 lần liền</em>` : ''}${!done && h.ban_2_phut ? html` <button class="hb-mini" data-habit-mini="${h.id}" title="${h.ban_2_phut}">làm bản 2′</button>` : ''}</small></div>
         <div class="hb-dots">${last7.map((d) => html`<i class="${days.has(d) ? 'on' : dueOn(h, d) ? (d === t ? 'todo' : 'miss') : 'rest'}"></i>`)}</div>
         <span class="hb-streak ${s ? '' : 'zero'}">🔥${s}</span>
       </li>`;
@@ -120,16 +123,57 @@ function heatmap(h, weeks = 18) {
   return html`<div class="heatmap" style="--weeks:${weeks}">${cells}</div>`;
 }
 
+/** Câu ý định: "Sau khi [A], tôi sẽ [B] lúc [giờ] ở [đâu]". */
+export function intention(h) {
+  const after = h.noi_sau ? store.get('thoi_quen', h.noi_sau) : null;
+  const parts = [];
+  if (after) parts.push(`Sau khi ${after.ten.toLowerCase()}`);
+  else if (h.moc) parts.push(`Sau khi ${h.moc}`);
+  parts.push(`${parts.length ? 'tôi sẽ' : 'Tôi sẽ'} ${h.loai === 'Bỏ' ? 'tránh ' : ''}${h.ten.toLowerCase()}`);
+  if (h.gio_nhac) parts.push(`lúc ${h.gio_nhac}`);
+  if (h.dia_diem_lam) parts.push(`ở ${h.dia_diem_lam}`);
+  return parts.join(' ') + '.';
+}
+
+/** Đường tích lũy 30 ngày: thực tế so với "mỗi ngày đều đặn" (tinh thần 1% mỗi ngày). */
+function compound(h) {
+  const t = today();
+  const days = checkins(h.id);
+  const pts = [], ideal = [];
+  let got = 0, due = 0;
+  for (let i = 29; i >= 0; i--) {
+    const d = addDays(t, -i);
+    if (dueOn(h, d)) due++;
+    if (days.has(d)) got += days.get(d).muc === '2 phút' ? 0.5 : 1;
+    pts.push(got); ideal.push(due);
+  }
+  const max = Math.max(1, ...ideal);
+  const W = 300, H = 60;
+  const line = (arr) => arr.map((v, i) => `${(i * W / 29).toFixed(1)},${(H - v / max * H).toFixed(1)}`).join(' ');
+  const pct = due ? Math.round(100 * got / due) : 0;
+  return html`<div class="compound"><svg viewBox="0 0 ${W} ${H + 2}" preserveAspectRatio="none">
+      <polyline points="${line(ideal)}" class="cp-ideal"/><polyline points="${line(pts)}" class="cp-real"/></svg>
+    <p class="row-meta">30 ngày: <b>${pct}%</b> so với đều đặn mỗi ngày · nét đứt là mục tiêu</p></div>`;
+}
+
 function habitCard(h) {
   const t = today();
   const days = checkins(h.id);
   const last7 = Array.from({ length: 7 }, (_, i) => addDays(t, i - 6));
   const freq = h.tan_suat === 'Chọn ngày' ? (h.ngay_trong_tuan || []).join(', ') : h.tan_suat === 'X lần/tuần' ? `${h.so_lan_tuan || '?'} lần/tuần · tuần này ${weekCount(h)}` : h.tan_suat;
-  return html`<article class="card habit" data-open="thoi_quen/${h.id}">
-    <div class="habit-head"><span class="habit-emoji">${h.bieu_tuong || '•'}</span>
-      <div class="row-main"><h3>${h.ten}</h3><p class="row-meta">${freq}${h.gio_nhac ? ` · ${h.gio_nhac}` : ''}${h.muc_tieu ? ` · ${h.muc_tieu}` : ''}</p></div>
+  const votes = days.size;
+  const bad = h.loai === 'Bỏ';
+  return html`<article class="card habit ${bad ? 'habit-bad' : ''}" data-open="thoi_quen/${h.id}">
+    <div class="habit-head"><span class="habit-emoji">${h.bieu_tuong || (bad ? '🚫' : '•')}</span>
+      <div class="row-main"><h3>${bad ? 'Bỏ: ' : ''}${h.ten}</h3><p class="row-meta">${freq}${h.gio_nhac ? ` · ${h.gio_nhac}` : ''}${h.muc_tieu ? ` · ${h.muc_tieu}` : ''}</p></div>
       <div class="habit-streak"><b>${streak(h)}</b><small>ngày liên tục</small></div></div>
-    <div class="week-dots">${last7.map((d) => html`<button class="wdot ${days.has(d) ? 'on' : dueOn(h, d) ? '' : 'rest'}" data-habit-day="${h.id}|${d}" title="${fmtDate(d)}"><small>${weekdayName(d)}</small><span>${days.has(d) ? icon('check') : +d.slice(8)}</span></button>`)}</div>
+    <p class="intent">📌 ${intention(h)}</p>
+    ${h.ban_sac ? html`<p class="identity">🗳 <b>${votes}</b> phiếu bầu cho “Tôi là ${h.ban_sac.replace(/^tôi là\s*/i, '')}”</p>` : html`<p class="hint">Thêm câu bản sắc “Tôi là người…” để mỗi lần làm là một phiếu bầu.</p>`}
+    ${h.ban_2_phut ? html`<p class="row-meta">⏱ Bản 2 phút: ${h.ban_2_phut}</p>` : ''}
+    ${h.phan_thuong ? html`<p class="row-meta">🎁 ${h.phan_thuong}</p>` : ''}
+    ${bad && h.lam_kho_hon ? html`<p class="row-meta">🧱 Làm khó hơn: ${h.lam_kho_hon}</p>` : ''}
+    <div class="week-dots">${last7.map((d) => html`<button class="wdot ${days.has(d) ? (days.get(d).muc === '2 phút' ? 'on mini' : 'on') : dueOn(h, d) ? '' : 'rest'}" data-habit-day="${h.id}|${d}" title="${fmtDate(d)}"><small>${weekdayName(d)}</small><span>${days.has(d) ? icon('check') : +d.slice(8)}</span></button>`)}</div>
+    ${compound(h)}
     ${heatmap(h)}
   </article>`;
 }
@@ -189,17 +233,22 @@ export function trainingView() {
 }
 
 // ---------------- Thao tác ----------------
-export async function toggleHabit(id, ymd = today()) {
+export async function toggleHabit(id, ymd = today(), muc = 'Đủ') {
   const existing = store.all('diem_danh', { archived: true }).find((d) => d.thoi_quen_id === id && d.ngay === ymd);
+  const h = store.get('thoi_quen', id);
   try {
-    if (existing && !existing.archived) { await store.archive('diem_danh', existing.id); }
-    else if (existing) { await store.restore('diem_danh', existing.id); }
-    else {
-      await store.create('diem_danh', { thoi_quen_id: id, ngay: ymd });
-      const h = store.get('thoi_quen', id);
-      const s = h ? streak(h) : 0;
-      if (s && s % 7 === 0) toast(`🔥 ${s} ngày liên tục! Giữ vững nhé`, { kind: 'ok' });
-    }
+    if (existing && !existing.archived && (existing.muc || 'Đủ') === muc) { store.archive('diem_danh', existing.id).catch(errorToast); return; }
+    if (existing && !existing.archived) { store.update('diem_danh', existing.id, { muc }).catch(errorToast); }
+    else if (existing) { store.restore('diem_danh', existing.id).catch(errorToast); store.update('diem_danh', existing.id, { muc }).catch(errorToast); }
+    else store.create('diem_danh', { thoi_quen_id: id, ngay: ymd, muc }).catch(errorToast);
+    if (navigator.vibrate) navigator.vibrate(15);
+    if (!h || ymd !== today()) return;
+    const s = streak(h);
+    const next = store.all('thoi_quen').find((x) => x.noi_sau === id && x.trang_thai === 'Đang theo' && dueOn(x, ymd) && !checkins(x.id).has(ymd));
+    const votes = checkins(h.id).size;
+    const msg = muc === '2 phút' ? `⏱ Bản 2 phút vẫn tính! Giữ chuỗi ${s} ngày.` : h.ban_sac ? `🗳 Phiếu thứ ${votes} cho “Tôi là ${h.ban_sac.replace(/^tôi là\s*/i, '')}”` : s && s % 7 === 0 ? `🔥 ${s} ngày liên tục! Giữ vững nhé` : `✓ ${h.ten}`;
+    if (next) toast(`${msg} · Tiếp theo: ${next.bieu_tuong || ''} ${next.ten}`, { kind: 'ok', ms: 6000, actionLabel: 'Xong luôn', onAction: () => toggleHabit(next.id) });
+    else toast(msg, { kind: 'ok' });
   } catch (err) { errorToast(err); }
 }
 

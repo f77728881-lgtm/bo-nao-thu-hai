@@ -23,7 +23,7 @@ export const TABLE_META = {
   buoi_hoc: { icon: '📘', ic: 'note', label: 'Buổi học/tập', plural: 'Buổi học/tập' },
   nhat_ky_ngay: { icon: '🌙', ic: 'moon', label: 'Nhật ký ngày', plural: 'Nhật ký ngày' },
   the_hoc: { icon: '🀄', ic: 'note', label: 'Câu cần nhớ', plural: 'Sổ câu' },
-  sach: { icon: '📕', ic: 'note', label: 'Sách', plural: 'Tủ sách' },
+  sach: { icon: '📕', ic: 'book', label: 'Sách', plural: 'Tủ sách' },
   phien_doc: { icon: '📖', ic: 'note', label: 'Phiên đọc', plural: 'Phiên đọc' },
   muc_tieu_doc: { icon: '🎯', ic: 'spark', label: 'Mục tiêu đọc', plural: 'Mục tiêu đọc' }
 };

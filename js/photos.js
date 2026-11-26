@@ -90,6 +90,20 @@ async function upload(blob, id) {
   return j.data.id;
 }
 
+/** Gửi ngay một ảnh (bìa sách…): trả mã ảnh. Cần mạng. */
+export async function uploadNow(file) {
+  const { full, thumb } = await compress(file);
+  if (isDemo()) {
+    const id = 'demo/' + Date.now().toString(36);
+    demoUrls.set(id, { full: URL.createObjectURL(full), thumb: URL.createObjectURL(thumb) });
+    return id;
+  }
+  if (!navigator.onLine) throw new Error('Cần có mạng để tải ảnh bìa.');
+  const id = await upload(full);
+  await upload(thumb, id);
+  return id;
+}
+
 let running = null;
 export function process() {
   if (running) return running;

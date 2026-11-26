@@ -43,7 +43,7 @@ function persist() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     const tables = Object.fromEntries(TABLES.map((t) => [t, [...state.tables[t].values()]]));
-    idbSet('state', { tables, schema: state.schema, since: state.since, outbox: state.outbox, lastSync: state.lastSync });
+    idbSet('state', { tables, schema: state.schema, schemaAt: state.schemaAt, since: state.since, outbox: state.outbox, lastSync: state.lastSync });
   }, 300);
 }
 
@@ -70,7 +70,7 @@ export async function init() {
   const saved = isDemo() ? null : await idbGet('state');
   if (saved) {
     TABLES.forEach((t) => ((saved.tables || {})[t] || []).forEach((r) => state.tables[t].set(r.id, r)));
-    state.schema = saved.schema; state.since = saved.since || ''; state.outbox = saved.outbox || []; state.lastSync = saved.lastSync || 0;
+    state.schema = saved.schema; state.schemaAt = saved.schemaAt || 0; state.since = saved.since || ''; state.outbox = saved.outbox || []; state.lastSync = saved.lastSync || 0;
   }
   window.addEventListener('online', () => { state.online = true; emit(); sync(); });
   window.addEventListener('offline', () => { state.online = false; emit(); });
@@ -84,7 +84,10 @@ export async function sync() {
   state.syncing = true; state.error = null; emit();
   try {
     await flushOutbox();
-    if (!state.schema) state.schema = await call('schema');
+    // Lược đồ: tải lại khi máy chủ có bảng mới (app cài từ trước) hoặc đã quá 1 ngày.
+    if (!state.schema || TABLES.some((t) => !state.schema[t]) || Date.now() - (state.schemaAt || 0) > 864e5) {
+      state.schema = await call('schema'); state.schemaAt = Date.now();
+    }
     const res = await call('sync', { since: state.since });
     for (const t of Object.keys(res.tables)) {
       if (!state.tables[t]) continue;

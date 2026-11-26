@@ -341,7 +341,7 @@ export function moreView() {
   const items = [['tu-sach', 'Tủ sách'], ['on-tuan', 'Ôn tuần'], ['nhat-ky', 'Nhật ký & tâm trạng'], ['ren-luyen', 'Rèn luyện'], ['cai-dat', 'Cài đặt'], ['hanh-trinh', 'Hành trình'], ['lich', 'Lịch'], ['inbox', 'Inbox'], ['du_an', 'Dự án'], ['dia_diem', 'Địa điểm'], ['nguoi', 'Người liên hệ'], ['su_kien', 'Sự kiện'], ['linh_vuc', 'Lĩnh vực'], ['don_vi', 'Đơn vị']];
   return html`<header class="page-head"><h1>Thêm</h1></header>
     <div class="tiles">${items.map(([t, l]) => {
-      if (t === 'tu-sach') return html`<a class="tile" href="#/tu-sach"><span class="tile-icon">📚</span><span>${l}</span><em>${store.all('sach').filter((b) => b.trang_thai === 'Đã đọc' && String(b.xong_ngay || '').startsWith(today().slice(0, 4))).length} cuốn năm nay</em></a>`;
+      if (t === 'tu-sach') return html`<a class="tile" href="#/tu-sach"><span class="tile-icon">${icon('book')}</span><span>${l}</span><em>${store.all('sach').filter((b) => b.trang_thai === 'Đã đọc' && String(b.xong_ngay || '').startsWith(today().slice(0, 4))).length} cuốn năm nay</em></a>`;
       if (t === 'on-tuan') return html`<a class="tile" href="#/on-tuan"><span class="tile-icon">${icon('calendar')}</span><span>${l}</span><em>15 phút chiều thứ 6</em></a>`;
       if (t === 'nhat-ky') return html`<a class="tile" href="#/nhat-ky"><span class="tile-icon">${icon('moon')}</span><span>${l}</span><em>tổng kết cuối ngày</em></a>`;
       if (t === 'ren-luyen') return html`<a class="tile" href="#/ren-luyen"><span class="tile-icon">${icon('spark')}</span><span>${l}</span><em>thói quen, lộ trình</em></a>`;

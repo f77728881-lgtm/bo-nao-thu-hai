@@ -3,7 +3,13 @@
 import * as store from './store.js';
 import { html, raw, today, addDays, fmtDate, weekdayName, vnNow } from './util.js';
 import { openSheet, toast, errorToast, closeSheet } from './ui.js';
+import { icon } from './icons.js';
 import { openRecord } from './form.js';
+import { uploadNow, thumbUrl, fullUrl } from './photos.js';
+
+/** Bìa sách: mã ảnh trong kho (YYYY/…) hoặc link ảnh dán vào. */
+const isPhotoId = (v) => /^(\d{4}|demo)\//.test(String(v || ''));
+const coverSrc = (b, big = false) => (!b.anh_bia ? '' : isPhotoId(b.anh_bia) ? (big ? fullUrl(b.anh_bia) : thumbUrl(b.anh_bia)) : b.anh_bia);
 
 const MINS = [30, 45, 60];
 const ST = ['Đang đọc', 'Muốn đọc', 'Đã đọc', 'Bỏ dở'];
@@ -298,7 +304,7 @@ function bookCard(b) {
   const pct = b.so_trang ? Math.min(100, Math.round(100 * (Number(b.trang_hien_tai) || 0) / Number(b.so_trang))) : 0;
   const m = today().slice(0, 7);
   return html`<article class="card book" data-book="${b.id}">
-    <div class="book-head">${b.anh_bia ? html`<img class="book-cover" src="${b.anh_bia}" alt="" loading="lazy">` : html`<span class="book-cover ph">📕</span>`}
+    <div class="book-head">${b.anh_bia ? html`<img class="book-cover" src="${coverSrc(b)}" alt="" loading="lazy">` : html`<span class="book-cover ph">${icon('book')}</span>`}
       <div class="row-main"><h3>${b.ten}</h3><p class="row-meta">${[b.tac_gia, b.the_loai].filter(Boolean).join(' · ')}</p>
         ${b.trang_thai === 'Đã đọc' ? html`<p class="book-stars">${stars(b.danh_gia)} <small>${b.xong_ngay ? fmtDate(b.xong_ngay, true) : ''}</small></p>` : ''}</div></div>
     ${b.trang_thai === 'Đang đọc' ? html`<div class="progress"><span style="width:${pct}%"></span><em>${b.trang_hien_tai || 0}/${b.so_trang || '?'} trang${pct ? ` · ${pct}%` : ''}</em></div><p class="row-meta">${forecast(b)}</p>` : ''}
@@ -320,7 +326,13 @@ export function openBook(id, { review = false } = {}) {
   const box = document.createElement('div');
   box.className = 'book-detail';
   box.innerHTML = html`
-    <p class="row-meta">${[b.tac_gia, b.the_loai, b.so_trang ? b.so_trang + ' trang' : ''].filter(Boolean).join(' · ')}</p>
+    <div class="bk-top">
+      <button class="bk-cover" data-bk-cover title="Đổi bìa sách">${b.anh_bia ? html`<img src="${coverSrc(b, true)}" alt="Bìa sách">` : html`<span>${icon('book')}<small>Thêm bìa</small></span>`}<i>📷</i></button>
+      <div class="row-main">
+        <p class="row-meta">${[b.tac_gia, b.the_loai, b.so_trang ? b.so_trang + ' trang' : ''].filter(Boolean).join(' · ')}</p>
+        <div class="bk-cover-acts"><label class="chip">📷 Chụp / chọn bìa<input type="file" accept="image/*" hidden data-bk-file></label><button class="chip" data-bk-link>🔗 Dán link ảnh</button>${b.anh_bia ? html`<button class="chip" data-bk-nocover>Bỏ bìa</button>` : ''}</div>
+      </div>
+    </div>
     <div class="opts small">${ST.map((s) => html`<button class="opt ${b.trang_thai === s ? 'on' : ''}" data-bk-st="${s}">${s}</button>`)}</div>
     ${b.trang_thai === 'Muốn đọc' ? html`<label class="switch"><input type="checkbox" data-bk-month ${b.ke_hoach_thang === m ? raw('checked') : ''}><span></span> Dự định đọc trong tháng này</label>` : ''}
     <p class="row-meta">${ss.length} buổi · ${mins} phút${b.bat_dau ? ` · bắt đầu ${fmtDate(b.bat_dau, true)}` : ''}${b.xong_ngay ? ` · xong ${fmtDate(b.xong_ngay, true)}` : ''}</p>
@@ -337,6 +349,23 @@ export function openBook(id, { review = false } = {}) {
   let st = b.trang_thai;
   box.querySelectorAll('[data-bk-st]').forEach((x) => x.onclick = () => { st = x.dataset.bkSt; box.querySelectorAll('[data-bk-st]').forEach((y) => y.classList.toggle('on', y === x)); });
   box.querySelectorAll('[data-bk-rate]').forEach((x) => x.onclick = () => { rate = +x.dataset.bkRate; box.querySelectorAll('[data-bk-rate]').forEach((y) => y.classList.toggle('on', +y.dataset.bkRate <= rate)); });
+  const setCover = async (v) => {
+    try { await store.update('sach', b.id, { anh_bia: v }); sheet.close(); toast(v ? 'Đã đổi bìa' : 'Đã bỏ bìa', { kind: 'ok' }); setTimeout(() => openBook(b.id), 250); } catch (e) { errorToast(e); }
+  };
+  box.querySelector('[data-bk-cover]').onclick = () => box.querySelector('[data-bk-file]').click();
+  box.querySelector('[data-bk-file]').onchange = async (e) => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    toast('Đang tải ảnh bìa…');
+    try { await setCover(await uploadNow(f)); } catch (err) { errorToast(err); }
+  };
+  box.querySelector('[data-bk-link]').onclick = () => {
+    const u = prompt('Dán link ảnh bìa (vd ảnh từ Tiki, Fahasa, Goodreads):', isPhotoId(b.anh_bia) ? '' : b.anh_bia || '');
+    if (u === null) return;
+    if (u && !/^https:\/\//.test(u.trim())) { toast('Link phải bắt đầu bằng https://'); return; }
+    setCover(u.trim());
+  };
+  box.querySelector('[data-bk-nocover]')?.addEventListener('click', () => setCover(''));
   box.querySelector('[data-bk-edit]').onclick = () => { closeSheet(); setTimeout(() => openRecord('sach', b.id), 200); };
   box.querySelector('[data-bk-read]')?.addEventListener('click', async () => {
     sheet.close();

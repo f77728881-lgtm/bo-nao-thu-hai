@@ -4,6 +4,7 @@ import * as store from './store.js';
 import { html, raw, esc, fold, whenLabel } from './util.js';
 import { openSheet, toast, errorToast } from './ui.js';
 import { icon } from './icons.js';
+import { stripHtml, addPhotos, openPhoto, onPhotos } from './photos.js';
 import { PROMPT_LABEL, isPrompt, promptCardExtra, usePrompt, addStarterPrompts } from './prompts.js';
 
 export const MAIN_LABELS = [
@@ -115,6 +116,7 @@ function card(n) {
     ${n.ghim ? html`<span class="n-pin" title="Đã ghim">${icon('pin')}</span>` : ''}
     ${n.tieu_de && n.tieu_de !== n.noi_dung ? html`<h3 class="n-title">${n.tieu_de}</h3>` : ''}
     ${body}
+    ${(n.anh || []).length ? stripHtml({ id: n.id, anh: n.anh.slice(0, 3) }) : ''}${(n.anh || []).length > 3 ? html`<small class="ph-more">+${n.anh.length - 3} ảnh</small>` : ''}
     ${n.url ? html`<a class="n-link" href="${n.url}" target="_blank" rel="noopener">🔗 ${n.url.replace(/^https?:\/\//, '').slice(0, 40)}</a>` : ''}
     ${tags.length || layer(n) > 1 || n.loai === CAU_HOI ? html`<div class="n-tags">${layer(n) > 1 && !isPrompt(n) ? html`<span class="tag tag-layer" title="Lớp chắt lọc">L${layer(n)}</span>` : ''}${n.loai === CAU_HOI ? html`<span class="tag">🔗 ${store.all('ghi_chu').filter((x) => x.cau_hoi_id === n.id).length} ghi chú</span>` : ''}${tags.map((t) => html`<span class="tag">${t}</span>`)}</div>` : ''}
     ${n.du_an_id && store.get('du_an', n.du_an_id) ? html`<div class="n-tags"><span class="tag">📁 ${store.get('du_an', n.du_an_id).ten}</span></div>` : ''}
@@ -176,6 +178,7 @@ export function bindNotes(root, rerender) {
     });
     el.addEventListener('keydown', (e) => { if (e.key === 'Enter') openNote(el.dataset.note); });
   });
+  root.querySelectorAll('.note [data-photo]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); openPhoto(b.dataset.photo, b.dataset.noteOf); }));
   root.querySelectorAll('[data-note-check]').forEach((b) => b.addEventListener('click', async (e) => {
     e.stopPropagation();
     const [id, idx] = b.dataset.noteCheck.split(':');
@@ -236,7 +239,7 @@ export function bindNotes(root, rerender) {
 
 // ---------------- Trình soạn (tự lưu khi đóng, như Keep) ----------------
 export function openNote(id, { checklist = false, defaults = {} } = {}) {
-  const n = id ? store.get('ghi_chu', id) : null;
+  let n = id ? store.get('ghi_chu', id) : null;
   const startLabel = MAIN_KEYS.includes(tab) || tab === PROMPT_LABEL ? tab : INBOX;
   const st = {
     tieu_de: n?.tieu_de || defaults.tieu_de || '',
@@ -266,6 +269,7 @@ export function openNote(id, { checklist = false, defaults = {} } = {}) {
             <li class="ne-add"><span>＋</span><input class="ne-new" placeholder="Thêm mục" enterkeyhint="next"></li></ul>`
         : html`<div class="ne-fmt"><button class="chip" data-wrap="**" title="In đậm đoạn đang chọn (lớp 2)"><b>B</b> đậm</button><button class="chip" data-wrap="==" title="Tô sáng đoạn tinh túy nhất (lớp 3)"><mark>Tô sáng</mark></button>${speechOK() ? html`<button class="chip" data-voice>🎤 Nói</button>` : ''}<span class="tag tag-layer">Lớp ${layer(st)}</span></div>
           <textarea class="ne-body" placeholder="Ghi chú…" rows="8">${st.noi_dung}</textarea>`}
+      <div class="ne-photos">${stripHtml(n ? store.get('ghi_chu', n.id) || n : null, { editable: true })}</div>
       <details class="ne-distill" ${st.tom_tat || st.ly_do || !n ? 'open' : ''}><summary>Chắt lọc & sắp xếp</summary>
         <label class="ne-lab2">Vì sao đáng nhớ?<input class="ne-why" value="${st.ly_do}" placeholder="Điều làm mình thấy “à há”…"></label>
         <label class="ne-lab2">Tóm tắt (lớp 4, 1–3 dòng bằng lời của mình)<textarea class="ne-sum" rows="2">${st.tom_tat}</textarea></label>
@@ -278,6 +282,7 @@ export function openNote(id, { checklist = false, defaults = {} } = {}) {
       <div class="ne-row"><span class="ne-lab">Thêm nhãn</span>${extraLabels({ nhan: st.nhan }).map((x) => html`<button class="chip on" data-rm-label="${x}">${x} ✕</button>`)}<input class="ne-label" placeholder="vd: Guitar, Running" list="ne-labels"><datalist id="ne-labels">${[...new Set(store.all('ghi_chu').flatMap(extraLabels))].map((x) => html`<option value="${x}">`)}</datalist></div>
       <div class="ne-row colors" role="radiogroup" aria-label="Màu">${COLORS.map((c) => html`<button class="swatch ${colorClass(c)} ${st.mau === c ? 'on' : ''}" data-color="${c}" title="${c}" aria-label="${c}"></button>`)}</div>
       <div class="ne-toolbar">
+        <label class="btn btn-ghost ne-addph">📷 Ảnh<input type="file" accept="image/*" multiple hidden data-ph-input></label>
         <button class="btn btn-ghost" data-pin>${st.ghim ? '📌 Bỏ ghim' : '📌 Ghim'}</button>
         ${st.nhan.includes(PROMPT_LABEL) ? html`<button class="btn btn-ghost" data-addvar>{{ }} Chèn chỗ trống</button>` : ''}
         <button class="btn btn-ghost" data-copy>${icon('copy')} Sao chép</button>
@@ -361,7 +366,40 @@ export function openNote(id, { checklist = false, defaults = {} } = {}) {
       } catch (err) { errorToast(err); }
     });
     box.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) sheet.close(); });
+    box.querySelector('[data-ph-input]').onchange = (e) => { const fs = [...e.target.files]; e.target.value = ''; attach(fs); };
+    box.querySelectorAll('[data-photo]').forEach((b) => b.onclick = () => openPhoto(b.dataset.photo, n?.id));
   }
+
+  // Ảnh: ghi chú mới thì lưu nháp trước để có mã, rồi xếp ảnh vào hàng gửi.
+  async function ensureNote() {
+    if (n) return n;
+    collect();
+    const data = {
+      tieu_de: st.tieu_de.trim() || (st.noi_dung.trim() ? '' : 'Ảnh ' + new Date().toLocaleDateString('vi-VN')), noi_dung: st.noi_dung, mau: st.mau, ghim: st.ghim, nhan: st.nhan,
+      loai: st.checklist ? 'Checklist' : st.loai
+    };
+    try {
+      const rec = await store.create('ghi_chu', data);
+      if (!rec) { toast('Đang mất mạng: lưu ghi chú trước rồi thêm ảnh sau nhé.', { kind: 'error' }); return null; }
+      n = rec; st.tieu_de = rec.tieu_de;
+      return n;
+    } catch (err) { errorToast(err); return null; }
+  }
+  async function attach(files) {
+    if (!files.length) return;
+    const note = await ensureNote();
+    if (!note) return;
+    collect();
+    toast(`Đang nén ${files.length} ảnh…`);
+    await addPhotos(note.id, files);
+    render();
+  }
+  box.addEventListener('paste', (e) => {
+    const fs = [...(e.clipboardData?.files || [])].filter((f) => /^image\//.test(f.type));
+    if (fs.length) { e.preventDefault(); attach(fs); }
+  });
+  const refreshStrip = () => { const el = box.querySelector('.ne-photos'); if (el && n && box.isConnected) el.innerHTML = stripHtml(store.get('ghi_chu', n.id) || n, { editable: true })?.__raw || ''; box.querySelectorAll('[data-photo]').forEach((b) => b.onclick = () => openPhoto(b.dataset.photo, n?.id)); };
+  onPhotos(refreshStrip);
 
   let closing = null;
   async function save() {

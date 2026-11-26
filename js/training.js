@@ -6,6 +6,7 @@ import { openRecord } from './form.js';
 import { icon } from './icons.js';
 import { copyText } from './notes.js';
 import { flashStrip } from './flashcards.js';
+import { running, isReadingHabit, pendingPagesCard } from './reading.js';
 
 let tab = 'habits';
 export const setTrainingTab = (t) => { tab = t; };
@@ -90,7 +91,7 @@ export function habitStrip() {
   const doneN = list.filter((h) => checkins(h.id).has(t)).length;
   const last7 = Array.from({ length: 7 }, (_, i) => addDays(t, i - 6));
   const chains = ['Sáng', 'Trưa', 'Tối'].filter((c) => list.filter((h) => h.chuoi === c).length >= 2 && list.some((h) => h.chuoi === c && !checkins(h.id).has(t)));
-  return html`<section class="card habits-today">
+  return html`${pendingPagesCard()}<section class="card habits-today">
     <div class="hb-head"><h3 class="card-title">${icon('check')} Thói quen hôm nay</h3>
       <span class="spacer"></span>${chains.map((c) => html`<button class="chip" data-chain="${c}">▶ Chuỗi ${c.toLowerCase()}</button>`)}<button class="icon-btn" data-habit-new aria-label="Thêm thói quen" title="Thêm thói quen">＋</button></div>
     <div class="hb-top">${ring(doneN, list.length)}${bars(all, t)}</div>
@@ -101,7 +102,7 @@ export function habitStrip() {
       const missedY = !done && dueOn(h, addDays(t, -1)) && !days.has(addDays(t, -1));
       return html`<li class="hb-row ${done ? 'done' : ''}">
         <button class="hb-check ${done && days.get(t).muc === '2 phút' ? 'mini' : ''}" data-habit-toggle="${h.id}" aria-pressed="${done}" aria-label="${done ? 'Bỏ đánh dấu' : 'Đánh dấu xong'} ${h.ten}">${done ? (days.get(t).muc === '2 phút' ? '2′' : icon('check')) : h.bieu_tuong || ''}</button>
-        <div class="hb-name" data-open="thoi_quen/${h.id}"><b>${h.loai === 'Bỏ' ? 'Tránh: ' : ''}${h.ten}</b><small>${h.gio_nhac || ''}${missedY ? html` <em class="hb-warn">· hôm qua lỡ, đừng bỏ 2 lần liền</em>` : ''}${!done && h.ban_2_phut ? html` <button class="hb-mini" data-habit-mini="${h.id}" title="${h.ban_2_phut}">làm bản 2′</button>` : ''}</small></div>
+        <div class="hb-name" data-open="thoi_quen/${h.id}"><b>${h.loai === 'Bỏ' ? 'Tránh: ' : ''}${h.ten}</b><small>${h.gio_nhac || ''}${missedY ? html` <em class="hb-warn">· hôm qua lỡ, đừng bỏ 2 lần liền</em>` : ''}${!done && h.ban_2_phut && !isReadingHabit(h) ? html` <button class="hb-mini" data-habit-mini="${h.id}" title="${h.ban_2_phut}">làm bản 2′</button>` : ''}${isReadingHabit(h) && (!done || days.get(t).muc === '2 phút') ? (running() ? html` <em class="hb-reading">📖 đang đọc…</em>` : html` <button class="hb-mini hb-play" data-read-start="${h.id}">▶ ${Math.max(30, Number(h.dem_gio_phut) || 30)}′</button>`) : ''}</small></div>
         <div class="hb-dots">${last7.map((d) => html`<i class="${days.has(d) ? 'on' : dueOn(h, d) ? (d === t ? 'todo' : 'miss') : 'rest'}"></i>`)}</div>
         <span class="hb-streak ${s ? '' : 'zero'}">🔥${s}</span>
       </li>`;

@@ -18,6 +18,8 @@ import { handleFlash } from './flashcards.js';
 import * as weather from './weather.js';
 import { openWeekly, weeklyView } from './weekly.js';
 import { openHabitWizard, openChain } from './habitwizard.js';
+import { startPhotoQueue } from './photos.js';
+import { shelfView, bindShelf, openReadStart, askPages, mountReadBar, refreshBar, openBook } from './reading.js';
 
 const main = document.getElementById('main');
 let searchQ = '';
@@ -31,6 +33,7 @@ const ROUTES = {
   'ren-luyen': () => trainingView(),
   'nhat-ky': () => journalView(),
   'on-tuan': () => weeklyView(),
+  'tu-sach': () => shelfView(),
   viec: () => V.tasksView(),
   'van-ban': () => V.docsView(),
   lich: () => V.calendarView(),
@@ -63,6 +66,7 @@ function render() {
   if (route === 'cai-dat') bindSettings(main, render);
   if (route === 'ren-luyen') bindTraining(main, render);
   if (route === 'nhat-ky') bindJournal(main);
+  if (route === 'tu-sach') bindShelf(main, render);
   if (keepFocus || route === 'tim') {
     const inp = document.getElementById(focusId || 'search-input');
     if (inp) { inp.focus(); if (keepFocus) inp.setSelectionRange(caret, caret); }
@@ -97,7 +101,7 @@ function renderStatus() {
 
 // ---------------- Sự kiện giao diện ----------------
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-weather],[data-habit-new],[data-chain],[data-weekly],[data-habit-mini],[data-today-tab],[data-stat],[data-weather-loc],[data-flash],[data-review],[data-habit-toggle],[data-session],[data-trip],[data-lunar],[data-toggle-task],[data-open],[data-new],[data-task-mode],[data-doc-filter],[data-cal-day],[data-cal-nav],[data-cal-today],#sync-status,#fab');
+  const t = e.target.closest('[data-read-start],[data-read-pages],[data-weather],[data-habit-new],[data-chain],[data-weekly],[data-habit-mini],[data-today-tab],[data-stat],[data-weather-loc],[data-flash],[data-review],[data-habit-toggle],[data-session],[data-trip],[data-lunar],[data-toggle-task],[data-open],[data-new],[data-task-mode],[data-doc-filter],[data-cal-day],[data-cal-nav],[data-cal-today],#sync-status,#fab');
   if (!t) return;
   if (t.closest('.sheet') && !t.matches('[data-toggle-task]')) return; // trong biểu mẫu tự xử lý
   if (t.matches('[data-toggle-task]')) {
@@ -110,6 +114,8 @@ document.addEventListener('click', async (e) => {
     if (done) toast(`Xong: ${v.ten}`, { kind: 'ok', actionLabel: 'Hoàn tác', onAction: () => store.update('viec', v.id, { trang_thai: v.trang_thai }) });
     return;
   }
+  if (t.matches('[data-read-start]')) { e.stopPropagation(); openReadStart(t.dataset.readStart || null); return; }
+  if (t.matches('[data-read-pages]')) { askPages(t.dataset.readPages); return; }
   if (t.matches('[data-review]')) { openReview(); return; }
   if (t.matches('[data-weather]')) {
     const box = document.createElement('div'); box.innerHTML = V.weatherDetail().__raw;
@@ -130,7 +136,7 @@ document.addEventListener('click', async (e) => {
   }
   if (t.matches('[data-open]')) {
     const [table, id] = t.dataset.open.split('/');
-    if (table === 'ghi_chu') openNote(id); else if (table === 'chuyen_di') openTrip(id); else if (table === 'lo_trinh') openProgram(id); else if (table === 'buoi_hoc') openSession(id); else openRecord(table, id);
+    if (table === 'ghi_chu') openNote(id); else if (table === 'sach') openBook(id); else if (table === 'chuyen_di') openTrip(id); else if (table === 'lo_trinh') openProgram(id); else if (table === 'buoi_hoc') openSession(id); else openRecord(table, id);
     return;
   }
   if (t.matches('[data-today-tab]')) { V.setTodayTab(t.dataset.todayTab); render(); return; }
@@ -265,6 +271,9 @@ async function start() {
   await store.init();
   const rerender = debounce(() => { if (!document.querySelector('.sheet-wrap') && !document.activeElement?.closest?.('[data-doffice-form]')) render(); else renderStatus(); }, 60);
   store.subscribe(rerender);
+  store.subscribe(() => refreshBar());
+  mountReadBar();
+  startPhotoQueue();
   gcal.subscribe(rerender);
   weather.subscribe(rerender);
   Auth.onChange((ok) => { if (ok) store.sync(); render(); });

@@ -31,6 +31,7 @@ const P = {
   share: '<circle cx="6.5" cy="12" r="2.3"/><circle cx="17.5" cy="6" r="2.3"/><circle cx="17.5" cy="18" r="2.3"/><path d="m8.6 10.9 6.8-3.7M8.6 13.1l6.8 3.7"/>',
   list: '<path d="M9 6.5h11M9 12h11M9 17.5h11"/><path d="m3.5 6.5 1 1 2-2M3.5 12l1 1 2-2M3.5 17.5l1 1 2-2"/>',
   text: '<path d="M4 6h16M4 11h16M4 16h10"/>',
+  cash: '<rect x="2.5" y="6.5" width="14" height="9" rx="2"/><circle cx="9.5" cy="11" r="2"/><path d="M5 9v4M14 9v4"/><circle cx="18" cy="15.5" r="3.5"/><path d="M18 14v3"/>',
   book: '<path d="M4.5 5.5A2 2 0 0 1 6.5 3.5H19v14H6.5a2 2 0 0 0-2 2z"/><path d="M4.5 19.5a2 2 0 0 0 2 2H19v-4M8.5 7.5h6"/>',
   spark: '<path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9z"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/>'
 };

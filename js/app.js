@@ -23,6 +23,7 @@ import { paraView, bindPara } from './para.js';
 import { openMarket } from './market.js';
 import { onNews, saveNews } from './news.js';
 import { openAsk } from './claude.js';
+import { tasksView, bindTasks, openTaskList } from './tasks.js';
 import { shelfView, bindShelf, openReadStart, askPages, mountReadBar, refreshBar, openBook, readCardAction, quickStart } from './reading.js';
 
 const main = document.getElementById('main');
@@ -40,7 +41,7 @@ const ROUTES = {
   'tu-sach': () => shelfView(),
   para: () => paraView(),
   'danh-ba': () => V.contactsView(),
-  viec: () => V.tasksView(),
+  viec: () => tasksView(),
   'van-ban': () => V.docsView(),
   lich: () => V.calendarView(),
   tim: () => V.searchView(searchQ),
@@ -77,6 +78,7 @@ function render() {
   if (route === 'nhat-ky') bindJournal(main);
   if (route === 'tu-sach') bindShelf(main, render);
   if (route === 'para') bindPara(main);
+  if (route === 'viec') bindTasks(main, render);
   if (route === 'danh-ba') main.querySelectorAll('[data-contact-tab]').forEach((b) => b.addEventListener('click', () => { V.setContactTab(b.dataset.contactTab); render(); }));
   if (keepFocus || route === 'tim') {
     const inp = document.getElementById(focusId || 'search-input');
@@ -112,7 +114,7 @@ function renderStatus() {
 
 // ---------------- Sự kiện giao diện ----------------
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-ask-open],[data-news-save],[data-market],[data-rc],[data-read-start],[data-read-pages],[data-weather],[data-habit-new],[data-chain],[data-weekly],[data-habit-mini],[data-today-tab],[data-stat],[data-weather-loc],[data-flash],[data-review],[data-habit-toggle],[data-session],[data-trip],[data-lunar],[data-toggle-task],[data-open],[data-new],[data-task-mode],[data-doc-filter],[data-cal-day],[data-cal-nav],[data-cal-today],#sync-status,#fab');
+  const t = e.target.closest('[data-cal-layer],[data-doc-area],[data-rm-goto],[data-ask-open],[data-news-save],[data-market],[data-rc],[data-read-start],[data-read-pages],[data-weather],[data-habit-new],[data-chain],[data-weekly],[data-habit-mini],[data-today-tab],[data-stat],[data-weather-loc],[data-flash],[data-review],[data-habit-toggle],[data-session],[data-trip],[data-lunar],[data-toggle-task],[data-open],[data-new],[data-task-mode],[data-doc-filter],[data-cal-day],[data-cal-nav],[data-cal-today],#sync-status,#fab');
   if (!t) return;
   if (t.closest('.sheet') && !t.matches('[data-toggle-task]')) return; // trong biểu mẫu tự xử lý
   if (t.matches('[data-toggle-task]')) {
@@ -123,6 +125,16 @@ document.addEventListener('click', async (e) => {
     store.update('viec', v.id, { trang_thai: done ? 'Xong' : 'Chưa bắt đầu' }).catch(errorToast);
     if (navigator.vibrate) navigator.vibrate(12);
     if (done) toast(`Xong: ${v.ten}`, { kind: 'ok', actionLabel: 'Hoàn tác', onAction: () => store.update('viec', v.id, { trang_thai: v.trang_thai }) });
+    return;
+  }
+  if (t.matches('[data-cal-layer]')) { V.toggleLayer(t.dataset.calLayer); render(); return; }
+  if (t.matches('[data-rm-goto]')) { openTaskList(t.dataset.rmGoto); return; }
+  if (t.matches('[data-doc-area]')) {
+    e.stopPropagation();
+    const [id, lv] = t.dataset.docArea.split('|');
+    const a = store.get('linh_vuc', lv);
+    store.update('van_ban', id, { linh_vuc_id: lv }).then(() => setTimeout(() => store.sync(), 600)).catch(errorToast);
+    toast(`Đã xếp vào ${a?.ten || 'lĩnh vực'}`, { kind: 'ok', actionLabel: 'Hoàn tác', onAction: () => store.update('van_ban', id, { linh_vuc_id: '' }) });
     return;
   }
   if (t.matches('[data-ask-open]')) { openAsk(parseHash()[0]); return; }

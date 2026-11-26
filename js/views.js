@@ -210,18 +210,68 @@ export function tasksView() {
 let docFilter = 'open';
 export function setDocFilter(v) { docFilter = v; }
 
+/** Gợi ý lĩnh vực cho văn bản theo từ khóa (chỉ gợi ý những lĩnh vực đang có). */
+const AREA_RULES = [
+  [/tuyen dung|thi tuyen|tiep nhan ho so|tuyen lao dong/, /tuyen dung/],
+  [/dao tao|boi huan|huan luyen|sat hach|e-?learning|boi duong/, /dao tao/],
+  [/luong|bhxh|bao hiem|phu cap|thu nhap|che do|nang bac/, /luong|bhxh/],
+  [/dieu dong|tiep nhan|bo tri cong viec|lao dong|bhld|bao ho|trang phuc|noi quy|ky luat|thoi viec|nghi huu|hop dong/, /lao dong/],
+  [/uy quyen|to chuc|bo may|co cau|bo nhiem|quy hoach|can bo|phan cong|mo hinh/, /mo hinh|to chuc/],
+  [/thi dua|khen thuong/, /thi dua|khen/],
+  [/bao cao/, /bao cao/]
+];
+export function suggestArea(d) {
+  const t = fold([d.trich_yeu, d.so_hieu, d.but_phe].join(' '));
+  const areas = store.all('linh_vuc');
+  for (const [kw, nameRe] of AREA_RULES) {
+    if (!kw.test(t)) continue;
+    const a = areas.find((x) => nameRe.test(fold(x.ten)));
+    if (a) return a;
+  }
+  return null;
+}
+function weekBucket(han) {
+  if (!han) return 'Chưa có hạn';
+  const d = dayOf(han), t = today();
+  if (d < t) return 'Quá hạn';
+  const wd = (new Date(t + 'T00:00:00Z').getUTCDay() + 6) % 7;
+  const sun = addDays(t, 6 - wd), nextSun = addDays(sun, 7);
+  return d <= sun ? 'Tuần này' : d <= nextSun ? 'Tuần sau' : 'Sau đó';
+}
+function docItem(d) {
+  const area = d.linh_vuc_id && store.get('linh_vuc', d.linh_vuc_id);
+  const sug = !area && d.trang_thai !== 'Xong' ? suggestArea(d) : null;
+  const task = store.all('viec').find((v) => (v.van_ban_ids || []).includes(d.id));
+  const proj = task?.du_an_id && store.get('du_an', task.du_an_id);
+  return html`${docRow(d)}<li class="doc-para">${area ? html`<span class="tag">${area.bieu_tuong || '🗂'} ${area.ten}</span>` : sug ? html`<button class="chip sug" data-doc-area="${d.id}|${sug.id}">Gợi ý: ${sug.bieu_tuong || ''} ${sug.ten} ✓</button>` : html`<button class="chip" data-open="van_ban/${d.id}">＋ Chọn lĩnh vực</button>`}${proj ? html`<span class="tag">📁 ${proj.ten}</span>` : task ? html`<span class="tag">${task.trang_thai === 'Xong' ? '✓ việc xong' : '⏳ ' + task.trang_thai}</span>` : ''}</li>`;
+}
 export function docsView() {
-  let docs = store.all('van_ban');
-  if (docFilter === 'open') docs = docs.filter((d) => d.trang_thai !== 'Xong');
-  if (docFilter === 'lead') docs = docs.filter((d) => d.vai_tro === 'Chủ trì' && d.trang_thai !== 'Xong');
-  if (docFilter === 'track') docs = docs.filter((d) => d.yeu_cau_dv_gui && d.trang_thai !== 'Xong');
-  docs.sort((a, b) => ((a.han_xu_ly || '9999') < (b.han_xu_ly || '9999') ? -1 : 1));
+  const f = ['open', 'track', 'info', 'done'].includes(docFilter) ? docFilter : 'open';
+  const all = store.all('van_ban');
+  const pick = {
+    open: (d) => d.trang_thai !== 'Xong' && (d.vai_tro === 'Chủ trì' || d.vai_tro === 'Phối hợp'),
+    track: (d) => d.trang_thai !== 'Xong' && d.yeu_cau_dv_gui,
+    info: (d) => d.trang_thai !== 'Xong' && d.vai_tro !== 'Chủ trì' && d.vai_tro !== 'Phối hợp',
+    done: (d) => d.trang_thai === 'Xong'
+  };
+  let docs = all.filter(pick[f]);
+  let body;
+  if (f === 'open') {
+    docs.sort((a, b) => ((a.han_xu_ly || '9999') < (b.han_xu_ly || '9999') ? -1 : 1));
+    const order = ['Quá hạn', 'Tuần này', 'Tuần sau', 'Sau đó', 'Chưa có hạn'];
+    const g = {}; docs.forEach((d) => (g[weekBucket(d.han_xu_ly)] = g[weekBucket(d.han_xu_ly)] || []).push(d));
+    body = order.filter((k) => g[k]).map((k) => section(k, g[k].map(docItem), { count: true }));
+    if (!docs.length) body = html`<p class="empty big">Không còn văn bản cần xử lý 👏</p>`;
+  } else {
+    docs.sort((a, b) => (f === 'done' ? ((a.updated_at < b.updated_at) ? 1 : -1) : ((a.han_xu_ly || '9999') < (b.han_xu_ly || '9999') ? -1 : 1)));
+    body = section(`${docs.length} văn bản`, (f === 'done' ? docs.slice(0, 100) : docs).map(f === 'done' ? docRow : docItem), { count: false, empty: 'Không có văn bản nào.' });
+  }
+  const n = (k) => all.filter(pick[k]).length;
   return html`
-    <header class="page-head"><h1>Văn bản</h1>
-      <div class="seg">${[['open', 'Đang xử lý'], ['lead', 'Chủ trì'], ['track', 'Thu đơn vị'], ['all', 'Tất cả']].map(([k, l]) => html`<button class="${docFilter === k ? 'on' : ''}" data-doc-filter="${k}">${l}</button>`)}</div>
-    </header>
-    <div class="filters"><button class="btn btn-ghost" data-new="van_ban">+ Văn bản mới</button></div>
-    ${section(`${docs.length} văn bản`, docs.map(docRow), { count: false, empty: 'Không có văn bản nào.' })}`;
+    <header class="page-head"><h1>Văn bản</h1><div class="filters" style="margin:0"><button class="btn btn-ghost" data-new="van_ban">＋ Văn bản</button></div></header>
+    <div class="seg doc-tabs">${[['open', 'Cần làm'], ['track', 'Theo dõi'], ['info', 'Để biết'], ['done', 'Xong']].map(([k, l]) => html`<button class="${f === k ? 'on' : ''}" data-doc-filter="${k}">${l}${k !== 'done' && n(k) ? html` <small>${n(k)}</small>` : ''}</button>`)}</div>
+    ${f === 'open' ? html`<p class="hint">Văn bản là đầu vào; việc là hành động. Xếp lĩnh vực cho từng văn bản (chạm gợi ý ✓). Văn bản nhiều bước → mở văn bản, chọn “Thành dự án”.</p>` : ''}
+    ${body}`;
 }
 
 // ---------------- Lịch ----------------
@@ -244,9 +294,16 @@ function gridRange(month) {
   return [addDays(first, -off), addDays(last, offEnd)];
 }
 
+// Lớp lịch: 🏢 công ty (D-Office) · 👤 cá nhân · 🔔 lời nhắc (việc/hạn văn bản, mặc định tắt: đã có ở màn Việc)
+const LAYERS_KEY = 'bnth.calLayers';
+let layers = (() => { try { return { co: true, ca: true, nh: false, ...JSON.parse(localStorage.getItem(LAYERS_KEY) || '{}') }; } catch { return { co: true, ca: true, nh: false }; } })();
+export function toggleLayer(k) { layers = { ...layers, [k]: !layers[k] }; localStorage.setItem(LAYERS_KEY, JSON.stringify(layers)); }
+const COMPANY_CAL = /lịch công ty/i;
 function itemsOn(day) {
-  const tasks = store.all('viec').filter((v) => dayOf(v.han) === day);
-  const docs = store.all('van_ban').filter((d) => dayOf(d.han_xu_ly) === day);
+  const allTasks = store.all('viec').filter((v) => dayOf(v.han) === day);
+  const allDocs = store.all('van_ban').filter((d) => dayOf(d.han_xu_ly) === day);
+  const tasks = layers.nh ? allTasks : [];
+  const docs = layers.nh ? allDocs : [];
   const events = store.all('su_kien').filter((e) => {
     const s = dayOf(e.bat_dau), en = dayOf(e.ket_thuc) || s;
     if (s <= day && en >= day) return true;
@@ -257,7 +314,10 @@ function itemsOn(day) {
     if (/FREQ=YEARLY/.test(e.lap_lai)) return s.slice(5) === day.slice(5);
     return false;
   });
-  return { tasks, docs, events, g: gcal.eventsOn(day, gList) };
+  const ev2 = events.filter((e) => (isDofEvent(e) ? layers.co : layers.ca));
+  const g = gcal.eventsOn(day, gList).filter((e) => !COMPANY_CAL.test(gcal.calOf(e.lich_id)?.ten || '') && (DOF_TITLE.test(e.ten || '') ? layers.co : layers.ca));
+  const remind = allTasks.filter((v) => v.trang_thai !== 'Xong').length + allDocs.filter((d) => d.trang_thai !== 'Xong' && !store.all('viec').some((v) => (v.van_ban_ids || []).includes(d.id))).length;
+  return { tasks, docs, events: ev2, g, remind };
 }
 let gList = [];
 
@@ -297,13 +357,15 @@ export function calendarView() {
       <div class="cal-legend"><span><b class="hd-mark">16</b> ngày âm · xanh = hoàng đạo</span><span><i class="dot dot-ev"></i>Sự kiện</span><span><i class="dot dot-q1"></i>Gấp & QT</span><span><i class="dot dot-q2"></i>Quan trọng</span><span><i class="dot dot-doc"></i>Văn bản</span><span><i class="dot dot-gcal"></i>Lịch Google khác</span></div>
       ${gErr ? html`<p class="hint">⚠️ ${gErr}.</p>` : ''}
     </div>
+    <div class="cal-layers">${[['co', '🏢 Công ty'], ['ca', '👤 Cá nhân'], ['nh', '🔔 Lời nhắc']].map(([k, l]) => html`<button class="chip ${layers[k] ? 'on' : ''}" data-cal-layer="${k}">${l}</button>`)}</div>
     ${lunarCard(calDay, { compact: true })}
     ${section(`${weekdayName(calDay, true)} ${fmtDate(calDay, true)}`, [
       ...[...it.events.map((e) => [gcal.timeKey(e.bat_dau), eventRow(e)]), ...it.g.map((e) => [gcal.timeKey(e.bat_dau), gcal.gcalRow(e)])]
         .sort((a, b) => (a[0] < b[0] ? -1 : 1)).map((x) => x[1]),
       ...it.tasks.map((v) => taskRow(v)),
-      ...it.docs.map(docRow)
-    ], { empty: 'Trống. Chạm ＋ để thêm.', count: false })}`;
+      ...it.docs.map(docRow),
+      ...(!layers.nh && it.remind ? [html`<li class="row cal-remind"><a href="#/viec" data-rm-goto="sched">🔔 ${it.remind} lời nhắc đến hạn ngày này →</a></li>`] : [])
+    ], { empty: 'Không có lịch. Chạm ＋ để thêm.', count: false })}`;
 }
 
 // ---------------- Tìm kiếm ----------------

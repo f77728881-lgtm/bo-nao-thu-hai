@@ -108,6 +108,7 @@ export function openRecord(table, id, defaults = {}) {
     ${rec && ['viec', 'van_ban', 'du_an', 'sach'].includes(table) ? askBox(table, rec) : ''}
     <div class="form-actions">
       ${rec ? html`<button type="button" class="btn btn-ghost" data-archive>${rec.archived ? 'Khôi phục' : 'Lưu trữ'}</button>` : ''}
+      ${rec && table === 'van_ban' && rec.trang_thai !== 'Xong' ? html`<button type="button" class="btn btn-ghost" data-doc-project>📁 Thành dự án</button>` : ''}
       <span class="spacer"></span>
       <button type="submit" class="btn btn-primary">${rec ? 'Lưu' : 'Thêm'}</button>
     </div>`.__raw;
@@ -131,6 +132,18 @@ export function openRecord(table, id, defaults = {}) {
     }
     sheet.close();
     p.catch((err) => errorToast(err));
+  });
+  form.querySelector('[data-doc-project]')?.addEventListener('click', async () => {
+    const name = prompt('Tên dự án (kết quả cần đạt):', `${rec.so_hieu}: ${String(rec.trich_yeu || '').slice(0, 80)}`);
+    if (!name) return;
+    sheet.close();
+    try {
+      const d = await store.create('du_an', { ten: name.trim(), trang_thai: 'Đang làm', han: (rec.han_xu_ly || '').slice(0, 10), linh_vuc_id: rec.linh_vuc_id || '', ket_qua: 'Hoàn thành xử lý văn bản ' + rec.so_hieu, mo_ta: [rec.trich_yeu, rec.but_phe ? 'Bút phê: ' + rec.but_phe : ''].filter(Boolean).join('\n') });
+      if (!d) { toast('Đang mất mạng: thử lại khi có mạng.'); return; }
+      for (const v of store.all('viec').filter((x) => (x.van_ban_ids || []).includes(rec.id))) await store.update('viec', v.id, { du_an_id: d.id });
+      toast('Đã tạo dự án — thêm các bước ở màn Việc', { kind: 'ok' });
+      location.hash = '#/viec';
+    } catch (err) { errorToast(err); }
   });
   form.querySelector('[data-archive]')?.addEventListener('click', () => {
     if (rec.archived) { store.restore(table, rec.id).catch(errorToast); toast('Đã khôi phục'); }

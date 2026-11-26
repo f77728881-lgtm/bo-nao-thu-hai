@@ -61,6 +61,14 @@ function clothes(tmin, tmax, uv) {
   return out.join(', ');
 }
 
+/** Theo giờ cho ngày (0 hôm nay, 1 ngày mai): [{h, temp, rain, icon}] từ 6h đến 22h. */
+export function hourly(dayIndex = 0) {
+  if (!data || !data.daily) return [];
+  const ymd = data.daily.time[dayIndex];
+  return data.hourly.time.map((t, i) => ({ t, h: +t.slice(11, 13), temp: Math.round(data.hourly.temperature_2m[i]), rain: data.hourly.precipitation_probability[i] ?? 0, icon: look(data.hourly.weather_code[i])[1] }))
+    .filter((x) => x.t.slice(0, 10) === ymd && x.h >= 6 && x.h <= 22);
+}
+
 /** Tóm tắt cho ngày (0 = hôm nay, 1 = ngày mai). null nếu chưa có dữ liệu. */
 export function summary(dayIndex = 0) {
   load();

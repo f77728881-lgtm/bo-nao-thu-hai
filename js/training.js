@@ -58,27 +58,24 @@ function dayRate(list, ymd) {
 }
 
 function ring(done, total) {
-  const r = 30, c = 2 * Math.PI * r, pct = total ? done / total : 0;
-  return html`<svg class="hb-ring" viewBox="0 0 76 76" aria-label="${done}/${total} thói quen">
-    <circle cx="38" cy="38" r="${r}" class="ring-bg"/>
-    <circle cx="38" cy="38" r="${r}" class="ring-fg ${pct >= 1 ? 'full' : ''}" stroke-dasharray="${(c * pct).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 38 38)"/>
-    <text x="38" y="36" class="ring-num">${done}/${total}</text><text x="38" y="51" class="ring-sub">${Math.round(pct * 100)}%</text></svg>`;
+  const r = 20, c = 2 * Math.PI * r, pct = total ? done / total : 0;
+  return html`<svg class="hb-ring" viewBox="0 0 50 50" aria-label="${done}/${total} thói quen">
+    <circle cx="25" cy="25" r="${r}" class="ring-bg"/>
+    <circle cx="25" cy="25" r="${r}" class="ring-fg ${pct >= 1 ? 'full' : ''}" stroke-dasharray="${(c * pct).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 25 25)"/>
+    <text x="25" y="29" class="ring-num">${done}/${total}</text></svg>`;
 }
 
+/** Dải 7 ngày gọn: mỗi ngày một cột nhỏ theo tỉ lệ hoàn thành. */
 function bars(list, t) {
   const days = Array.from({ length: 7 }, (_, i) => addDays(t, i - 6));
-  const W = 22, GAP = 8, H = 46;
   const rates = days.map((d) => dayRate(list, d));
   const valid = rates.filter((x) => x !== null);
   const avg = valid.length ? Math.round(100 * valid.reduce((a, b) => a + b, 0) / valid.length) : 0;
-  return html`<div class="hb-bars"><svg viewBox="0 0 ${7 * W + 6 * GAP} ${H + 16}" aria-label="Tỉ lệ hoàn thành 7 ngày">
-    ${days.map((d, i) => {
+  return html`<div class="hb-week">${days.map((d, i) => {
       const r = rates[i];
-      const h = r === null ? 3 : Math.max(3, Math.round(r * H));
-      const x = i * (W + GAP);
-      return html`<rect x="${x}" y="${H - h}" width="${W}" height="${h}" rx="4" class="bar ${r === null ? 'rest' : r >= 1 ? 'full' : r > 0 ? 'part' : 'zero'} ${d === t ? 'today' : ''}"><title>${fmtDate(d)}: ${r === null ? 'nghỉ' : Math.round(r * 100) + '%'}</title></rect>
-        <text x="${x + W / 2}" y="${H + 13}" class="bar-lb ${d === t ? 'today' : ''}">${weekdayName(d)}</text>`;
-    })}</svg><p class="hb-avg">7 ngày: <b>${avg}%</b></p></div>`;
+      return html`<div class="hb-day ${d === t ? 'today' : ''}" title="${fmtDate(d)}: ${r === null ? 'nghỉ' : Math.round(r * 100) + '%'}">
+        <span class="hb-col"><i style="height:${r === null ? 0 : Math.max(8, Math.round(r * 100))}%" class="${r === null ? '' : r >= 1 ? 'full' : r > 0 ? 'part' : 'zero'}"></i></span><small>${weekdayName(d)}</small></div>`;
+    })}<div class="hb-avg"><b>${avg}%</b><small>7 ngày</small></div></div>`;
 }
 
 /** Thẻ theo dõi thói quen cho màn Hôm nay: vòng tiến độ, biểu đồ 7 ngày, bảng theo dõi từng thói quen. */
@@ -89,11 +86,13 @@ export function habitStrip() {
   const order = (h) => (h.noi_sau ? 1 : 0);
   const list = all.filter((h) => dueOn(h, t) || h.tan_suat === 'X lần/tuần')
     .sort((a, b) => (missedY(b) ? 1 : 0) - (missedY(a) ? 1 : 0) || (a.gio_nhac || '99') .localeCompare(b.gio_nhac || '99') || order(a) - order(b));
-  if (!list.length) return raw('');
+  if (!list.length) return html`<section class="card habits-today"><div class="hb-head"><h3 class="card-title">${icon('check')} Thói quen</h3><span class="spacer"></span><button class="btn btn-ghost" data-habit-new>＋ Tạo thói quen đầu tiên</button></div></section>`;
   const doneN = list.filter((h) => checkins(h.id).has(t)).length;
   const last7 = Array.from({ length: 7 }, (_, i) => addDays(t, i - 6));
+  const chains = ['Sáng', 'Trưa', 'Tối'].filter((c) => list.filter((h) => h.chuoi === c).length >= 2 && list.some((h) => h.chuoi === c && !checkins(h.id).has(t)));
   return html`<section class="card habits-today">
-    <h3 class="card-title">${icon('check')} Thói quen hôm nay</h3>
+    <div class="hb-head"><h3 class="card-title">${icon('check')} Thói quen hôm nay</h3>
+      <span class="spacer"></span>${chains.map((c) => html`<button class="chip" data-chain="${c}">▶ Chuỗi ${c.toLowerCase()}</button>`)}<button class="icon-btn" data-habit-new aria-label="Thêm thói quen" title="Thêm thói quen">＋</button></div>
     <div class="hb-top">${ring(doneN, list.length)}${bars(all, t)}</div>
     <ul class="hb-table">${list.map((h) => {
       const days = checkins(h.id);
@@ -225,7 +224,7 @@ export function trainingView() {
   }
   return html`
     <header class="page-head"><h1>Rèn luyện</h1>
-      <div class="filters" style="margin:0"><button class="btn btn-ghost" data-new="${tab === 'programs' ? 'lo_trinh' : 'thoi_quen'}">+ ${tab === 'programs' ? 'Lộ trình' : 'Thói quen'}</button></div></header>
+      <div class="filters" style="margin:0">${tab === 'programs' ? html`<button class="btn btn-ghost" data-new="lo_trinh">+ Lộ trình</button>` : ''}<button class="btn" data-habit-new>+ Thói quen</button></div></header>
     <div class="seg" style="margin-bottom:14px">${[['habits', 'Thói quen'], ['programs', 'Lộ trình']].map(([k, l]) => html`<button class="${tab === k ? 'on' : ''}" data-training-tab="${k}">${l}</button>`)}</div>
     ${tab === 'habits' ? habitStrip() : todaySessions()}
     ${tab === 'programs' ? flashStrip() : ''}
@@ -233,7 +232,7 @@ export function trainingView() {
 }
 
 // ---------------- Thao tác ----------------
-export async function toggleHabit(id, ymd = today(), muc = 'Đủ') {
+export async function toggleHabit(id, ymd = today(), muc = 'Đủ', { quiet = false } = {}) {
   const existing = store.all('diem_danh', { archived: true }).find((d) => d.thoi_quen_id === id && d.ngay === ymd);
   const h = store.get('thoi_quen', id);
   try {
@@ -242,7 +241,7 @@ export async function toggleHabit(id, ymd = today(), muc = 'Đủ') {
     else if (existing) { store.restore('diem_danh', existing.id).catch(errorToast); store.update('diem_danh', existing.id, { muc }).catch(errorToast); }
     else store.create('diem_danh', { thoi_quen_id: id, ngay: ymd, muc }).catch(errorToast);
     if (navigator.vibrate) navigator.vibrate(15);
-    if (!h || ymd !== today()) return;
+    if (!h || ymd !== today() || quiet) return;
     const s = streak(h);
     const next = store.all('thoi_quen').find((x) => x.noi_sau === id && x.trang_thai === 'Đang theo' && dueOn(x, ymd) && !checkins(x.id).has(ymd));
     const votes = checkins(h.id).size;
@@ -251,6 +250,9 @@ export async function toggleHabit(id, ymd = today(), muc = 'Đủ') {
     else toast(msg, { kind: 'ok' });
   } catch (err) { errorToast(err); }
 }
+
+export const doneToday = (h) => checkins(h.id).has(today());
+export { activeHabits };
 
 export function bindTraining(root, rerender) {
   root.querySelectorAll('[data-training-tab]').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.trainingTab; rerender(); }));

@@ -136,7 +136,7 @@ export async function call(action, payload = {}) {
 
 // ---------------- Chế độ demo ----------------
 let demoReady = null;
-const DEMO_FILES = ['../tests/mock_gas.js', '00_Config', '01_Util', '02_Db', '03_Log', '04_Auth', '05_Calendar', '06_Api', '07_Search_Today', '08_Main_Setup', '09_Seed', '10_Places', '11_Links', '12_Backup', '13_ExtCal', '14_Hoc', '15_Mcp', '16_Doffice', '18_ThongBao', '../tests/demo_seed.js']
+const DEMO_FILES = ['../tests/mock_gas.js', '00_Config', '01_Util', '02_Db', '03_Log', '04_Auth', '05_Calendar', '06_Api', '07_Search_Today', '08_Main_Setup', '09_Seed', '10_Places', '11_Links', '12_Backup', '13_ExtCal', '14_Hoc', '15_Mcp', '16_Doffice', '18_ThongBao', '19_TuDong', '../tests/demo_seed.js']
   .map((f) => (f.endsWith('.js') ? f : `../apps-script/src/${f}.js`));
 
 async function demoCall(action, payload) {

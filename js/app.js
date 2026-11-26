@@ -17,6 +17,7 @@ import * as gcal from './extcal.js';
 import { handleFlash } from './flashcards.js';
 import * as weather from './weather.js';
 import { openWeekly, weeklyView } from './weekly.js';
+import { openHabitWizard, openChain } from './habitwizard.js';
 
 const main = document.getElementById('main');
 let searchQ = '';
@@ -96,7 +97,7 @@ function renderStatus() {
 
 // ---------------- Sự kiện giao diện ----------------
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-weekly],[data-habit-mini],[data-today-tab],[data-stat],[data-weather-loc],[data-flash],[data-review],[data-habit-toggle],[data-session],[data-trip],[data-lunar],[data-toggle-task],[data-open],[data-new],[data-task-mode],[data-doc-filter],[data-cal-day],[data-cal-nav],[data-cal-today],#sync-status,#fab');
+  const t = e.target.closest('[data-weather],[data-habit-new],[data-chain],[data-weekly],[data-habit-mini],[data-today-tab],[data-stat],[data-weather-loc],[data-flash],[data-review],[data-habit-toggle],[data-session],[data-trip],[data-lunar],[data-toggle-task],[data-open],[data-new],[data-task-mode],[data-doc-filter],[data-cal-day],[data-cal-nav],[data-cal-today],#sync-status,#fab');
   if (!t) return;
   if (t.closest('.sheet') && !t.matches('[data-toggle-task]')) return; // trong biểu mẫu tự xử lý
   if (t.matches('[data-toggle-task]')) {
@@ -110,6 +111,13 @@ document.addEventListener('click', async (e) => {
     return;
   }
   if (t.matches('[data-review]')) { openReview(); return; }
+  if (t.matches('[data-weather]')) {
+    const box = document.createElement('div'); box.innerHTML = V.weatherDetail().__raw;
+    box.addEventListener('click', (ev) => { const b = ev.target.closest('[data-weather-loc]'); if (!b) return; if (/hiện tại/.test(b.textContent)) weather.useCurrentPosition(); else weather.useDefault(); closeSheet(); toast('Đang cập nhật thời tiết…'); });
+    openSheet(box, { title: 'Thời tiết' }); return;
+  }
+  if (t.matches('[data-habit-new]')) { openHabitWizard(); return; }
+  if (t.matches('[data-chain]')) { const T = await import('./training.js'); openChain(t.dataset.chain, T.activeHabits(), T.doneToday, T.toggleHabit); return; }
   if (t.matches('[data-weekly]')) { openWeekly(); return; }
   if (t.matches('[data-habit-mini]')) { e.stopPropagation(); toggleHabit(t.dataset.habitMini, undefined, '2 phút'); return; }
   if (t.matches('[data-habit-toggle]')) { toggleHabit(t.dataset.habitToggle); return; }
@@ -127,7 +135,7 @@ document.addEventListener('click', async (e) => {
   }
   if (t.matches('[data-today-tab]')) { V.setTodayTab(t.dataset.todayTab); render(); return; }
   if (t.matches('[data-stat]')) { V.setStatFilter(t.dataset.stat); render(); return; }
-  if (t.matches('[data-weather-loc]')) { if (/hiện tại/.test(t.textContent)) weather.useCurrentPosition(); else weather.useDefault(); return; }
+  if (t.matches('[data-weather-loc]')) { if (/hiện tại/.test(t.textContent)) weather.useCurrentPosition(); else weather.useDefault(); closeSheet(); toast('Đang cập nhật thời tiết…'); return; }
   if (t.matches('[data-flash]')) { handleFlash(t.dataset.flash); return; }
   if (t.matches('[data-new]')) { openRecord(t.dataset.new, null); return; }
   if (t.matches('[data-task-mode]')) { V.setTaskMode(t.dataset.taskMode); render(); return; }

@@ -17,7 +17,7 @@ const PRIMARY = {
   linh_vuc: ['ten', 'nhom', 'bieu_tuong', 'thu_tu', 'mo_ta'],
   don_vi: ['ten', 'loai', 'dau_moi', 'dien_thoai', 'email', 'ghi_chu'],
   chuyen_di: ['ten', 'diem_den', 'tu_ngay', 'den_ngay', 'trang_thai', 'loai', 'phuong_tien', 'di_cung', 'ngan_sach', 'chi_phi', 'danh_gia', 'album', 'ghi_chu'],
-  thoi_quen: ['ten', 'loai', 'ban_sac', 'noi_sau', 'moc', 'gio_nhac', 'dia_diem_lam', 'ban_2_phut', 'phan_thuong', 'lam_kho_hon', 'bieu_tuong', 'tan_suat', 'ngay_trong_tuan', 'so_lan_tuan', 'thoi_luong_phut', 'muc_tieu', 'bat_dau', 'trang_thai'],
+  thoi_quen: ['ten', 'loai', 'ban_sac', 'noi_sau', 'moc', 'gio_nhac', 'dia_diem_lam', 'ban_2_phut', 'phan_thuong', 'lam_kho_hon', 'tu_dong', 'chuoi', 'bieu_tuong', 'tan_suat', 'ngay_trong_tuan', 'so_lan_tuan', 'thoi_luong_phut', 'muc_tieu', 'bat_dau', 'trang_thai'],
   lo_trinh: ['ten', 'loai', 'muc_tieu', 'bat_dau', 'so_tuan', 'thoi_quen_id', 'trang_thai', 'cach_hoc', 'mo_ta'],
   the_hoc: ['cau', 'pinyin', 'nghia', 'vi_du', 'chu_de', 'muc', 'on_ngay', 'ghi_chu'],
   buoi_hoc: ['tieu_de', 'ngay', 'gio', 'tuan', 'thu_tu', 'muc_tieu', 'noi_dung', 'bai_tap', 'tai_lieu', 'trang_thai'],

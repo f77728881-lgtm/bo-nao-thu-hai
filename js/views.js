@@ -81,9 +81,6 @@ export function todayView() {
       ${personal && inbox.length ? section('Inbox chưa xử lý', inbox.slice(0, 5).map((r) => genericRow('inbox', r)), { more: html`<a class="more-link" href="#/bang/inbox">Xem tất cả →</a>` }) : ''}`;
 
   return html`
-    <header class="page-head today-head">
-      <div><p class="eyebrow">${weekdayName(t, true)}, ${fmtDate(t, true)}</p><h1>${hello}</h1></div>
-    </header>
     ${topCard(t)}
     <div class="seg today-tabs">${[['tat_ca', 'Tất cả'], ['ca_nhan', 'Cá nhân'], ['doffice', 'D-Office']].map(([k, l]) => html`<button class="${todayTab === k ? 'on' : ''}" data-today-tab="${k}">${l}</button>`)}</div>
     <div class="stat-row stat-bar">
@@ -100,30 +97,45 @@ export function todayView() {
     </div>`;
 }
 
-/** Thẻ đầu trang: âm lịch (chạm xem chi tiết) + thời tiết, gợi ý trang phục, nhắc mang ô. */
+/** Thẻ đầu trang: chào + ngày + âm lịch (chạm xem chi tiết) + thời tiết (chạm xem theo giờ) + một hàng nhắc. */
 function topCard(t) {
   const l = lunarInfo(t);
-  const evening = vnNow().h >= 18;
+  const p = vnNow();
+  const hello = p.h < 11 ? 'Chào buổi sáng' : p.h < 14 ? 'Chào buổi trưa' : p.h < 18 ? 'Chào buổi chiều' : 'Chào buổi tối';
+  const evening = p.h >= 18;
   const w = weather.summary(evening ? 1 : 0);
-  const good = l.goodHours.map((h) => h.chi).join(', ');
+  const chips = [];
+  if (w && w.umbrella) chips.push(html`<span class="tt-chip rain">☔ Mang ô · mưa ${w.rainWork}%${evening ? ' (mai)' : ''}</span>`);
+  else if (w && w.maybeRain) chips.push(html`<span class="tt-chip maybe">🌂 Có thể mưa ${w.rainWork}%</span>`);
+  if (w) chips.push(html`<span class="tt-chip">👕 ${w.clothes.split(',')[0]}</span>`);
   return html`<section class="card today-top">
-    <button class="tt-lunar" data-lunar="${t}">
-      <span class="tt-big">${l.label}</span>
-      <span class="tt-sub">${l.canChiYear} · ngày ${l.canChiDay} · <b class="${l.hoangDao ? 'good' : 'bad'}">${l.hoangDao ? 'Hoàng đạo' : 'Hắc đạo'}</b>${l.le ? html` · <b class="le">${l.le}</b>` : ''}</span>
-      <span class="tt-hours">Giờ tốt: ${good}</span>
-    </button>
-    <div class="tt-weather">
-      ${w ? html`<span class="tt-temp">${w.icon} ${w.now !== null ? w.now : w.tmax}°</span>
-        <span class="tt-sub">${evening ? 'Ngày mai · ' : ''}${w.text} · ${w.tmin}–${w.tmax}°</span>
-        <span class="tt-sub">Mưa: sáng ${w.rainAm}% · chiều ${w.rainPm}%</span>`
-      : html`<span class="tt-sub">Đang tải thời tiết…</span>`}
+    <div class="tt-main">
+      <div class="tt-left">
+        <p class="tt-date">${weekdayName(t, true)}, ${fmtDate(t)}</p>
+        <h1 class="tt-hello">${hello}</h1>
+        <button class="linklike tt-lunar" data-lunar="${t}">🌙 ${l.label} ÂL · <b class="${l.hoangDao ? 'good' : 'bad'}">${l.hoangDao ? 'Hoàng đạo' : 'Hắc đạo'}</b>${l.le ? html` · <b class="le">${l.le}</b>` : ''}</button>
+      </div>
+      <button class="tt-wx" data-weather aria-label="Chi tiết thời tiết">
+        ${w ? html`<span class="tt-temp">${w.icon}<b>${w.now !== null ? w.now : w.tmax}°</b></span><small>${evening ? 'Mai · ' : ''}${w.tmin}–${w.tmax}°</small>` : html`<small>Thời tiết…</small>`}
+      </button>
     </div>
-    ${w ? html`<div class="tt-advice">
-      ${w.umbrella ? html`<span class="tt-umbrella">☔ Nhớ mang ô / áo mưa (${w.rainWork}%)</span>` : w.maybeRain ? html`<span class="tt-maybe">🌂 Có thể mưa (${w.rainWork}%), nên mang ô gấp</span>` : ''}
-      <span>👕 ${w.clothes}</span>
-      <span class="tt-loc">📍 ${w.ten} · <button class="linklike" data-weather-loc>${w.ten === 'Việt Trì' ? 'dùng vị trí hiện tại' : 'về Việt Trì'}</button></span>
-    </div>` : ''}
+    ${chips.length ? html`<div class="tt-chips">${chips}</div>` : ''}
   </section>`;
+}
+
+/** Bảng thời tiết chi tiết: theo giờ hôm nay/ngày mai + chọn vị trí. */
+export function weatherDetail() {
+  const loc = weather.location();
+  const day = (i) => {
+    const w = weather.summary(i); const hs = weather.hourly(i);
+    if (!w) return '';
+    return html`<h4>${i ? 'Ngày mai' : 'Hôm nay'} · ${w.text} · ${w.tmin}–${w.tmax}°</h4>
+      <div class="wx-hours">${hs.map((x) => html`<div class="wx-h"><small>${x.h}h</small><span>${x.icon}</span><b>${x.temp}°</b><i class="wx-rain" style="--r:${x.rain}%"></i><small class="${x.rain >= 70 ? 'rain' : ''}">${x.rain}%</small></div>`)}</div>
+      <p class="row-meta">👕 ${w.clothes}${w.umbrella ? ' · ☔ nhớ mang ô' : ''}</p>`;
+  };
+  return html`<div class="wx">${day(0)}${day(1)}
+    <p class="row-meta">📍 ${loc.ten} · <button class="linklike" data-weather-loc>${loc.ten === 'Việt Trì' ? 'Dùng vị trí hiện tại' : 'Về Việt Trì'}</button></p>
+    <p class="hint">Nguồn: Open-Meteo. Bản tin 6:30 sáng trên điện thoại cũng nhắc mang ô khi mưa từ 70%.</p></div>`;
 }
 
 // ---------------- Việc ----------------

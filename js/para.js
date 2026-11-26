@@ -6,6 +6,7 @@ import { html, raw, today, diffDays, fmtDate, dayOf, fold } from './util.js';
 import { openSheet, toast, errorToast } from './ui.js';
 import { icon } from './icons.js';
 import { paraOf, setNotesTab } from './notes.js';
+import { effectiveStatus } from './travel.js';
 
 const ACTIVE = ['Đang làm', 'Tạm dừng'];
 const openTasks = (f) => store.all('viec').filter((v) => v.trang_thai !== 'Xong' && f(v));
@@ -36,6 +37,9 @@ export function paraView() {
   const projects = store.all('du_an');
   const active = projects.filter((d) => ACTIVE.includes(d.trang_thai)).sort((a, b) => (a.han || '9') < (b.han || '9') ? -1 : 1);
   const later = projects.filter((d) => d.trang_thai === 'Ý tưởng');
+  const allTrips = store.all('chuyen_di').map((t) => ({ ...t, _st: effectiveStatus(t) }));
+  const trips = allTrips.filter((t) => ['Lên kế hoạch', 'Sẵn sàng', 'Đang đi'].includes(t._st)).sort((a, b) => ((a.tu_ngay || '9') < (b.tu_ngay || '9') ? -1 : 1));
+  const pastTrips = allTrips.filter((t) => t._st === 'Đã đi').length;
   const done = projects.filter((d) => d.trang_thai === 'Xong').sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1));
   const areas = store.all('linh_vuc').sort((a, b) => (a.nhom || '').localeCompare(b.nhom || '') || (a.thu_tu || 99) - (b.thu_tu || 99));
   const notes = store.all('ghi_chu').filter((n) => !(n.nhan || []).includes('#Prompt'));
@@ -72,19 +76,23 @@ export function paraView() {
     <p class="hint">Xếp mọi thứ theo nơi sẽ <b>dùng tới</b>: Dự án (có kết quả + hạn) → Lĩnh vực (trách nhiệm lâu dài) → Tài nguyên (chủ đề quan tâm) → Lưu trữ.</p>
     ${inboxN || looseTasks ? html`<p class="pa-inbox">📥 ${inboxN ? html`<a href="#/ghi-chu" data-pa-notes="#0_Inbox">${inboxN} ghi chú chưa xếp</a>` : ''}${inboxN && looseTasks ? ' · ' : ''}${looseTasks ? html`<a href="#/viec">${looseTasks} việc chưa gắn dự án/lĩnh vực</a>` : ''}</p>` : ''}
 
-    <h2 class="pa-h">${icon('folder')} Dự án đang chạy <small>${active.length}${active.length > 12 ? ' — nhiều quá, nên dồn bớt sang “Để sau”' : ''}</small></h2>
+    <h2 class="pa-h">${icon('folder')} Dự án đang chạy <small>${active.length}${active.length > 12 ? ' — nhiều quá, nên dồn bớt sang “Để sau”' : ''}</small><span class="spacer"></span><a class="pa-link" href="#/bang/du_an">Tất cả</a></h2>
     ${active.length ? html`<div class="grid">${active.map(projectCard)}</div>` : html`<p class="empty">Chưa có dự án đang chạy. Dự án = một kết quả cụ thể + hạn chót (vd “Kế hoạch đào tạo 2027 được duyệt trước 15/12”).</p>`}
+
+    ${trips.length ? html`<h3 class="pa-sub">✈️ Chuyến đi <small>dự án cá nhân có ngày đi – ngày về</small><span class="spacer"></span><a class="pa-link" href="#/hanh-trinh">Hành trình & địa điểm</a></h3>
+      <ul class="list card">${trips.map((t) => html`<li class="row" data-trip="${t.id}"><div class="row-main"><div class="row-title">${t.ten}</div><div class="row-meta">${t._st}${t.tu_ngay ? ` · ${fmtDate(t.tu_ngay)}${t.den_ngay ? '–' + fmtDate(t.den_ngay) : ''}` : ''}${t.diem_den ? ` · ${t.diem_den}` : ''}</div></div></li>`)}</ul>`
+      : html`<p class="pa-sub-empty">✈️ Chuyến đi cũng là dự án: <a class="pa-link" href="#/hanh-trinh">mở Hành trình & địa điểm</a></p>`}
 
     ${later.length ? html`<h2 class="pa-h">💤 Để sau <small>${later.length} ý tưởng chưa cam kết</small></h2>
       <ul class="list card">${later.map((d) => html`<li class="row"><div class="row-main" data-open="du_an/${d.id}"><div class="row-title">${d.ten}</div><div class="row-meta">${d.ket_qua || ''}</div></div><button class="btn btn-ghost" data-pa-start="${d.id}">▶ Bắt đầu</button></li>`)}</ul>` : ''}
 
-    <h2 class="pa-h">${icon('grid')} Lĩnh vực <small>${areas.length} trách nhiệm lâu dài</small></h2>
+    <h2 class="pa-h">${icon('grid')} Lĩnh vực <small>${areas.length} trách nhiệm lâu dài</small><span class="spacer"></span><a class="pa-link" href="#/bang/linh_vuc">Sửa</a><button class="pa-link btn-link" data-new="linh_vuc">＋ Thêm</button></h2>
     <div class="grid">${areas.map(areaCard)}</div>
 
     <h2 class="pa-h">${icon('book')} Tài nguyên <small>chủ đề quan tâm</small></h2>
     ${Object.keys(resources).length ? html`<div class="pa-chips">${Object.entries(resources).sort((a, b) => b[1] - a[1]).map(([k, n]) => html`<a class="chip" href="#/ghi-chu" data-pa-notes="@tai_nguyen">${k === 'Chưa có chủ đề' ? k : '🏷 ' + k} <em>${n}</em></a>`)}</div>` : html`<p class="empty">Chưa có. Ghi chú tham khảo (luật, mẫu văn bản, HSK…) để ở Tài nguyên kèm một nhãn chủ đề.</p>`}
 
-    <h2 class="pa-h">${icon('list')} Lưu trữ <small>${done.length} dự án đã xong</small></h2>
+    <h2 class="pa-h">${icon('list')} Lưu trữ <small>${done.length} dự án đã xong${pastTrips ? ` · ${pastTrips} chuyến đã đi` : ''}</small></h2>
     ${done.length ? html`<ul class="list card">${done.slice(0, 12).map((d) => html`<li class="row"><div class="row-main" data-open="du_an/${d.id}"><div class="row-title">${d.ten}</div><div class="row-meta">xong ${fmtDate((d.updated_at || '').slice(0, 10), true)} · ${notesOf((n) => n.du_an_id === d.id).length} ghi chú</div></div><button class="btn btn-ghost" data-pa-reopen="${d.id}">Mở lại</button></li>`)}</ul>` : html`<p class="empty">Dự án xong sẽ vào đây cùng việc và ghi chú của nó.</p>`}`;
 }
 

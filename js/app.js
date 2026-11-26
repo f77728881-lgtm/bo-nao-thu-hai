@@ -39,6 +39,7 @@ const ROUTES = {
   'on-tuan': () => weeklyView(),
   'tu-sach': () => shelfView(),
   para: () => paraView(),
+  'danh-ba': () => V.contactsView(),
   viec: () => V.tasksView(),
   'van-ban': () => V.docsView(),
   lich: () => V.calendarView(),
@@ -76,6 +77,7 @@ function render() {
   if (route === 'nhat-ky') bindJournal(main);
   if (route === 'tu-sach') bindShelf(main, render);
   if (route === 'para') bindPara(main);
+  if (route === 'danh-ba') main.querySelectorAll('[data-contact-tab]').forEach((b) => b.addEventListener('click', () => { V.setContactTab(b.dataset.contactTab); render(); }));
   if (keepFocus || route === 'tim') {
     const inp = document.getElementById(focusId || 'search-input');
     if (inp) { inp.focus(); if (keepFocus) inp.setSelectionRange(caret, caret); }

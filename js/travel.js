@@ -35,7 +35,7 @@ function tripDates(t) {
 }
 const tripDays = (t) => (t.tu_ngay ? diffDays(t.tu_ngay, t.den_ngay || t.tu_ngay) + 1 : 0);
 
-function effectiveStatus(t) {
+export function effectiveStatus(t) {
   const d = today();
   if (t.trang_thai === 'Đã đi' || t.trang_thai === 'Ý tưởng') return t.trang_thai;
   if (t.tu_ngay && t.tu_ngay <= d && (t.den_ngay || t.tu_ngay) >= d) return 'Đang đi';

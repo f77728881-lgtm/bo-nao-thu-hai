@@ -346,23 +346,46 @@ export function tableView(table) {
     ${section(`${recs.length} mục`, recs.map((r) => (table === 'su_kien' ? eventRow(r) : genericRow(table, r))), { count: false, empty: 'Chưa có gì ở đây.' })}`;
 }
 
+/** Mục Thêm: danh sách nhóm kiểu Cài đặt iPhone, mỗi thứ một lối vào (không trùng với PARA). */
 export function moreView() {
-  const items = [['para', 'Bản đồ PARA'], ['tu-sach', 'Tủ sách'], ['gia', 'Tỉ giá & vàng'], ['on-tuan', 'Ôn tuần'], ['nhat-ky', 'Nhật ký & tâm trạng'], ['ren-luyen', 'Rèn luyện'], ['cai-dat', 'Cài đặt'], ['hanh-trinh', 'Hành trình'], ['lich', 'Lịch'], ['inbox', 'Inbox'], ['du_an', 'Dự án'], ['dia_diem', 'Địa điểm'], ['nguoi', 'Người liên hệ'], ['su_kien', 'Sự kiện'], ['linh_vuc', 'Lĩnh vực'], ['don_vi', 'Đơn vị']];
+  const n = (t, f) => store.all(t).filter(f || (() => true)).length;
+  const activeP = n('du_an', (d) => d.trang_thai === 'Đang làm' || d.trang_thai === 'Tạm dừng');
+  const groups = [
+    ['Sắp xếp', [
+      ['#/para', 'grid', 'Bản đồ PARA', `${activeP} dự án · ${n('linh_vuc')} lĩnh vực · chuyến đi`],
+      ['#/bang/inbox', 'inbox', 'Inbox', `${n('inbox', (r) => !r.da_xu_ly)} chưa xử lý`],
+      ['#/on-tuan', 'calendar', 'Ôn tuần', '15 phút chiều thứ 6']]],
+    ['Bản thân', [
+      ['#/tu-sach', 'book', 'Tủ sách', `${n('sach', (b) => b.trang_thai === 'Đã đọc' && String(b.xong_ngay || '').startsWith(today().slice(0, 4)))} cuốn năm nay`],
+      ['#/ren-luyen', 'spark', 'Rèn luyện', 'thói quen, lộ trình học & tập'],
+      ['#/nhat-ky', 'moon', 'Nhật ký & tâm trạng', 'tổng kết cuối ngày'],
+      ['#/hanh-trinh', 'travel', 'Hành trình & địa điểm', `${n('chuyen_di')} chuyến · ${n('dia_diem')} địa điểm`]]],
+    ['Tiện ích', [
+      ['#/lich', 'calendar', 'Lịch & sự kiện', 'tháng này, lịch Google'],
+      ['market', 'cash', 'Tỉ giá & vàng', 'USD, SJC, nhẫn 999.9'],
+      ['#/danh-ba', 'user', 'Danh bạ', `${n('nguoi')} người · ${n('don_vi')} đơn vị`],
+      ['#/cai-dat', 'settings', 'Cài đặt', 'giao diện, thông báo, D-Office']]]
+  ];
+  const row = ([href, ic, label, sub]) => href === 'market'
+    ? html`<li><button class="ios-row" data-market><span class="ios-ic">${icon(ic)}</span><span class="ios-t">${label}<small>${sub}</small></span><span class="ios-chev">›</span></button></li>`
+    : html`<li><a class="ios-row" href="${href}"><span class="ios-ic">${icon(ic)}</span><span class="ios-t">${label}<small>${sub}</small></span><span class="ios-chev">›</span></a></li>`;
   return html`<header class="page-head"><h1>Thêm</h1></header>
-    <div class="tiles">${items.map(([t, l]) => {
-      if (t === 'para') return html`<a class="tile" href="#/para"><span class="tile-icon">${icon('grid')}</span><span>${l}</span><em>${store.all('du_an').filter((d) => d.trang_thai === 'Đang làm' || d.trang_thai === 'Tạm dừng').length} dự án đang chạy</em></a>`;
-      if (t === 'gia') return html`<button class="tile" data-market><span class="tile-icon">${icon('cash')}</span><span>${l}</span><em>USD, SJC, nhẫn 999.9</em></button>`;
-      if (t === 'tu-sach') return html`<a class="tile" href="#/tu-sach"><span class="tile-icon">${icon('book')}</span><span>${l}</span><em>${store.all('sach').filter((b) => b.trang_thai === 'Đã đọc' && String(b.xong_ngay || '').startsWith(today().slice(0, 4))).length} cuốn năm nay</em></a>`;
-      if (t === 'on-tuan') return html`<a class="tile" href="#/on-tuan"><span class="tile-icon">${icon('calendar')}</span><span>${l}</span><em>15 phút chiều thứ 6</em></a>`;
-      if (t === 'nhat-ky') return html`<a class="tile" href="#/nhat-ky"><span class="tile-icon">${icon('moon')}</span><span>${l}</span><em>tổng kết cuối ngày</em></a>`;
-      if (t === 'ren-luyen') return html`<a class="tile" href="#/ren-luyen"><span class="tile-icon">${icon('spark')}</span><span>${l}</span><em>thói quen, lộ trình</em></a>`;
-      if (t === 'cai-dat') return html`<a class="tile" href="#/cai-dat"><span class="tile-icon">${icon('settings')}</span><span>${l}</span><em>giao diện, cỡ chữ</em></a>`;
-      if (t === 'hanh-trinh') return html`<a class="tile" href="#/hanh-trinh"><span class="tile-icon">${icon('travel')}</span><span>${l}</span><em>${store.all('chuyen_di').length} chuyến</em></a>`;
-      if (t === 'lich') return html`<a class="tile" href="#/lich"><span class="tile-icon">${icon('calendar')}</span><span>${l}</span><em>tháng này</em></a>`;
-      const n = t === 'inbox' ? store.all(t).filter((r) => !r.da_xu_ly).length : store.all(t).length;
-      return html`<a class="tile" href="#/bang/${t}"><span class="tile-icon">${icon(TABLE_META[t].ic)}</span><span>${l}</span><em>${n}</em></a>`;
-    })}</div>
-    <p class="hint center">Dữ liệu được lưu trong Google Sheets của bạn và đồng bộ với lịch “🧠 Bộ não thứ hai”.</p>`;
+    ${groups.map(([g, rows]) => html`<h4 class="ios-g">${g}</h4><ul class="ios-list">${rows.map(row)}</ul>`)}
+    <p class="hint center">Dự án, lĩnh vực và chuyến đi nằm trong Bản đồ PARA; sự kiện nằm trong Lịch; địa điểm nằm trong Hành trình.</p>`;
+}
+
+/** Danh bạ: Người liên hệ (gắn vào việc) + Đơn vị (47 đơn vị trực thuộc, dùng để theo dõi đơn vị gửi văn bản). */
+let contactTab = 'nguoi';
+export const setContactTab = (t) => { contactTab = t; };
+export function contactsView() {
+  const t = contactTab;
+  let recs = store.all(t);
+  if (t === 'don_vi') recs.sort((a, b) => (a.stt || 999) - (b.stt || 999));
+  else recs.sort((a, b) => fold(a.ten || '').localeCompare(fold(b.ten || '')));
+  return html`<header class="page-head"><h1>Danh bạ</h1><div class="filters" style="margin:0"><button class="btn btn-ghost" data-new="${t}">＋ ${t === 'nguoi' ? 'Người' : 'Đơn vị'}</button></div></header>
+    <div class="seg" style="margin-bottom:10px">${[['nguoi', 'Người liên hệ'], ['don_vi', 'Đơn vị']].map(([k, l]) => html`<button class="${t === k ? 'on' : ''}" data-contact-tab="${k}">${l} <small>${store.all(k).length}</small></button>`)}</div>
+    <p class="hint">${t === 'nguoi' ? 'Số điện thoại, chức vụ, đơn vị của người hay làm việc cùng. Gắn vào việc (mục “Người liên quan”) để biết cần gọi ai; Claude cũng tra được (“SĐT anh Hùng?”).' : 'Danh sách đơn vị trực thuộc. Dùng khi một văn bản yêu cầu các đơn vị gửi báo cáo: mở văn bản → chạm từng đơn vị để đánh dấu đã gửi.'}</p>
+    ${section(`${recs.length} mục`, recs.map((r) => genericRow(t, r)), { count: false, empty: 'Chưa có gì ở đây.' })}`;
 }
 
 export { fold };

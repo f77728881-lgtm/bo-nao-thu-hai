@@ -4,7 +4,7 @@ import * as store from './store.js';
 import { html, raw, esc, fold, whenLabel } from './util.js';
 import { openSheet, toast, errorToast } from './ui.js';
 import { icon } from './icons.js';
-import { stripHtml, addPhotos, openPhoto, onPhotos } from './photos.js';
+import { stripHtml, addPhotos, openPhoto, onPhotos, thumbUrl } from './photos.js';
 import { PROMPT_LABEL, isPrompt, promptCardExtra, usePrompt, addStarterPrompts } from './prompts.js';
 
 export const MAIN_LABELS = [
@@ -160,39 +160,100 @@ function card(n) {
   </article>`;
 }
 
-export function notesView() {
+// ---------------- Danh sách kiểu Ghi chú iPhone: thư mục · dòng gọn (tiêu đề / giờ + xem trước) · nhóm theo ngày ----------------
+let activeNote = null;
+const vnDay = (iso) => new Date(new Date(iso).getTime() + 7 * 3600e3).toISOString().slice(0, 10);
+function dateGroup(iso) {
+  if (!iso) return 'Cũ hơn';
+  const d = vnDay(iso), t = vnDay(new Date().toISOString());
+  const diff = Math.round((Date.parse(t) - Date.parse(d)) / 864e5);
+  if (diff <= 0) return 'Hôm nay';
+  if (diff === 1) return 'Hôm qua';
+  if (diff < 7) return '7 ngày trước';
+  if (diff < 30) return '30 ngày trước';
+  return `Tháng ${+d.slice(5, 7)}/${d.slice(0, 4)}`;
+}
+function whenShort(iso) {
+  if (!iso) return '';
+  const local = new Date(new Date(iso).getTime() + 7 * 3600e3).toISOString();
+  const d = local.slice(0, 10), t = vnDay(new Date().toISOString());
+  if (d === t) return local.slice(11, 16);
+  const diff = Math.round((Date.parse(t) - Date.parse(d)) / 864e5);
+  if (diff < 7) return ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][new Date(d + 'T00:00:00Z').getUTCDay()];
+  return `${+d.slice(8)}/${+d.slice(5, 7)}${d.slice(0, 4) !== t.slice(0, 4) ? '/' + d.slice(2, 4) : ''}`;
+}
+/** Dòng xem trước: dòng chữ đầu tiên khác tiêu đề (bỏ dấu checklist, **, ==). */
+function previewOf(n) {
+  const lines = String(n.tom_tat || n.noi_dung || '').split('\n').map((l) => l.replace(/^\s*[-*]\s*\[( |x|X)\]\s?/, '').replace(/\*\*|==/g, '').trim()).filter(Boolean);
+  const title = (n.tieu_de || '').trim();
+  return (lines.find((l) => l !== title) || (n.url ? n.url.replace(/^https?:\/\//, '') : '') || (n.anh?.length ? `${n.anh.length} ảnh` : 'Không có văn bản thêm')).slice(0, 140);
+}
+const titleOf = (n) => (n.tieu_de || '').trim() || String(n.noi_dung || '').split('\n').map((l) => l.replace(/^\s*[-*]\s*\[( |x|X)\]\s?/, '').replace(/\*\*|==/g, '').trim()).find(Boolean) || (n.url ? 'Liên kết' : 'Ghi chú mới');
+
+function noteRow(n) {
+  const pend = n._pending ? ' is-pending' : '';
+  const place = query && !isPrompt(n) ? paraName(paraOf(n)) : '';
+  return html`<li class="nx-row${pend} ${n.id === activeNote ? 'on' : ''}" data-note="${n.id}" tabindex="0">
+    <div class="nx-txt"><b>${n.ghim ? html`<span class="nx-pin">${icon('pin')}</span>` : ''}${titleOf(n)}</b>
+      <small><time>${whenShort(n.updated_at)}</time> ${previewOf(n)}</small>
+      ${place ? html`<em class="nx-where">${icon('folder')} ${n.du_an_id && store.get('du_an', n.du_an_id) ? store.get('du_an', n.du_an_id).ten : place}</em>` : ''}</div>
+    ${n.anh?.length ? html`<img class="nx-thumb" src="${thumbUrl(n.anh[0])}" alt="" loading="lazy">` : ''}
+    ${isPrompt(n) ? html`<button class="btn btn-ghost nx-use" data-prompt-use="${n.id}">Dùng</button>` : ''}
+  </li>`;
+}
+
+function folders() {
   const all = store.all('ghi_chu');
   const plain = all.filter((n) => !isPrompt(n) && !isSpecial(n));
-  const prompts = all.filter(isPrompt);
   const counts = {}; plain.forEach((n) => { const k = paraOf(n); counts[k] = (counts[k] || 0) + 1; });
-  const others = [...new Set(plain.flatMap(extraLabels))].sort((a, b) => fold(a).localeCompare(fold(b)));
-  const isPromptTab = tab === PROMPT_LABEL && !query;
+  const list = [
+    { key: 'all', name: 'Tất cả', ic: 'note', n: plain.length },
+    ...PARA.map((l) => ({ key: l.key, name: l.name, ic: l.ic, n: counts[l.key] || 0 })),
+    { key: KHOI_TAB, name: 'Khối dựng sẵn', ic: 'grid', n: all.filter((n) => n.loai === KHOI).length, sep: true },
+    { key: CH_TAB, name: 'Câu hỏi lớn', ic: 'spark', n: all.filter((n) => n.loai === CAU_HOI).length },
+    { key: PROMPT_LABEL, name: 'Prompt AI', ic: 'copy', n: all.filter(isPrompt).length }
+  ];
+  const topics = [...new Set(plain.flatMap(extraLabels))].sort((a, b) => fold(a).localeCompare(fold(b))).map((o) => ({ key: o, name: o, ic: 'list', n: plain.filter((x) => (x.nhan || []).includes(o)).length, topic: true }));
+  return { list, topics };
+}
+
+export function notesView() {
+  const { list, topics } = folders();
+  const cur = [...list, ...topics].find((f) => f.key === tab) || list[1];
   const notes = visibleNotes();
-  const pinned = notes.filter((n) => n.ghim), rest = notes.filter((n) => !n.ghim);
-  const cur = PARA.find((l) => l.key === tab);
-  const grouped = !query && ['@du_an', '@linh_vuc', '@tai_nguyen'].includes(tab);
-  const groups = {};
-  if (grouped) notes.forEach((n) => { const g = paraGroup(n, tab); (groups[g] = groups[g] || []).push(n); });
-  return html`
-    <header class="page-head notes-head"><h1>Ghi chú</h1>
-      <input class="n-search" type="search" id="note-search" placeholder="Tìm trong ghi chú…" value="${query}" autocomplete="off"></header>
-    <nav class="label-tabs" aria-label="Nhãn">
-      ${PARA.map((l) => html`<button class="ltab ${tab === l.key && !query ? 'on' : ''}" data-note-tab="${l.key}" title="${l.hint}">${icon(l.ic)} ${l.name}<em>${counts[l.key] || 0}</em></button>`)}
-      <button class="ltab ltab-prompt ${isPromptTab ? 'on' : ''}" data-note-tab="${PROMPT_LABEL}" title="Mẫu prompt cho công cụ AI">${icon('spark')} Prompt<em>${prompts.length}</em></button>
-      <button class="ltab ${tab === KHOI_TAB && !query ? 'on' : ''}" data-note-tab="${KHOI_TAB}" title="Đoạn văn, mẫu công văn, bảng biểu dùng lại được">🧱 Khối<em>${all.filter((n) => n.loai === KHOI).length}</em></button>
-      <button class="ltab ${tab === CH_TAB && !query ? 'on' : ''}" data-note-tab="${CH_TAB}" title="12 câu hỏi lớn anh theo đuổi">❓ Câu hỏi<em>${all.filter((n) => n.loai === CAU_HOI).length}</em></button>
-      <button class="ltab ${tab === 'all' && !query ? 'on' : ''}" data-note-tab="all">Tất cả<em>${plain.length}</em></button>
-      ${others.map((o) => html`<button class="ltab small ${tab === o && !query ? 'on' : ''}" data-note-tab="${o}">🏷 ${o}</button>`)}
-    </nav>
-    <div class="composer-row"><button class="composer" data-note-new>
-      <span>${isPromptTab ? 'Prompt mới… (dùng {{tên biến}} cho chỗ cần điền)' : tab === KHOI_TAB ? 'Khối dựng sẵn mới…' : tab === CH_TAB ? 'Câu hỏi lớn mới…' : tab === '#3_Archive' ? 'Lưu một ghi chú tra cứu…' : 'Ghi chú mới…'}</span><span class="composer-icons"><i data-note-new-check title="Danh sách việc">${icon('list')}</i></span>
-    </button><button class="paste-btn" data-note-paste title="Dán từ bộ nhớ tạm thành ghi chú mới">${icon('paste')}<span>Dán</span></button></div>
-    ${query ? html`<p class="hint">${notes.length} ghi chú khớp “${query}” trong mọi nhãn.</p>` : tab === KHOI_TAB ? html`<p class="hint">Khối dựng sẵn: đoạn văn, mẫu công văn, dàn ý báo cáo… lần sau ghép lại thay vì viết từ đầu. Chạm biểu tượng sao chép để dùng ngay.</p>` : tab === CH_TAB ? html`<p class="hint">12 câu hỏi lớn anh đang theo đuổi. Khi ghi chú, gắn vào câu hỏi để thấy ý tưởng tích lũy dần.</p>` : cur ? html`<p class="hint">${cur.hint}</p>` : isPromptTab ? html`<p class="hint">Viết prompt có chỗ trống {{…}}, bấm “Dùng” để điền rồi sao chép sang ChatGPT, Claude, Gemini. <button class="link" data-prompt-starter>Thêm bộ prompt mẫu</button></p>` : ''}
-    ${grouped ? Object.keys(groups).sort((a, b) => (a === 'Chưa có chủ đề') - (b === 'Chưa có chủ đề') || fold(a).localeCompare(fold(b))).map((g) => html`<h4 class="n-group">${g} <small>${groups[g].length}</small></h4><div class="masonry">${[...groups[g].filter((n) => n.ghim), ...groups[g].filter((n) => !n.ghim)].map(card)}</div>`) : html`
-    ${pinned.length ? html`<h4 class="n-group">Đã ghim</h4><div class="masonry">${pinned.map(card)}</div>` : ''}
-    ${pinned.length && rest.length ? html`<h4 class="n-group">Khác</h4>` : ''}
-    ${rest.length ? html`<div class="masonry">${rest.map(card)}</div>` : ''}`}
-    ${!notes.length ? html`<div class="empty big">${tab === INBOX && !query ? '📥 Inbox trống. Ghi chú mới sẽ vào đây trước khi bạn phân loại.' : 'Chưa có ghi chú nào ở đây.'}</div>` : ''}`;
+  const pinned = notes.filter((n) => n.ghim);
+  const groups = [];
+  notes.filter((n) => !n.ghim).forEach((n) => { const g = dateGroup(n.updated_at); let G = groups.find((x) => x.g === g); if (!G) groups.push(G = { g, items: [] }); G.items.push(n); });
+  const hint = PARA.find((l) => l.key === tab)?.hint || (tab === KHOI_TAB ? 'Đoạn văn, mẫu công văn, dàn ý… dùng lại thay vì viết từ đầu.' : tab === CH_TAB ? 'Câu hỏi anh theo đuổi lâu dài; gắn ghi chú vào để ý tưởng tích lũy.' : tab === PROMPT_LABEL ? 'Prompt có chỗ trống {{…}}; bấm “Dùng” để điền rồi sao chép.' : '');
+  return html`<div class="nx">
+    <aside class="nx-folders">
+      <h2>Thư mục</h2>
+      ${list.map((f) => html`${f.sep ? html`<hr>` : ''}<button class="nx-f ${tab === f.key && !query ? 'on' : ''}" data-note-tab="${f.key}">${icon(f.ic)}<span>${f.name}</span><em>${f.n}</em></button>`)}
+      ${topics.length ? html`<h3>Chủ đề</h3>${topics.map((f) => html`<button class="nx-f small ${tab === f.key && !query ? 'on' : ''}" data-note-tab="${f.key}">${icon('list')}<span>${f.name}</span><em>${f.n}</em></button>`)}` : ''}
+    </aside>
+    <section class="nx-main">
+      <header class="nx-head">
+        <h1>${query ? 'Tìm kiếm' : cur.name}</h1>
+        <select class="nx-sel" data-note-folder aria-label="Thư mục">
+        ${list.map((f) => html`<option value="${f.key}" ${tab === f.key ? raw('selected') : ''}>${f.name} (${f.n})</option>`)}
+        ${topics.length ? html`<optgroup label="Chủ đề">${topics.map((f) => html`<option value="${f.key}" ${tab === f.key ? raw('selected') : ''}>${f.name} (${f.n})</option>`)}</optgroup>` : ''}
+      </select>
+
+        <span class="spacer"></span>
+        <button class="icon-btn" data-note-paste title="Dán thành ghi chú mới" aria-label="Dán">${icon('paste')}</button>
+        <button class="icon-btn" data-note-new data-note-new-check title="Danh sách việc mới" aria-label="Danh sách mới">${icon('list')}</button>
+        <button class="icon-btn nx-compose" data-note-new title="Ghi chú mới" aria-label="Ghi chú mới">${icon('plus')}</button>
+      </header>
+      <input class="nx-search" type="search" id="note-search" placeholder="Tìm kiếm" value="${query}" autocomplete="off">
+      ${hint && !query ? html`<p class="nx-hint">${hint}${tab === PROMPT_LABEL ? html` <button class="link" data-prompt-starter>Thêm bộ prompt mẫu</button>` : ''}</p>` : ''}
+      ${query ? html`<p class="nx-hint">${notes.length} ghi chú khớp “${query}”.</p>` : ''}
+      ${pinned.length ? html`<h4 class="nx-g">Đã ghim</h4><ul class="nx-list">${pinned.map(noteRow)}</ul>` : ''}
+      ${groups.map((G) => html`<h4 class="nx-g">${G.g}</h4><ul class="nx-list">${G.items.map(noteRow)}</ul>`)}
+      ${!notes.length ? html`<p class="empty big">${tab === INBOX && !query ? 'Inbox trống. Ghi chú mới sẽ vào đây trước khi xếp.' : 'Không có ghi chú.'}</p>` : ''}
+      <p class="nx-count">${notes.length} ghi chú</p>
+    </section>
+    <div class="nx-empty-pane">${icon('note')}<p>Chọn một ghi chú để xem</p></div>
+  </div>`;
 }
 
 // ---------------- Thao tác trên danh sách ----------------
@@ -205,10 +266,12 @@ export function bindNotes(root, rerender) {
     let t;
     s.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { query = s.value.trim(); rerender(true); }, 150); });
   }
-  root.querySelector('[data-note-new]')?.addEventListener('click', (e) => openNote(null, { checklist: !!e.target.closest('[data-note-new-check]') }));
+  root.querySelectorAll('[data-note-new]').forEach((b) => b.addEventListener('click', () => openNote(null, { checklist: b.hasAttribute('data-note-new-check') })));
+  root.querySelector('[data-note-folder]')?.addEventListener('change', (e) => { tab = e.target.value; query = ''; localStorage.setItem('bnth.noteTab', tab); rerender(); });
   root.querySelectorAll('[data-note]').forEach((el) => {
     el.addEventListener('click', (e) => {
       if (e.target.closest('button,a')) return;
+      root.querySelectorAll('.nx-row.on').forEach((x) => x.classList.remove('on')); el.classList.add('on');
       openNote(el.dataset.note);
     });
     el.addEventListener('keydown', (e) => { if (e.key === 'Enter') openNote(el.dataset.note); });
@@ -294,43 +357,51 @@ export function openNote(id, { checklist = false, defaults = {} } = {}) {
 
   const box = document.createElement('div');
   box.className = 'note-editor';
-  const sheet = openSheet(box, { title: n ? 'Ghi chú' : 'Ghi chú mới', onClose: save });
+  activeNote = id || null;
+  const sheet = openSheet(box, { title: n ? 'Ghi chú' : 'Ghi chú mới', onClose: () => { activeNote = null; document.querySelectorAll('.nx-row.on').forEach((x) => x.classList.remove('on')); save(); } });
+  sheet.el.classList.add('note-sheet');
   sheet.el.querySelector('.sheet').classList.add(colorClass(st.mau));
 
+  let moreOpen = null;
   function render() {
-    const cur = mainLabel({ nhan: st.nhan });
+    const placeTxt = paraName(st.place) + (st.place === '@du_an' && st.du_an_id && store.get('du_an', st.du_an_id) ? ': ' + store.get('du_an', st.du_an_id).ten : st.place === '@linh_vuc' && st.linh_vuc_id && store.get('linh_vuc', st.linh_vuc_id) ? ': ' + store.get('linh_vuc', st.linh_vuc_id).ten : '');
+    const topics = extraLabels({ nhan: st.nhan }).filter((x) => x !== PROMPT_LABEL);
+    const stamp = n?.updated_at ? new Date(new Date(n.updated_at).getTime() + 7 * 3600e3).toISOString() : '';
     box.innerHTML = html`
+      <div class="ne-tools">
+        <button class="icon-btn" data-mode title="${st.checklist ? 'Chuyển thành văn bản' : 'Chuyển thành danh sách'}" aria-label="Danh sách">${st.checklist ? icon('text') : icon('list')}</button>
+        ${!st.checklist ? html`<button class="icon-btn" data-wrap="**" title="In đậm đoạn đang chọn (lớp 2)"><b>B</b></button><button class="icon-btn" data-wrap="==" title="Tô sáng đoạn tinh túy (lớp 3)"><mark class="ne-hl">A</mark></button>${speechOK() ? html`<button class="icon-btn" data-voice title="Đọc thay gõ">🎤</button>` : ''}` : ''}
+        <label class="icon-btn ne-addph" title="Thêm ảnh">📷<input type="file" accept="image/*" multiple hidden data-ph-input></label>
+        <button class="icon-btn ${st.ghim ? 'on' : ''}" data-pin title="${st.ghim ? 'Bỏ ghim' : 'Ghim'}">${icon('pin')}</button>
+        <button class="icon-btn" data-copy title="Sao chép">${icon('copy')}</button>
+        ${st.nhan.includes(PROMPT_LABEL) ? html`<button class="icon-btn" data-addvar title="Chèn chỗ trống {{ }}">{ }</button>` : ''}
+        ${n ? html`<button class="icon-btn" data-totask title="Tạo việc từ ghi chú">${icon('task')}</button><button class="icon-btn danger" data-trash title="Xóa">${icon('trash')}</button>` : ''}
+        <span class="spacer"></span><button class="btn btn-primary" data-done>Xong</button>
+      </div>
+      ${stamp ? html`<p class="ne-stamp">${+stamp.slice(8, 10)} tháng ${+stamp.slice(5, 7)}, ${stamp.slice(0, 4)} lúc ${stamp.slice(11, 16)}</p>` : ''}
       <input class="ne-title" placeholder="Tiêu đề" value="${st.tieu_de}" aria-label="Tiêu đề">
       ${st.checklist
         ? html`<ul class="ne-items">${items.map((it, i) => html`<li class="${it.done ? 'done' : ''}"><input type="checkbox" data-i="${i}" ${it.done ? raw('checked') : ''} aria-label="Xong"><input class="ne-item" data-i="${i}" value="${it.text}" placeholder="Mục"><button class="icon-btn sm" data-del="${i}" aria-label="Xóa mục">✕</button></li>`)}
             <li class="ne-add"><span>＋</span><input class="ne-new" placeholder="Thêm mục" enterkeyhint="next"></li></ul>`
-        : html`<div class="ne-fmt"><button class="chip" data-wrap="**" title="In đậm đoạn đang chọn (lớp 2)"><b>B</b> đậm</button><button class="chip" data-wrap="==" title="Tô sáng đoạn tinh túy nhất (lớp 3)"><mark>Tô sáng</mark></button>${speechOK() ? html`<button class="chip" data-voice>🎤 Nói</button>` : ''}<span class="tag tag-layer">Lớp ${layer(st)}</span></div>
-          <textarea class="ne-body" placeholder="Ghi chú…" rows="8">${st.noi_dung}</textarea>`}
+        : html`<textarea class="ne-body" placeholder="Ghi chú…" rows="10">${st.noi_dung}</textarea>`}
       <div class="ne-photos">${stripHtml(n ? store.get('ghi_chu', n.id) || n : null, { editable: true })}</div>
-      <details class="ne-distill" ${st.tom_tat || st.ly_do || !n ? 'open' : ''}><summary>Chắt lọc & sắp xếp</summary>
+      ${st.place === INBOX && n ? html`${suggestProjects({ ...n, tieu_de: st.tieu_de, noi_dung: st.noi_dung }).map((d) => html`<button class="n-suggest" data-place-proj="${d.id}">Gợi ý: xếp vào 📁 ${d.ten}</button>`)}` : ''}
+      <details class="ne-more" ${!n || st.place === '@du_an' && !st.du_an_id || st.place === '@linh_vuc' && !st.linh_vuc_id ? 'open' : ''}>
+        <summary>${icon('folder')} <b>${placeTxt}</b>${topics.length ? ` · ${topics.join(', ')}` : ''}<span class="spacer"></span><small>Lớp ${layer(st)} · sắp xếp ▾</small></summary>
+        <div class="ne-row ne-para"><span class="ne-lab">Xếp vào</span>${PARA.map((l) => html`<button class="chip ${st.place === l.key ? 'on' : ''}" data-place="${l.key}">${icon(l.ic)} ${l.name}</button>`)}</div>
+        ${st.place === '@du_an' ? html`<label class="ne-lab2">Dự án sẽ dùng ghi chú này<select class="ne-proj"><option value="">— chọn dự án —</option>${store.all('du_an').filter((d) => (d.trang_thai !== 'Xong' && d.trang_thai !== 'Ý tưởng') || d.id === st.du_an_id).map((d) => html`<option value="${d.id}" ${d.id === st.du_an_id ? raw('selected') : ''}>${d.ten}</option>`)}</select></label>` : ''}
+        ${st.place === '@linh_vuc' ? html`<label class="ne-lab2">Lĩnh vực<select class="ne-area"><option value="">— chọn lĩnh vực —</option>${store.all('linh_vuc').sort((a, b) => (a.thu_tu || 99) - (b.thu_tu || 99)).map((a) => html`<option value="${a.id}" ${a.id === st.linh_vuc_id ? raw('selected') : ''}>${a.bieu_tuong || ''} ${a.ten}</option>`)}</select></label>` : ''}
+        <div class="ne-row"><span class="ne-lab">Chủ đề</span>${extraLabels({ nhan: st.nhan }).map((x) => html`<button class="chip on" data-rm-label="${x}">${x} ✕</button>`)}<input class="ne-label" placeholder="vd: Luật lao động, HSK" list="ne-labels"><datalist id="ne-labels">${[...new Set(store.all('ghi_chu').flatMap(extraLabels))].map((x) => html`<option value="${x}">`)}</datalist></div>
         <label class="ne-lab2">Vì sao đáng nhớ?<input class="ne-why" value="${st.ly_do}" placeholder="Điều làm mình thấy “à há”…"></label>
         <label class="ne-lab2">Tóm tắt (lớp 4, 1–3 dòng bằng lời của mình)<textarea class="ne-sum" rows="2">${st.tom_tat}</textarea></label>
         <div class="ne-row"><span class="ne-lab">Loại</span>${['Ghi chú', 'Kiến thức', 'Biên bản họp', KHOI, CAU_HOI].map((l) => html`<button class="chip ${st.loai === l ? 'on' : ''}" data-loai="${l}">${l}</button>`)}</div>
         ${st.loai !== CAU_HOI ? html`<label class="ne-lab2">Gắn với câu hỏi lớn<select class="ne-q"><option value="">—</option>${store.all('ghi_chu').filter((q) => q.loai === CAU_HOI).map((q) => html`<option value="${q.id}" ${q.id === st.cau_hoi_id ? raw('selected') : ''}>${q.tieu_de || q.noi_dung.slice(0, 60)}</option>`)}</select></label>` : ''}
-      </details>
-      <input class="ne-url" type="url" placeholder="Liên kết (tùy chọn)" value="${st.url}">
-      <div class="ne-row ne-para"><span class="ne-lab">Xếp vào</span>${PARA.map((l) => html`<button class="chip ${st.place === l.key ? 'on' : ''}" data-place="${l.key}">${icon(l.ic)} ${l.name}</button>`)}</div>
-      ${st.place === INBOX && n ? html`${suggestProjects({ ...n, tieu_de: st.tieu_de, noi_dung: st.noi_dung }).map((d) => html`<button class="n-suggest" data-place-proj="${d.id}">Gợi ý: xếp vào 📁 ${d.ten}</button>`)}` : ''}
-      ${st.place === '@du_an' ? html`<label class="ne-lab2">Dự án sẽ dùng ghi chú này<select class="ne-proj"><option value="">— chọn dự án —</option>${store.all('du_an').filter((d) => (d.trang_thai !== 'Xong' && d.trang_thai !== 'Ý tưởng') || d.id === st.du_an_id).map((d) => html`<option value="${d.id}" ${d.id === st.du_an_id ? raw('selected') : ''}>${d.ten}</option>`)}</select></label>` : ''}
-      ${st.place === '@linh_vuc' ? html`<label class="ne-lab2">Lĩnh vực<select class="ne-area"><option value="">— chọn lĩnh vực —</option>${store.all('linh_vuc').sort((a, b) => (a.thu_tu || 99) - (b.thu_tu || 99)).map((a) => html`<option value="${a.id}" ${a.id === st.linh_vuc_id ? raw('selected') : ''}>${a.bieu_tuong || ''} ${a.ten}</option>`)}</select></label>` : ''}
-      ${st.place === '@tai_nguyen' ? html`<p class="hint">Tài nguyên: thêm một nhãn chủ đề bên dưới (vd: Luật lao động, Mẫu văn bản, HSK) để dễ tìm lại.</p>` : ''}
-      <div class="ne-row"><span class="ne-lab">Chủ đề</span>${extraLabels({ nhan: st.nhan }).map((x) => html`<button class="chip on" data-rm-label="${x}">${x} ✕</button>`)}<input class="ne-label" placeholder="vd: Guitar, Running" list="ne-labels"><datalist id="ne-labels">${[...new Set(store.all('ghi_chu').flatMap(extraLabels))].map((x) => html`<option value="${x}">`)}</datalist></div>
-      <div class="ne-row colors" role="radiogroup" aria-label="Màu">${COLORS.map((c) => html`<button class="swatch ${colorClass(c)} ${st.mau === c ? 'on' : ''}" data-color="${c}" title="${c}" aria-label="${c}"></button>`)}</div>
-      <div class="ne-toolbar">
-        <label class="btn btn-ghost ne-addph">📷 Ảnh<input type="file" accept="image/*" multiple hidden data-ph-input></label>
-        <button class="btn btn-ghost" data-pin>${st.ghim ? '📌 Bỏ ghim' : '📌 Ghim'}</button>
-        ${st.nhan.includes(PROMPT_LABEL) ? html`<button class="btn btn-ghost" data-addvar>{{ }} Chèn chỗ trống</button>` : ''}
-        <button class="btn btn-ghost" data-copy>${icon('copy')} Sao chép</button>
-        <button class="btn btn-ghost" data-mode>${st.checklist ? '📝 Văn bản' : '☑️ Danh sách'}</button>
-        ${n ? html`<button class="btn btn-ghost" data-totask>✅ Tạo việc</button><button class="btn btn-ghost danger" data-trash>🗑 Xóa</button>` : ''}
-        <span class="spacer"></span><button class="btn btn-primary" data-done>Xong</button>
-      </div>
-      ${n ? html`<p class="meta">Sửa ${whenLabel((n.updated_at || '').slice(0, 10), { overdue: false })} · ${n.nguon || ''}</p>` : ''}`.__raw;
+        <input class="ne-url" type="url" placeholder="Liên kết (tùy chọn)" value="${st.url}">
+        <div class="ne-row colors" role="radiogroup" aria-label="Màu">${COLORS.map((c) => html`<button class="swatch ${colorClass(c)} ${st.mau === c ? 'on' : ''}" data-color="${c}" title="${c}" aria-label="${c}"></button>`)}</div>
+        ${n ? html`<p class="meta">Nguồn: ${n.nguon || '—'}</p>` : ''}
+      </details>`.__raw;
+    if (moreOpen !== null) box.querySelector('.ne-more').open = moreOpen;
+    box.querySelector('.ne-more').addEventListener('toggle', (e) => { moreOpen = e.target.open; });
     wire();
   }
 

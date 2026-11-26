@@ -987,3 +987,76 @@ button.tile { border: 0; font: inherit; text-align: left; cursor: pointer; }
 .ask-box .ask-list { padding: 4px 0 8px; }
 .pa-items { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .pa-items li { font-size: .85rem; background: var(--surface-2); border-radius: 8px; padding: 5px 8px; cursor: pointer; }
+
+/* ================= Giao diện kiểu iPhone (iOS): phông hệ thống, màu hệ thống, phẳng, ít viền ================= */
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --bg: #f2f2f7; --surface: #ffffff; --surface-2: #efeff4; --text: #1c1c1e; --muted: #8a8a8e; --line: rgba(60, 60, 67, .16);
+  --red: #ff3b30; --red-bg: #ffe5e3; --yellow: #c27c00; --yellow-bg: #fff4dc; --green: #248a3d; --green-bg: #e3f7e8;
+  --gray: #8e8e93; --gray-bg: #f0f0f3; --blue: #007aff; --blue-bg: #e5f0ff; --purple: #af52de; --purple-bg: #f5e9fb;
+  --radius: 12px; --shadow: none;
+}
+html[data-theme="dark"] {
+  --bg: #000000; --surface: #1c1c1e; --surface-2: #2c2c2e; --text: #f5f5f7; --muted: #98989f; --line: rgba(84, 84, 88, .55);
+  --red: #ff453a; --red-bg: #3a1614; --yellow: #ffb340; --yellow-bg: #3a2a10; --green: #30d158; --green-bg: #12301b;
+  --gray: #98989f; --gray-bg: #2c2c2e; --blue: #0a84ff; --blue-bg: #0e2340; --purple: #bf5af2; --purple-bg: #2d1838;
+  --shadow: none;
+}
+html[data-accent="ios"] { --primary: #007aff; --accent: #007aff; --primary-ink: #fff; --primary-soft: #e5f0ff; }
+html[data-theme="dark"][data-accent="ios"] { --primary: #0a84ff; --accent: #0a84ff; --primary-ink: #fff; --primary-soft: #0e2340; }
+body { font-size: 1rem; line-height: 1.38; letter-spacing: -.01em; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+/* Thanh trên & thanh dưới: trong mờ như iOS, đường kẻ mảnh */
+.topbar { background: color-mix(in srgb, var(--bg) 82%, transparent) !important; backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: .5px solid var(--line) !important; box-shadow: none !important; }
+.nav { background: color-mix(in srgb, var(--surface) 82%, transparent) !important; backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-top: .5px solid var(--line) !important; }
+@media (min-width: 900px) { .nav { background: var(--bg) !important; border-top: 0 !important; border-right: .5px solid var(--line) !important; } }
+.nav a { font-size: .66rem; font-weight: 500; }
+.nav a b { font-weight: 500; }
+.nav a.on { color: var(--accent); }
+.icon-btn { color: var(--accent); }
+.topbar .brand-name { font-weight: 600; letter-spacing: -.02em; }
+
+/* Tiêu đề lớn kiểu iOS */
+.page-head h1, .tt-hello { font-size: 2.125rem; font-weight: 700; letter-spacing: -.025em; line-height: 1.15; }
+@media (max-width: 899px) { .page-head h1 { font-size: 1.875rem; } }
+.card-title { font-size: 1.0625rem; font-weight: 600; letter-spacing: -.015em; }
+.card-title .ic { color: var(--accent); }
+h2, h3, h4 { letter-spacing: -.015em; }
+
+/* Thẻ & danh sách: phẳng, bo 12, đường kẻ mảnh */
+.card, .tile, .stat, .quad, .kcol, .cal, .trip, .login, .search-box input { box-shadow: none !important; }
+.card { padding: 14px 16px; }
+.row { border-top: .5px solid var(--line); }
+.tile { border-radius: 12px; }
+.tile-icon { color: var(--accent); }
+
+/* Nút: phẳng; nút chính tô màu nhấn, nút phụ chỉ có chữ màu nhấn trên nền xám nhạt */
+.btn { border-radius: 10px; font-weight: 600; font-size: .9375rem; padding: 9px 16px; border: 0; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-ghost { background: var(--surface-2); color: var(--accent); border: 0; }
+.btn.danger, .btn-ghost.danger { color: var(--red); }
+.chip { border: 0; background: var(--surface-2); font-weight: 500; }
+.chip.on { background: var(--accent); color: #fff; }
+
+/* Ô nhập: nền xám nhạt, không viền */
+.field input, .field select, .field textarea, .quick textarea, .n-search, .nx-search, .search-box input, .ask-free, textarea, select { border: 0 !important; background: var(--surface-2); border-radius: 10px; }
+.field input:focus, .field select:focus, .field textarea:focus, textarea:focus, select:focus, input:focus { outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 0; }
+
+/* Điều khiển phân đoạn (segmented control) */
+.seg { background: rgba(118, 118, 128, .12); border-radius: 9px; padding: 2px; }
+.seg button { border-radius: 7px; font-weight: 500; }
+.seg button.on { background: var(--surface); box-shadow: 0 3px 8px rgba(0, 0, 0, .12), 0 3px 1px rgba(0, 0, 0, .04) !important; font-weight: 600; }
+html[data-theme="dark"] .seg button.on { background: #636366; }
+
+/* Bảng trượt: bo lớn, thanh tiêu đề phẳng */
+.sheet { border-radius: 14px 14px 0 0; }
+.sheet-head { border-bottom: .5px solid var(--line); }
+.sheet-head h2 { font-size: 1.0625rem; font-weight: 600; }
+
+/* Nút ＋ nổi: màu nhấn, bóng nhẹ */
+.fab { background: var(--accent) !important; color: #fff !important; box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 35%, transparent) !important; }
+
+/* Thẻ đầu trang Hôm nay: chữ chào nhỏ lại cho cân */
+.tt-hello { font-size: 1.75rem; }
+.tt-date { color: var(--muted); font-weight: 500; text-transform: none; }
+.stat b { font-weight: 700; letter-spacing: -.02em; }

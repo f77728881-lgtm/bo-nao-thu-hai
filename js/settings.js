@@ -7,10 +7,12 @@ import { icon } from './icons.js';
 
 const KEY = 'bnth.prefs';
 export const ACCENTS = [
-  ['teal', 'Xanh ngọc', '#0d9488'], ['blue', 'Xanh dương', '#2563eb'], ['violet', 'Tím', '#7c3aed'],
+  ['ios', 'Xanh iOS', '#007aff'], ['teal', 'Xanh ngọc', '#0d9488'], ['blue', 'Xanh dương', '#2563eb'], ['violet', 'Tím', '#7c3aed'],
   ['orange', 'Cam đất', '#ea580c'], ['rose', 'Hồng', '#e11d48'], ['navy', 'Xanh than', '#1d3557']
 ];
-const DEFAULTS = { theme: 'auto', size: 'm', accent: 'teal' };
+const DEFAULTS = { theme: 'auto', size: 'm', accent: 'ios' };
+// Một lần: chuyển màu nhấn mặc định cũ (xanh ngọc) sang giao diện iOS.
+try { const o = JSON.parse(localStorage.getItem(KEY) || '{}'); if (!localStorage.getItem('bnth.ios1')) { if (o.accent === 'teal') { o.accent = 'ios'; localStorage.setItem(KEY, JSON.stringify(o)); } localStorage.setItem('bnth.ios1', '1'); } } catch (e) { /* bỏ qua */ }
 
 export function prefs() {
   try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { return { ...DEFAULTS }; }

@@ -5,6 +5,7 @@ import { taskRow, docRow, eventRow, genericRow, section, TABLE_META, quadrant, a
 import { lunarInfo, hourChiIndex } from './lunar.js';
 import { icon } from './icons.js';
 import { todayReadCard } from './reading.js';
+import { marketStrip } from './market.js';
 import { upcomingTripCard } from './travel.js';
 import { habitStrip, todaySessions } from './training.js';
 import { todayReviewCards } from './review.js';
@@ -122,6 +123,7 @@ function topCard(t) {
       </button>
     </div>
     ${chips.length ? html`<div class="tt-chips">${chips}</div>` : ''}
+    ${marketStrip()}
   </section>`;
 }
 
@@ -340,10 +342,11 @@ export function tableView(table) {
 }
 
 export function moreView() {
-  const items = [['para', 'Bản đồ PARA'], ['tu-sach', 'Tủ sách'], ['on-tuan', 'Ôn tuần'], ['nhat-ky', 'Nhật ký & tâm trạng'], ['ren-luyen', 'Rèn luyện'], ['cai-dat', 'Cài đặt'], ['hanh-trinh', 'Hành trình'], ['lich', 'Lịch'], ['inbox', 'Inbox'], ['du_an', 'Dự án'], ['dia_diem', 'Địa điểm'], ['nguoi', 'Người liên hệ'], ['su_kien', 'Sự kiện'], ['linh_vuc', 'Lĩnh vực'], ['don_vi', 'Đơn vị']];
+  const items = [['para', 'Bản đồ PARA'], ['tu-sach', 'Tủ sách'], ['gia', 'Tỉ giá & vàng'], ['on-tuan', 'Ôn tuần'], ['nhat-ky', 'Nhật ký & tâm trạng'], ['ren-luyen', 'Rèn luyện'], ['cai-dat', 'Cài đặt'], ['hanh-trinh', 'Hành trình'], ['lich', 'Lịch'], ['inbox', 'Inbox'], ['du_an', 'Dự án'], ['dia_diem', 'Địa điểm'], ['nguoi', 'Người liên hệ'], ['su_kien', 'Sự kiện'], ['linh_vuc', 'Lĩnh vực'], ['don_vi', 'Đơn vị']];
   return html`<header class="page-head"><h1>Thêm</h1></header>
     <div class="tiles">${items.map(([t, l]) => {
       if (t === 'para') return html`<a class="tile" href="#/para"><span class="tile-icon">${icon('grid')}</span><span>${l}</span><em>${store.all('du_an').filter((d) => d.trang_thai === 'Đang làm' || d.trang_thai === 'Tạm dừng').length} dự án đang chạy</em></a>`;
+      if (t === 'gia') return html`<button class="tile" data-market><span class="tile-icon">💵</span><span>${l}</span><em>USD, SJC, nhẫn 999.9</em></button>`;
       if (t === 'tu-sach') return html`<a class="tile" href="#/tu-sach"><span class="tile-icon">${icon('book')}</span><span>${l}</span><em>${store.all('sach').filter((b) => b.trang_thai === 'Đã đọc' && String(b.xong_ngay || '').startsWith(today().slice(0, 4))).length} cuốn năm nay</em></a>`;
       if (t === 'on-tuan') return html`<a class="tile" href="#/on-tuan"><span class="tile-icon">${icon('calendar')}</span><span>${l}</span><em>15 phút chiều thứ 6</em></a>`;
       if (t === 'nhat-ky') return html`<a class="tile" href="#/nhat-ky"><span class="tile-icon">${icon('moon')}</span><span>${l}</span><em>tổng kết cuối ngày</em></a>`;

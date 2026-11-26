@@ -25,6 +25,7 @@ export const TABLE_META = {
   the_hoc: { icon: '🀄', ic: 'note', label: 'Câu cần nhớ', plural: 'Sổ câu' },
   sach: { icon: '📕', ic: 'book', label: 'Sách', plural: 'Tủ sách' },
   phien_doc: { icon: '📖', ic: 'note', label: 'Phiên đọc', plural: 'Phiên đọc' },
+  gia_thi_truong: { icon: '💵', ic: 'list', label: 'Tỉ giá & vàng', plural: 'Tỉ giá & vàng' },
   muc_tieu_doc: { icon: '🎯', ic: 'spark', label: 'Mục tiêu đọc', plural: 'Mục tiêu đọc' }
 };
 

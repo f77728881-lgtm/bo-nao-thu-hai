@@ -3,7 +3,7 @@ import { call, isDemo, ApiError } from './api.js';
 import { fold } from './util.js';
 
 const DB_NAME = isDemo() ? 'bnth-demo' : 'bnth';
-const TABLES = ['linh_vuc', 'du_an', 'viec', 'van_ban', 'don_vi', 'theo_doi_dv', 'su_kien', 'ghi_chu', 'dia_diem', 'nguoi', 'inbox', 'chuyen_di', 'nhat_ky_chuyen_di', 'thoi_quen', 'diem_danh', 'lo_trinh', 'buoi_hoc', 'nhat_ky_ngay', 'the_hoc', 'on_tuan', 'sach', 'phien_doc', 'muc_tieu_doc'];
+const TABLES = ['linh_vuc', 'du_an', 'viec', 'van_ban', 'don_vi', 'theo_doi_dv', 'su_kien', 'ghi_chu', 'dia_diem', 'nguoi', 'inbox', 'chuyen_di', 'nhat_ky_chuyen_di', 'thoi_quen', 'diem_danh', 'lo_trinh', 'buoi_hoc', 'nhat_ky_ngay', 'the_hoc', 'on_tuan', 'sach', 'phien_doc', 'muc_tieu_doc', 'gia_thi_truong'];
 
 const state = {
   tables: Object.fromEntries(TABLES.map((t) => [t, new Map()])),

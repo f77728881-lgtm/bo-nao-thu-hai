@@ -6,6 +6,7 @@ import { openSheet, toast, errorToast, closeSheet } from './ui.js';
 import { icon } from './icons.js';
 import { openRecord } from './form.js';
 import { uploadNow, thumbUrl, fullUrl } from './photos.js';
+import { askBox } from './claude.js';
 
 /** Bìa sách: mã ảnh trong kho (YYYY/…) hoặc link ảnh dán vào. */
 const isPhotoId = (v) => /^(\d{4}|demo)\//.test(String(v || ''));
@@ -419,6 +420,7 @@ export function openBook(id, { review = false } = {}) {
     <textarea data-bk-ideas rows="3" placeholder="1. …&#10;2. …&#10;3. …">${b.y_chinh || ''}</textarea>
     ${notes.length ? html`<h4>Ghi chú từ sách (${notes.length})</h4><ul class="list">${notes.slice(0, 8).map((n) => html`<li class="row" data-open="ghi_chu/${n.id}"><div class="row-main"><div class="row-title">${String(n.noi_dung || n.tieu_de).slice(0, 120)}</div></div></li>`)}</ul>` : ''}
     ${ss.length ? html`<details class="more"><summary>Các buổi đọc</summary><ul class="list">${ss.slice(0, 30).map((p) => html`<li class="row"><div class="row-main"><div class="row-title">${weekdayName(p.ngay)} ${fmtDate(p.ngay)} · ${p.so_phut || 0} phút</div><div class="row-meta">${p.tu_trang ? `trang ${p.tu_trang}` : ''}${p.den_trang ? ` → ${p.den_trang}` : ''}${p.trang_thai === 'Dừng sớm' ? ' · dừng sớm' : ''}</div></div></li>`)}</ul></details>` : ''}
+    ${askBox('sach', b)}
     <div class="form-actions"><button class="btn btn-ghost" data-bk-edit>Sửa thông tin</button><span class="spacer"></span>${b.trang_thai !== 'Đã đọc' ? html`<button class="btn btn-ghost" data-bk-read>▶ Đọc</button>` : ''}<button class="btn btn-primary" data-bk-save>Lưu</button></div>`.__raw;
   const sheet = openSheet(box, { title: `📕 ${b.ten}` });
   if (review) setTimeout(() => box.querySelector('[data-bk-review]')?.focus(), 250);

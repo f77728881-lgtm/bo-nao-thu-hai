@@ -974,3 +974,14 @@ button.tile { border: 0; font: inherit; text-align: left; cursor: pointer; }
 .ne-more > summary .ic { width: 15px; height: 15px; color: var(--yellow); }
 .ne-more[open] > summary { border-bottom: 1px dashed var(--line); margin-bottom: 8px; }
 @media (min-width: 900px) { body[data-route="ghi-chu"] .sheet-wrap.note-sheet { left: 786px; } }
+/* Hỏi Claude */
+.top-ai { color: var(--accent); }
+.ask-free { width: 100%; }
+.ask h4 { margin: 16px 0 8px; font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+.ask-list { display: flex; flex-direction: column; gap: 6px; }
+.ask-item { text-align: left; border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 12px; padding: 10px 12px; font: inherit; font-size: .9rem; cursor: pointer; }
+.ask-item:hover { border-color: var(--accent); }
+.ask-box { margin: 12px 0 4px; border: 1px dashed var(--line); border-radius: 12px; padding: 4px 10px; }
+.ask-box > summary { cursor: pointer; padding: 6px 0; font-weight: 600; color: var(--accent); list-style: none; }
+.ask-box > summary::-webkit-details-marker { display: none; }
+.ask-box .ask-list { padding: 4px 0 8px; }

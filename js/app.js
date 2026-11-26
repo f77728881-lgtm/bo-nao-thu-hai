@@ -22,6 +22,7 @@ import { startPhotoQueue } from './photos.js';
 import { paraView, bindPara } from './para.js';
 import { openMarket } from './market.js';
 import { onNews, saveNews } from './news.js';
+import { openAsk } from './claude.js';
 import { shelfView, bindShelf, openReadStart, askPages, mountReadBar, refreshBar, openBook, readCardAction, quickStart } from './reading.js';
 
 const main = document.getElementById('main');
@@ -109,7 +110,7 @@ function renderStatus() {
 
 // ---------------- Sự kiện giao diện ----------------
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-news-save],[data-market],[data-rc],[data-read-start],[data-read-pages],[data-weather],[data-habit-new],[data-chain],[data-weekly],[data-habit-mini],[data-today-tab],[data-stat],[data-weather-loc],[data-flash],[data-review],[data-habit-toggle],[data-session],[data-trip],[data-lunar],[data-toggle-task],[data-open],[data-new],[data-task-mode],[data-doc-filter],[data-cal-day],[data-cal-nav],[data-cal-today],#sync-status,#fab');
+  const t = e.target.closest('[data-ask-open],[data-news-save],[data-market],[data-rc],[data-read-start],[data-read-pages],[data-weather],[data-habit-new],[data-chain],[data-weekly],[data-habit-mini],[data-today-tab],[data-stat],[data-weather-loc],[data-flash],[data-review],[data-habit-toggle],[data-session],[data-trip],[data-lunar],[data-toggle-task],[data-open],[data-new],[data-task-mode],[data-doc-filter],[data-cal-day],[data-cal-nav],[data-cal-today],#sync-status,#fab');
   if (!t) return;
   if (t.closest('.sheet') && !t.matches('[data-toggle-task]')) return; // trong biểu mẫu tự xử lý
   if (t.matches('[data-toggle-task]')) {
@@ -122,6 +123,7 @@ document.addEventListener('click', async (e) => {
     if (done) toast(`Xong: ${v.ten}`, { kind: 'ok', actionLabel: 'Hoàn tác', onAction: () => store.update('viec', v.id, { trang_thai: v.trang_thai }) });
     return;
   }
+  if (t.matches('[data-ask-open]')) { openAsk(parseHash()[0]); return; }
   if (t.matches('[data-news-save]')) { e.preventDefault(); e.stopPropagation(); saveNews(t.dataset.newsSave); return; }
   if (t.matches('[data-market]')) { openMarket(); return; }
   if (t.matches('[data-rc]')) { e.stopPropagation(); readCardAction(t.dataset.rc); return; }

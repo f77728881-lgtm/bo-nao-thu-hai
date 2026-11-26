@@ -5,6 +5,7 @@ import { html, raw, esc, fold, whenLabel } from './util.js';
 import { openSheet, toast, errorToast } from './ui.js';
 import { icon } from './icons.js';
 import { stripHtml, addPhotos, openPhoto, onPhotos, thumbUrl } from './photos.js';
+import { askBox } from './claude.js';
 import { PROMPT_LABEL, isPrompt, promptCardExtra, usePrompt, addStarterPrompts } from './prompts.js';
 
 export const MAIN_LABELS = [
@@ -385,6 +386,7 @@ export function openNote(id, { checklist = false, defaults = {} } = {}) {
             <li class="ne-add"><span>＋</span><input class="ne-new" placeholder="Thêm mục" enterkeyhint="next"></li></ul>`
         : html`<textarea class="ne-body" placeholder="Ghi chú…" rows="10">${st.noi_dung}</textarea>`}
       <div class="ne-photos">${stripHtml(n ? store.get('ghi_chu', n.id) || n : null, { editable: true })}</div>
+      ${n && (st.noi_dung || '').trim() ? askBox('ghi_chu', { ...n, tieu_de: st.tieu_de, noi_dung: st.noi_dung }) : ''}
       ${st.place === INBOX && n ? html`${suggestProjects({ ...n, tieu_de: st.tieu_de, noi_dung: st.noi_dung }).map((d) => html`<button class="n-suggest" data-place-proj="${d.id}">Gợi ý: xếp vào 📁 ${d.ten}</button>`)}` : ''}
       <details class="ne-more" ${!n || st.place === '@du_an' && !st.du_an_id || st.place === '@linh_vuc' && !st.linh_vuc_id ? 'open' : ''}>
         <summary>${icon('folder')} <b>${placeTxt}</b>${topics.length ? ` · ${topics.join(', ')}` : ''}<span class="spacer"></span><small>Lớp ${layer(st)} · sắp xếp ▾</small></summary>

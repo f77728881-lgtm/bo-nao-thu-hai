@@ -3,6 +3,7 @@ import * as store from './store.js';
 import { call } from './api.js';
 import { html, raw, esc, fold, whenLabel, fmtDate } from './util.js';
 import { openSheet, label, TABLE_META, toast, errorToast, closeSheet } from './ui.js';
+import { askBox } from './claude.js';
 
 // Trường hiện trước, theo bảng (còn lại xếp sau, trong mục "Thêm").
 const PRIMARY = {
@@ -104,6 +105,7 @@ export function openRecord(table, id, defaults = {}) {
     ${rest.length ? html`<details class="more"><summary>Thêm thông tin</summary>${rest.map((k) => fieldInput(table, k, fields[k], v[k]))}</details>` : ''}
     ${extra}
     ${meta}
+    ${rec && ['viec', 'van_ban', 'du_an', 'sach'].includes(table) ? askBox(table, rec) : ''}
     <div class="form-actions">
       ${rec ? html`<button type="button" class="btn btn-ghost" data-archive>${rec.archived ? 'Khôi phục' : 'Lưu trữ'}</button>` : ''}
       <span class="spacer"></span>

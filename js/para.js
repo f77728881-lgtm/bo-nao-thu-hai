@@ -51,11 +51,18 @@ export function paraView() {
     const ps = active.filter((d) => d.linh_vuc_id === a.id);
     const ts = openTasks((v) => v.linh_vuc_id === a.id || (v.du_an_id && store.get('du_an', v.du_an_id)?.linh_vuc_id === a.id));
     const ns = notes.filter((n) => n.linh_vuc_id === a.id);
-    const touched = lastTouch([...store.all('viec').filter((v) => v.linh_vuc_id === a.id), ...ns, ...projects.filter((d) => d.linh_vuc_id === a.id)]);
+    const habits = store.all('thoi_quen').filter((h) => h.linh_vuc_id === a.id && h.trang_thai === 'Đang theo');
+    const programs = store.all('lo_trinh').filter((l) => l.linh_vuc_id === a.id && l.trang_thai === 'Đang học');
+    const books = store.all('sach').filter((b) => b.linh_vuc_id === a.id && b.trang_thai === 'Đang đọc');
+    const touched = lastTouch([...store.all('viec').filter((v) => v.linh_vuc_id === a.id), ...ns, ...projects.filter((d) => d.linh_vuc_id === a.id), ...store.all('diem_danh').filter((d) => habits.some((h) => h.id === d.thoi_quen_id))]);
     const idle = touched ? diffDays(touched.slice(0, 10), t) : null;
     return html`<article class="card pa-area">
       <div class="pa-head"><b>${a.bieu_tuong || '🗂'} ${a.ten}</b><small class="row-meta">${a.nhom || ''}</small></div>
       <p class="row-meta">${ps.length ? ps.map((d) => d.ten).join(' · ') : 'Không có dự án đang chạy'}</p>
+      ${habits.length || programs.length || books.length ? html`<ul class="pa-items">
+        ${habits.map((h) => html`<li data-open="thoi_quen/${h.id}">${h.bieu_tuong || '🔁'} ${h.ten}</li>`)}
+        ${programs.map((l) => html`<li data-open="lo_trinh/${l.id}">🧭 ${l.ten}</li>`)}
+        ${books.map((b) => html`<li data-book-link="${b.id}">📕 ${b.ten} · ${b.trang_hien_tai || 0}/${b.so_trang || '?'}</li>`)}</ul>` : ''}
       <p class="row-meta">${ts.length} việc mở · ${ns.length} ghi chú${idle !== null && idle > 30 ? html` · <b class="pa-soon">${idle} ngày chưa động tới</b>` : idle === null ? html` · <b class="pa-soon">chưa có gì</b>` : ''}</p>
     </article>`;
   };
@@ -115,6 +122,7 @@ export function bindPara(root) {
     } catch (err) { errorToast(err); }
   }));
   root.querySelectorAll('[data-pa-reopen]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); store.update('du_an', b.dataset.paReopen, { trang_thai: 'Đang làm' }).catch(errorToast); }));
+  root.querySelectorAll('[data-book-link]').forEach((x) => x.addEventListener('click', () => { location.hash = '#/tu-sach'; }));
   root.querySelectorAll('[data-pa-notes]').forEach((a) => a.addEventListener('click', () => setNotesTab(a.dataset.paNotes)));
 }
 

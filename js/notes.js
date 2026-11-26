@@ -369,15 +369,18 @@ export function openNote(id, { checklist = false, defaults = {} } = {}) {
     const topics = extraLabels({ nhan: st.nhan }).filter((x) => x !== PROMPT_LABEL);
     const stamp = n?.updated_at ? new Date(new Date(n.updated_at).getTime() + 7 * 3600e3).toISOString() : '';
     box.innerHTML = html`
-      <div class="ne-tools">
-        <button class="icon-btn" data-mode title="${st.checklist ? 'Chuyển thành văn bản' : 'Chuyển thành danh sách'}" aria-label="Danh sách">${st.checklist ? icon('text') : icon('list')}</button>
-        ${!st.checklist ? html`<button class="icon-btn" data-wrap="**" title="In đậm đoạn đang chọn (lớp 2)"><b>B</b></button><button class="icon-btn" data-wrap="==" title="Tô sáng đoạn tinh túy (lớp 3)"><mark class="ne-hl">A</mark></button>${speechOK() ? html`<button class="icon-btn" data-voice title="Đọc thay gõ">🎤</button>` : ''}` : ''}
-        <label class="icon-btn ne-addph" title="Thêm ảnh">📷<input type="file" accept="image/*" multiple hidden data-ph-input></label>
-        <button class="icon-btn ${st.ghim ? 'on' : ''}" data-pin title="${st.ghim ? 'Bỏ ghim' : 'Ghim'}">${icon('pin')}</button>
-        <button class="icon-btn" data-copy title="Sao chép">${icon('copy')}</button>
-        ${st.nhan.includes(PROMPT_LABEL) ? html`<button class="icon-btn" data-addvar title="Chèn chỗ trống {{ }}">{ }</button>` : ''}
-        ${n ? html`<button class="icon-btn" data-totask title="Tạo việc từ ghi chú">${icon('task')}</button><button class="icon-btn danger" data-trash title="Xóa">${icon('trash')}</button>` : ''}
-        <span class="spacer"></span><button class="btn btn-primary" data-done>Xong</button>
+      <div class="ne-top">
+        <button class="ne-back" data-done aria-label="Quay lại">‹ Ghi chú</button>
+        <span class="spacer"></span>
+        <button class="ne-ib" data-copy title="Sao chép nội dung" aria-label="Sao chép">${icon('upload')}</button>
+        <button class="ne-ib" data-pop="more" title="Thêm" aria-label="Thêm">${icon('dots')}</button>
+        <button class="ne-finish" data-finish hidden>Xong</button>
+        <div class="ne-pop" data-popbox="more" hidden>
+          <button data-pin>${icon('pin')} ${st.ghim ? 'Bỏ ghim' : 'Ghim'}</button>
+          ${n ? html`<button data-totask>${icon('task')} Tạo việc từ ghi chú</button>` : ''}
+          ${st.nhan.includes(PROMPT_LABEL) ? html`<button data-addvar>{ } Chèn chỗ trống</button>` : ''}
+          ${n ? html`<button class="danger" data-trash>${icon('trash')} Xóa ghi chú</button>` : ''}
+        </div>
       </div>
       ${stamp ? html`<p class="ne-stamp">${+stamp.slice(8, 10)} tháng ${+stamp.slice(5, 7)}, ${stamp.slice(0, 4)} lúc ${stamp.slice(11, 16)}</p>` : ''}
       <input class="ne-title" placeholder="Tiêu đề" value="${st.tieu_de}" aria-label="Tiêu đề">
@@ -386,7 +389,6 @@ export function openNote(id, { checklist = false, defaults = {} } = {}) {
             <li class="ne-add"><span>＋</span><input class="ne-new" placeholder="Thêm mục" enterkeyhint="next"></li></ul>`
         : html`<textarea class="ne-body" placeholder="Ghi chú…" rows="10">${st.noi_dung}</textarea>`}
       <div class="ne-photos">${stripHtml(n ? store.get('ghi_chu', n.id) || n : null, { editable: true })}</div>
-      ${n && (st.noi_dung || '').trim() ? askBox('ghi_chu', { ...n, tieu_de: st.tieu_de, noi_dung: st.noi_dung }) : ''}
       ${st.place === INBOX && n ? html`${suggestProjects({ ...n, tieu_de: st.tieu_de, noi_dung: st.noi_dung }).map((d) => html`<button class="n-suggest" data-place-proj="${d.id}">Gợi ý: xếp vào 📁 ${d.ten}</button>`)}` : ''}
       <details class="ne-more" ${!n || st.place === '@du_an' && !st.du_an_id || st.place === '@linh_vuc' && !st.linh_vuc_id ? 'open' : ''}>
         <summary>${icon('folder')} <b>${placeTxt}</b>${topics.length ? ` · ${topics.join(', ')}` : ''}<span class="spacer"></span><small>Lớp ${layer(st)} · sắp xếp ▾</small></summary>
@@ -401,7 +403,17 @@ export function openNote(id, { checklist = false, defaults = {} } = {}) {
         <input class="ne-url" type="url" placeholder="Liên kết (tùy chọn)" value="${st.url}">
         <div class="ne-row colors" role="radiogroup" aria-label="Màu">${COLORS.map((c) => html`<button class="swatch ${colorClass(c)} ${st.mau === c ? 'on' : ''}" data-color="${c}" title="${c}" aria-label="${c}"></button>`)}</div>
         ${n ? html`<p class="meta">Nguồn: ${n.nguon || '—'}</p>` : ''}
-      </details>`.__raw;
+      </details>
+      <div class="ne-bar">
+        <div class="ne-pop up" data-popbox="fmt" hidden><button data-wrap="**"><b>B</b> In đậm (lớp 2)</button><button data-wrap="=="><mark class="ne-hl">A</mark> Tô sáng (lớp 3)</button><p class="hint">Bôi đen đoạn chữ trước rồi chọn.</p></div>
+        <div class="ne-pop up wide" data-popbox="ai" hidden>${n && (st.noi_dung || '').trim() ? raw(String(askBox('ghi_chu', { ...n, tieu_de: st.tieu_de, noi_dung: st.noi_dung }).__raw || '').replace('<details class="ask-box">', '<details class="ask-box" open>')) : html`<p class="hint">Viết vài dòng rồi nhờ Claude tóm tắt, tách việc, soạn văn bản…</p>`}</div>
+        ${!st.checklist ? html`<button class="ne-ib" data-pop="fmt" title="Định dạng" aria-label="Định dạng">${icon('textfmt')}</button>` : ''}
+        <button class="ne-ib ${st.checklist ? 'on' : ''}" data-mode title="${st.checklist ? 'Chuyển thành văn bản' : 'Danh sách việc'}" aria-label="Danh sách">${icon('list')}</button>
+        <label class="ne-ib ne-addph" title="Ảnh" aria-label="Thêm ảnh">${icon('camera')}<input type="file" accept="image/*" multiple hidden data-ph-input></label>
+        ${speechOK() && !st.checklist ? html`<button class="ne-ib" data-voice title="Đọc thay gõ" aria-label="Đọc thay gõ">${icon('mic')}</button>` : ''}
+        <button class="ne-ib" data-pop="ai" title="Nhờ Claude" aria-label="Nhờ Claude">${icon('spark')}</button>
+        <button class="ne-ib" data-new-note title="Ghi chú mới" aria-label="Ghi chú mới">${icon('compose')}</button>
+      </div>`.__raw;
     if (moreOpen !== null) box.querySelector('.ne-more').open = moreOpen;
     box.querySelector('.ne-more').addEventListener('toggle', (e) => { moreOpen = e.target.open; });
     wire();
@@ -458,6 +470,16 @@ export function openNote(id, { checklist = false, defaults = {} } = {}) {
     const nw = box.querySelector('.ne-new');
     nw?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); collect(); render(); box.querySelector('.ne-new').focus(); } });
     box.querySelector('[data-done]').onclick = () => sheet.close();
+    box.querySelectorAll('[data-pop]').forEach((b) => b.onclick = (e) => {
+      e.stopPropagation();
+      const pop = box.querySelector(`[data-popbox="${b.dataset.pop}"]`);
+      const show = pop.hidden;
+      box.querySelectorAll('[data-popbox]').forEach((x) => { x.hidden = true; });
+      pop.hidden = !show;
+    });
+    box.querySelectorAll('[data-popbox] button').forEach((b) => b.addEventListener('click', () => setTimeout(() => box.querySelectorAll('[data-popbox]').forEach((x) => { x.hidden = true; }), 0)));
+    box.querySelector('[data-finish]').onclick = () => { document.activeElement?.blur?.(); };
+    box.querySelector('[data-new-note]').onclick = () => { sheet.close(); setTimeout(() => openNote(null), 220); };
     box.querySelector('[data-copy]').onclick = async () => { collect(); if (await copyText(noteText(st))) toast('Đã sao chép'); };
     box.querySelector('[data-addvar]')?.addEventListener('click', () => {
       const ta = box.querySelector('.ne-body'); if (!ta) return;
@@ -527,6 +549,9 @@ export function openNote(id, { checklist = false, defaults = {} } = {}) {
     const fs = [...(e.clipboardData?.files || [])].filter((f) => /^image\//.test(f.type));
     if (fs.length) { e.preventDefault(); attach(fs); }
   });
+  box.addEventListener('focusin', (e) => { if (e.target.matches('input, textarea')) { const f = box.querySelector('[data-finish]'); if (f) f.hidden = false; } });
+  box.addEventListener('focusout', () => setTimeout(() => { if (!box.contains(document.activeElement) || !document.activeElement.matches('input, textarea')) { const f = box.querySelector('[data-finish]'); if (f) f.hidden = true; } }, 120));
+  box.addEventListener('click', (e) => { if (!e.target.closest('[data-popbox],[data-pop]')) box.querySelectorAll('[data-popbox]').forEach((x) => { x.hidden = true; }); });
   const refreshStrip = () => { const el = box.querySelector('.ne-photos'); if (el && n && box.isConnected) el.innerHTML = stripHtml(store.get('ghi_chu', n.id) || n, { editable: true })?.__raw || ''; box.querySelectorAll('[data-photo]').forEach((b) => b.onclick = () => openPhoto(b.dataset.photo, n?.id)); };
   onPhotos(refreshStrip);
 

@@ -31,6 +31,12 @@ const P = {
   share: '<circle cx="6.5" cy="12" r="2.3"/><circle cx="17.5" cy="6" r="2.3"/><circle cx="17.5" cy="18" r="2.3"/><path d="m8.6 10.9 6.8-3.7M8.6 13.1l6.8 3.7"/>',
   list: '<path d="M9 6.5h11M9 12h11M9 17.5h11"/><path d="m3.5 6.5 1 1 2-2M3.5 12l1 1 2-2M3.5 17.5l1 1 2-2"/>',
   text: '<path d="M4 6h16M4 11h16M4 16h10"/>',
+  camera: '<path d="M4 8.5a2 2 0 0 1 2-2h2l1.5-2h5L16 6.5h2a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/>',
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/>',
+  compose: '<path d="M12 4.5H6.5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V12"/><path d="m17.5 3.5 3 3L12 15l-4 1 1-4z"/>',
+  upload: '<path d="M12 15V3.5M8 7.5l4-4 4 4"/><path d="M6.5 10.5H6a2 2 0 0 0-2 2V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6.5a2 2 0 0 0-2-2h-.5"/>',
+  dots: '<circle cx="12" cy="12" r="8.5"/><circle cx="8" cy="12" r=".9" fill="currentColor"/><circle cx="12" cy="12" r=".9" fill="currentColor"/><circle cx="16" cy="12" r=".9" fill="currentColor"/>',
+  textfmt: '<path d="M3.5 18 8 6l4.5 12M5.2 13.5h5.6M14.5 18l3-8 3 8M15.6 15.3h3.8"/>',
   cash: '<rect x="2.5" y="6.5" width="14" height="9" rx="2"/><circle cx="9.5" cy="11" r="2"/><path d="M5 9v4M14 9v4"/><circle cx="18" cy="15.5" r="3.5"/><path d="M18 14v3"/>',
   book: '<path d="M4.5 5.5A2 2 0 0 1 6.5 3.5H19v14H6.5a2 2 0 0 0-2 2z"/><path d="M4.5 19.5a2 2 0 0 0 2 2H19v-4M8.5 7.5h6"/>',
   spark: '<path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9z"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/>'

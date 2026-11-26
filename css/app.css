@@ -1076,3 +1076,30 @@ html[data-theme="dark"] .seg button.on { background: #636366; }
 .pa-sub { display: flex; align-items: baseline; gap: 6px; margin: 14px 2px 8px; font-size: .95rem; }
 .pa-sub small { color: var(--muted); font-weight: 400; font-size: .78rem; }
 .pa-sub-empty { color: var(--muted); font-size: .85rem; margin: 10px 2px; }
+/* ---------- Trình sửa ghi chú kiểu Ghi chú iPhone ---------- */
+.note-sheet .sheet-head { display: none; }
+.note-sheet .sheet-body { padding-top: 0; padding-bottom: 0; }
+.ne-tools { display: none; }
+.ne-top { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: 2px; padding: 8px 0 6px; margin: 0 -2px 2px; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+.ne-back { border: 0; background: none; color: var(--accent); font: inherit; font-size: 1.0625rem; padding: 6px 4px; cursor: pointer; }
+.ne-ib { border: 0; background: none; color: var(--accent); width: 40px; height: 40px; display: inline-grid; place-items: center; border-radius: 10px; cursor: pointer; }
+.ne-ib .ic { width: 23px; height: 23px; }
+.ne-ib.on { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.ne-ib:active, .ne-back:active { opacity: .5; }
+.ne-finish { border: 0; background: none; color: var(--accent); font: inherit; font-size: 1.0625rem; font-weight: 600; padding: 6px 6px 6px 10px; cursor: pointer; }
+.ne-pop { position: absolute; z-index: 5; right: 0; top: 46px; min-width: 220px; background: var(--surface); border-radius: 13px; padding: 4px 0; box-shadow: 0 10px 38px rgba(0, 0, 0, .18), 0 0 0 .5px var(--line); }
+html[data-theme="dark"] .ne-pop { background: #2c2c2e; }
+.ne-pop button { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; color: var(--text); font: inherit; padding: 10px 16px; text-align: left; cursor: pointer; }
+.ne-pop button + button { border-top: .5px solid var(--line); }
+.ne-pop button .ic { width: 18px; height: 18px; color: var(--muted); }
+.ne-pop .danger, .ne-pop .danger .ic { color: var(--red); }
+.ne-pop .hint { margin: 4px 16px 8px; font-size: .75rem; }
+.ne-pop.up { top: auto; bottom: 52px; left: 8px; right: auto; }
+.ne-pop.wide { right: 8px; min-width: 0; padding: 6px 10px; max-height: 50vh; overflow: auto; }
+.ne-pop.wide .ask-box { border: 0; margin: 0; padding: 0; }
+.ne-pop.wide .ask-box > summary { display: none; }
+.ne-pop.wide .ask-item { border: 0; border-radius: 0; padding: 10px 6px; border-top: .5px solid var(--line); }
+.ne-pop.wide .ask-item:first-child { border-top: 0; }
+.ne-bar { position: sticky; bottom: 0; z-index: 3; display: flex; justify-content: space-around; align-items: center; margin: 12px -16px 0; padding: 4px 8px calc(4px + var(--safe-b)); background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border-top: .5px solid var(--line); }
+.ne-bar .ne-addph { cursor: pointer; }
+.note-editor { position: relative; }

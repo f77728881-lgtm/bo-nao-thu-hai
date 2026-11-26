@@ -1,6 +1,6 @@
 // Service worker: lưu sẵn khung app để mở được khi mất mạng. Dữ liệu nằm ở IndexedDB, không ở đây.
 // Đổi VERSION mỗi lần cập nhật giao diện để máy tải bản mới.
-const VERSION = 'bnth-v2.1.0';
+const VERSION = 'bnth-v2.2.0';
 const SHELL = [
   './', './index.html', './manifest.webmanifest', './css/app.css',
   './js/app.js', './js/notes.js', './js/settings.js', './js/icons.js', './js/share.js', './js/prompts.js', './js/training.js', './js/review.js', './js/travel.js', './js/lunar.js', './js/api.js', './js/config.js', './js/form.js', './js/quickadd.js', './js/store.js', './js/ui.js', './js/util.js', './js/views.js', './js/reading.js', './js/photos.js', './js/para.js', './js/market.js', './js/news.js', './js/claude.js',

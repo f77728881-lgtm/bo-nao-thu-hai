@@ -38,6 +38,17 @@
   ],
   "shortcuts": [
     {
+      "name": "Đọc sách 30 phút",
+      "short_name": "Đọc sách",
+      "url": "./#/doc-ngay",
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
       "name": "Hôm nay",
       "url": "./#/hom-nay",
       "icons": [

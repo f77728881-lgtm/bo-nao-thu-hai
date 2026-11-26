@@ -19,7 +19,8 @@ import * as weather from './weather.js';
 import { openWeekly, weeklyView } from './weekly.js';
 import { openHabitWizard, openChain } from './habitwizard.js';
 import { startPhotoQueue } from './photos.js';
-import { shelfView, bindShelf, openReadStart, askPages, mountReadBar, refreshBar, openBook } from './reading.js';
+import { paraView, bindPara } from './para.js';
+import { shelfView, bindShelf, openReadStart, askPages, mountReadBar, refreshBar, openBook, readCardAction, quickStart } from './reading.js';
 
 const main = document.getElementById('main');
 let searchQ = '';
@@ -34,6 +35,7 @@ const ROUTES = {
   'nhat-ky': () => journalView(),
   'on-tuan': () => weeklyView(),
   'tu-sach': () => shelfView(),
+  para: () => paraView(),
   viec: () => V.tasksView(),
   'van-ban': () => V.docsView(),
   lich: () => V.calendarView(),
@@ -50,6 +52,9 @@ function parseHash() {
 function render() {
   if (!Auth.valid() && !store.all('viec').length && !isDemo()) return renderLogin();
   const [route, arg] = parseHash();
+  // Lối tắt "Đọc sách 30 phút" (giữ lâu biểu tượng app): về Hôm nay rồi bắt đầu đếm.
+  if (route === 'doc-ngay') { history.replaceState(null, '', '#/hom-nay'); setTimeout(() => quickStart(), 900); return render(); }
+  document.body.dataset.route = route;
   // Liên kết từ Google Calendar: #/viec/V-xxx → mở bản ghi
   if (arg && store.schema()?.[route.replace('-', '_')] && route !== 'bang') {
     const table = route.replace('-', '_');
@@ -67,6 +72,7 @@ function render() {
   if (route === 'ren-luyen') bindTraining(main, render);
   if (route === 'nhat-ky') bindJournal(main);
   if (route === 'tu-sach') bindShelf(main, render);
+  if (route === 'para') bindPara(main);
   if (keepFocus || route === 'tim') {
     const inp = document.getElementById(focusId || 'search-input');
     if (inp) { inp.focus(); if (keepFocus) inp.setSelectionRange(caret, caret); }
@@ -101,7 +107,7 @@ function renderStatus() {
 
 // ---------------- Sự kiện giao diện ----------------
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-read-start],[data-read-pages],[data-weather],[data-habit-new],[data-chain],[data-weekly],[data-habit-mini],[data-today-tab],[data-stat],[data-weather-loc],[data-flash],[data-review],[data-habit-toggle],[data-session],[data-trip],[data-lunar],[data-toggle-task],[data-open],[data-new],[data-task-mode],[data-doc-filter],[data-cal-day],[data-cal-nav],[data-cal-today],#sync-status,#fab');
+  const t = e.target.closest('[data-rc],[data-read-start],[data-read-pages],[data-weather],[data-habit-new],[data-chain],[data-weekly],[data-habit-mini],[data-today-tab],[data-stat],[data-weather-loc],[data-flash],[data-review],[data-habit-toggle],[data-session],[data-trip],[data-lunar],[data-toggle-task],[data-open],[data-new],[data-task-mode],[data-doc-filter],[data-cal-day],[data-cal-nav],[data-cal-today],#sync-status,#fab');
   if (!t) return;
   if (t.closest('.sheet') && !t.matches('[data-toggle-task]')) return; // trong biểu mẫu tự xử lý
   if (t.matches('[data-toggle-task]')) {
@@ -114,6 +120,7 @@ document.addEventListener('click', async (e) => {
     if (done) toast(`Xong: ${v.ten}`, { kind: 'ok', actionLabel: 'Hoàn tác', onAction: () => store.update('viec', v.id, { trang_thai: v.trang_thai }) });
     return;
   }
+  if (t.matches('[data-rc]')) { e.stopPropagation(); readCardAction(t.dataset.rc); return; }
   if (t.matches('[data-read-start]')) { e.stopPropagation(); openReadStart(t.dataset.readStart || null); return; }
   if (t.matches('[data-read-pages]')) { askPages(t.dataset.readPages); return; }
   if (t.matches('[data-review]')) { openReview(); return; }

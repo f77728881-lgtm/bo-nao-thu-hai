@@ -124,10 +124,86 @@ export function refreshBar() {
       <button class="rb-main" data-rb="open"><span class="rb-ic">📖</span><span class="rb-txt"><b>${mmss(left)}</b><small>${b ? b.ten : 'Đọc sách'}${cur.trang_thai === 'Tạm dừng' ? ' · tạm dừng' : ''}</small></span></button>
       ${cur.trang_thai === 'Tạm dừng' ? html`<button class="rb-btn" data-rb="resume" aria-label="Tiếp tục">▶</button>` : html`<button class="rb-btn" data-rb="pause" aria-label="Tạm dừng">⏸</button>`}
       <button class="rb-btn" data-rb="stop" aria-label="Dừng">⏹</button>`.__raw;
+    document.querySelectorAll('[data-rc-ring]').forEach((el) => {
+      const c = 2 * Math.PI * 52;
+      el.querySelector('.rc-fg')?.setAttribute('stroke-dasharray', `${(c * pct / 100).toFixed(1)} ${c.toFixed(1)}`);
+      const t = el.querySelector('.rc-time'); if (t) t.textContent = mmss(left);
+    });
     if (cur.trang_thai === 'Đang đọc' && left <= 0) finish(cur);
   };
   draw();
   if (!ticker) ticker = setInterval(draw, 1000);
+}
+
+/** Thao tác trên thẻ Đọc sách của Hôm nay. */
+export function readCardAction(act) {
+  const p = running();
+  if (act === 'go') return quickStart();
+  if (act === 'pick') return openReadStart();
+  if (act === 'shelf') { location.hash = '#/tu-sach'; return; }
+  if (!p) return;
+  if (act === 'pause') pause(p); else if (act === 'resume') resume(p); else if (act === 'stop') stopEarly(p);
+}
+
+/** Cuốn đang đọc: cuốn của phiên gần nhất, không có thì cuốn "Đang đọc" sửa gần nhất. */
+function currentBook() {
+  const last = sessions().filter((p) => p.sach_id && store.get('sach', p.sach_id)?.trang_thai === 'Đang đọc').sort((a, b) => ((a.bat_dau_luc || a.created_at) < (b.bat_dau_luc || b.created_at) ? 1 : -1))[0];
+  if (last) return store.get('sach', last.sach_id);
+  return store.all('sach').filter((b) => b.trang_thai === 'Đang đọc').sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0] || null;
+}
+const readHabit = () => store.all('thoi_quen').find((x) => x.trang_thai === 'Đang theo' && isReadingHabit(x)) || null;
+
+/** Bấm một chạm: đọc ngay cuốn đang đọc với thời lượng mặc định. Chưa có sách thì mở bảng chọn. */
+export async function quickStart() {
+  if (running()) { toast('Đang đọc rồi — xem đồng hồ trên Hôm nay'); return; }
+  const b = currentBook();
+  if (!b) return openReadStart();
+  const h = readHabit();
+  const mins = Math.max(30, Number(h?.dem_gio_phut) || Number(goalOf()?.phut_ngay) || 30);
+  const now = Date.now();
+  try {
+    await store.create('phien_doc', {
+      sach_id: b.id, ngay: today(), trang_thai: 'Đang đọc', so_phut_dat: mins,
+      bat_dau_luc: new Date(now).toISOString(), ket_thuc_luc: new Date(now + mins * 60000).toISOString(),
+      tu_trang: b.trang_hien_tai ? Number(b.trang_hien_tai) + 1 : '', thoi_quen_id: h?.id || ''
+    });
+    if (navigator.vibrate) navigator.vibrate(20);
+    askNotify();
+  } catch (e) { errorToast(e); }
+}
+
+/** Thẻ Đọc sách trên Hôm nay: chưa đọc → nút ▶ to; đang đọc → vòng đếm ngược lớn; đọc đủ → 1 dòng gọn. */
+export function todayReadCard() {
+  const h = readHabit();
+  const p = running();
+  const b = p ? bookOf(p) : currentBook();
+  if (!h && !b && !p) return raw('');
+  const need = Math.max(30, Number(h?.dem_gio_phut) || 30);
+  const mins = minutesOn(today());
+  const pct = b && b.so_trang ? Math.min(100, Math.round(100 * (Number(b.trang_hien_tai) || 0) / Number(b.so_trang))) : 0;
+  const cover = b && b.anh_bia ? html`<img class="rc-cover" src="${coverSrc(b)}" alt="">` : html`<span class="rc-cover ph">${icon('book')}</span>`;
+  if (p) {
+    const left = remainingSec(p);
+    const total = (Number(p.so_phut_dat) || 30) * 60;
+    const c = 2 * Math.PI * 52, done = c * (total - left) / total;
+    return html`<section class="card read-card running">
+      <div class="rc-ring" data-rc-ring><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" class="rc-bg"/><circle cx="60" cy="60" r="52" class="rc-fg" stroke-dasharray="${done.toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 60 60)"/></svg>
+        <div class="rc-center"><b class="rc-time">${mmss(left)}</b><small>${p.trang_thai === 'Tạm dừng' ? 'tạm dừng' : 'còn lại'}</small></div></div>
+      <div class="rc-side"><p class="rc-title">${b ? b.ten : 'Đọc sách'}</p><p class="row-meta">${p.so_phut_dat} phút${p.tu_trang ? ` · từ trang ${p.tu_trang}` : ''}</p>
+        <div class="rc-btns">${p.trang_thai === 'Tạm dừng' ? html`<button class="btn btn-primary" data-rc="resume">▶ Tiếp tục</button>` : html`<button class="btn" data-rc="pause">⏸ Tạm dừng</button>`}<button class="btn btn-ghost" data-rc="stop">⏹ Dừng</button></div></div>
+    </section>`;
+  }
+  if (mins >= need) {
+    return html`<section class="card read-card compact"><span class="rc-ok">✓</span><div class="row-main"><b>Đã đọc ${mins} phút hôm nay</b><small class="row-meta">${b ? `${b.ten} · ${b.trang_hien_tai || 0}/${b.so_trang || '?'} trang` : ''}</small></div><button class="btn btn-ghost" data-rc="go">▶ Đọc thêm</button></section>`;
+  }
+  return html`<section class="card read-card">
+    <button class="rc-left" data-rc="shelf" aria-label="Mở Tủ sách">${cover}</button>
+    <div class="rc-side"><p class="rc-title">${b ? b.ten : 'Chưa chọn sách'}</p>
+      <p class="row-meta">${b ? `${b.trang_hien_tai || 0}/${b.so_trang || '?'} trang${pct ? ` · ${pct}%` : ''} · ` : ''}hôm nay ${mins}/${need} phút</p>
+      <div class="progress slim"><span style="width:${Math.round(100 * mins / need)}%"></span></div>
+      <button class="linklike" data-rc="pick">đổi sách / thời gian</button></div>
+    <button class="rc-play" data-rc="go" aria-label="Bắt đầu đọc ${need} phút">▶<small>${need}′</small></button>
+  </section>`;
 }
 
 function pause(p) {

@@ -2,7 +2,7 @@
 // Dựa trên các thực hành có cơ sở: gọi tên cảm xúc, ghi nhận thành quả nhỏ, khép "vòng lặp mở" trước khi ngủ,
 // biết ơn, chọn ít việc quan trọng cho ngày mai. Không thay thế tư vấn chuyên môn.
 import * as store from './store.js';
-import { html, raw, today, addDays, fmtDate, weekdayName, dayOf, whenLabel } from './util.js';
+import { html, raw, esc, today, addDays, fmtDate, weekdayName, dayOf, whenLabel } from './util.js';
 import { openSheet, toast, errorToast } from './ui.js';
 import { icon } from './icons.js';
 import { copyText, mainLabel } from './notes.js';
@@ -136,7 +136,7 @@ export function openReview(d = today()) {
       return html`<h3>Phân loại nhanh</h3>
         ${!inbox.length && !notes.length ? html`<p class="hint">Inbox đã trống. Tuyệt!</p>` : ''}
         ${notes.length ? html`<h4>Ghi chú #0_Inbox (${notes.length})</h4><ul class="list">${notes.map((n) => html`<li class="row" data-note="${n.id}"><div class="row-main"><div class="row-title">${n.tieu_de || (n.noi_dung || '').slice(0, 80)}</div>
-          <div class="opts small"><button class="opt" data-label="#1_Work">Work</button><button class="opt" data-label="#2_Life">Life</button><button class="opt" data-label="#3_Archive">Archive</button></div></div></li>`)}</ul>` : ''}
+          <div class="opts small"><select class="opt" data-place><option value="">Xếp vào dự án / lĩnh vực…</option><optgroup label="Dự án">${store.all('du_an').filter((d) => d.trang_thai === 'Đang làm' || d.trang_thai === 'Tạm dừng').map((d) => html`<option value="du_an:${d.id}">📁 ${d.ten}</option>`)}</optgroup><optgroup label="Lĩnh vực">${store.all('linh_vuc').map((a) => html`<option value="linh_vuc:${a.id}">🗂 ${a.ten}</option>`)}</optgroup></select><button class="opt" data-label="#1_Work">Tài nguyên</button><button class="opt" data-label="#3_Archive">Lưu trữ</button></div></div></li>`)}</ul>` : ''}
         ${inbox.length ? html`<h4>Inbox (${inbox.length})</h4><ul class="list">${inbox.map((i) => html`<li class="row" data-inbox="${i.id}"><div class="row-main"><div class="row-title">${i.noi_dung.slice(0, 120)}</div>
           <div class="opts small"><button class="opt" data-ib="task">Thành việc</button><button class="opt" data-ib="note">Ghi chú</button><button class="opt" data-ib="done">Đã xử lý</button></div></div></li>`)}</ul>` : ''}`;
     }
@@ -207,9 +207,17 @@ export function openReview(d = today()) {
         } catch (e) { errorToast(e); }
       });
     });
+    box.querySelectorAll('[data-note] [data-place]').forEach((sel) => sel.onchange = async () => {
+      const row = sel.closest('[data-note]'); const n = store.get('ghi_chu', row.dataset.note);
+      if (!sel.value) return;
+      const [t, id] = sel.value.split(':');
+      const rest = (n.nhan || []).filter((x) => !/^#[0-3]/.test(x));
+      const patch = t === 'du_an' ? { du_an_id: id, linh_vuc_id: store.get('du_an', id)?.linh_vuc_id || '', nhan: ['#1_Work', ...rest] } : { linh_vuc_id: id, du_an_id: '', nhan: ['#1_Work', ...rest] };
+      try { await store.update('ghi_chu', n.id, patch); row.classList.add('resolved'); row.querySelector('.opts').innerHTML = `<span class="tag st-done">→ ${esc(sel.selectedOptions[0].textContent)}</span>`; } catch (e) { errorToast(e); }
+    });
     box.querySelectorAll('[data-note]').forEach((row) => row.querySelectorAll('[data-label]').forEach((b) => b.onclick = async () => {
       const n = store.get('ghi_chu', row.dataset.note);
-      try { await store.update('ghi_chu', n.id, { nhan: [b.dataset.label, ...(n.nhan || []).filter((x) => !x.startsWith('#0') && !x.startsWith('#1') && !x.startsWith('#2') && !x.startsWith('#3'))] }); row.classList.add('resolved'); row.querySelector('.opts').innerHTML = `<span class="tag st-done">→ ${b.dataset.label}</span>`; } catch (e) { errorToast(e); }
+      try { await store.update('ghi_chu', n.id, { nhan: [b.dataset.label, ...(n.nhan || []).filter((x) => !x.startsWith('#0') && !x.startsWith('#1') && !x.startsWith('#2') && !x.startsWith('#3'))] }); row.classList.add('resolved'); row.querySelector('.opts').innerHTML = `<span class="tag st-done">→ ${b.textContent}</span>`; } catch (e) { errorToast(e); }
     }));
     box.querySelectorAll('[data-inbox]').forEach((row) => row.querySelectorAll('[data-ib]').forEach((b) => b.onclick = async () => {
       const it = store.get('inbox', row.dataset.inbox);

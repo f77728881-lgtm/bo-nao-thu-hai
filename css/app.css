@@ -810,3 +810,45 @@ html[data-theme="dark"] .care { color: var(--text); }
 .bk-cover .ic { width: 26px; height: 26px; color: var(--primary); }
 .bk-cover i { position: absolute; right: 4px; bottom: 4px; font-style: normal; font-size: .8rem; background: var(--surface); border-radius: 50%; width: 22px; height: 22px; display: grid; place-items: center; }
 .bk-cover-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; } .bk-cover-acts .chip { cursor: pointer; }
+/* Thẻ Đọc sách trên Hôm nay */
+.read-card { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+.rc-left { border: 0; background: none; padding: 0; cursor: pointer; }
+.rc-cover { width: 54px; height: 76px; border-radius: 7px; object-fit: cover; display: block; flex: none; }
+.rc-cover.ph { display: grid; place-items: center; background: var(--surface-2); color: var(--primary); } .rc-cover.ph .ic { width: 26px; height: 26px; }
+.rc-side { flex: 1; min-width: 0; }
+.rc-title { margin: 0 0 2px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.read-card .row-meta { margin: 0; }
+.progress.slim { height: 6px; margin: 6px 0 4px; } .progress.slim span { background: var(--green); border: 0; }
+.rc-play { flex: none; width: 68px; height: 68px; border-radius: 50%; border: 0; background: var(--green); color: #fff; font-size: 1.6rem; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; box-shadow: 0 6px 16px color-mix(in srgb, var(--green) 40%, transparent); }
+.rc-play small { font-size: .75rem; font-weight: 700; margin-top: 2px; }
+.rc-play:active { transform: scale(.95); }
+.read-card.running { align-items: center; }
+.rc-ring { position: relative; width: 132px; height: 132px; flex: none; }
+.rc-ring svg { width: 100%; height: 100%; }
+.rc-bg { fill: none; stroke: var(--surface-2); stroke-width: 9; }
+.rc-fg { fill: none; stroke: var(--green); stroke-width: 9; stroke-linecap: round; transition: stroke-dasharray 1s linear; }
+.rc-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.rc-time { font-size: 1.9rem; font-variant-numeric: tabular-nums; }
+.rc-center small { color: var(--muted); font-size: .75rem; }
+.rc-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.read-card.compact { padding-top: 10px; padding-bottom: 10px; }
+.rc-ok { width: 32px; height: 32px; border-radius: 50%; background: var(--green-bg); color: var(--green); display: grid; place-items: center; font-weight: 700; flex: none; }
+.read-card.compact .row-main { display: flex; flex-direction: column; }
+body[data-route="hom-nay"] .read-bar.on { display: none; }
+/* Bản đồ PARA */
+.pa-h { display: flex; align-items: center; gap: 8px; font-size: 1.05rem; margin: 22px 0 10px; }
+.pa-h small { color: var(--muted); font-weight: 500; font-size: .8rem; }
+.pa-h .ic { width: 20px; height: 20px; color: var(--primary); }
+.pa-head { display: flex; flex-direction: column; gap: 2px; cursor: pointer; }
+.pa-proj.paused { opacity: .75; }
+.pa-goal { margin: 8px 0 4px; font-size: .875rem; }
+.pa-warn { margin: 6px 0; font-size: .8rem; color: var(--yellow); }
+.pa-late { color: var(--red); } .pa-soon { color: var(--yellow); }
+.pa-foot { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.pa-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.pa-chips .chip { text-decoration: none; } .pa-chips em { font-style: normal; color: var(--muted); margin-left: 4px; }
+.pa-inbox { background: var(--yellow-bg); border-radius: 12px; padding: 8px 12px; font-size: .875rem; }
+.pa-inbox a { color: var(--text); font-weight: 600; }
+.ne-para .chip .ic { width: 15px; height: 15px; vertical-align: -3px; }
+.n-group small { color: var(--muted); font-weight: 500; }
+.read-card .linklike { font-size: .75rem; color: var(--muted); }

@@ -246,6 +246,19 @@ export function openReview(d = today()) {
 }
 
 // ---------------- Màn Hôm nay: ưu tiên + lời nhắc buổi tối ----------------
+/** 3 ưu tiên đã chọn tối qua (việc). */
+export function todayPriorities() {
+  const y = entryFor(addDays(today(), -1));
+  return (y?.uu_tien_mai || []).map((id) => store.get('viec', id)).filter(Boolean);
+}
+/** Khép lại ngày: nút từ 17h (chưa tổng kết) hoặc dòng "đã tổng kết". Đặt cuối màn Hôm nay. */
+export function closeDayCard() {
+  const mine = entryFor(today());
+  const hour = new Date(Date.now() + 7 * 3600e3).getUTCHours();
+  if (mine?.hoan_thanh) return html`<p class="hint center">🌙 Đã tổng kết hôm nay ${moodEmoji(mine.tam_trang)} · <button class="link" data-review>xem lại</button></p>`;
+  return html`<button class="review-cta ${hour >= 17 ? '' : 'quiet'}" data-review>${icon('moon')}<span><b>Khép lại ngày hôm nay</b><small>5 phút: cảm xúc · việc đã xong · chốt việc dở · ưu tiên ngày mai</small></span></button>`;
+}
+
 export function todayReviewCards() {
   const t = today();
   const y = entryFor(addDays(t, -1));

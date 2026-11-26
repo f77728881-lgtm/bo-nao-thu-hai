@@ -868,3 +868,36 @@ body[data-route="hom-nay"] .read-bar.on { display: none; }
 .mk-spark polyline { fill: none; stroke-width: 2; vector-effect: non-scaling-stroke; } .mk-spark polyline.up { stroke: var(--green); } .mk-spark polyline.down { stroke: var(--red); }
 .mk-spark-f { display: flex; justify-content: space-between; color: var(--muted); font-size: .7rem; }
 button.tile { border: 0; font: inherit; text-align: left; cursor: pointer; }
+/* Hàng chip thẻ đầu trang: áo khoác + USD + SJC cân đối */
+.tt-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.tt-chips::-webkit-scrollbar { display: none; }
+.tt-chip { white-space: nowrap; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; line-height: 1.5; }
+.tt-chip.mk { border: 0; font: inherit; font-size: .8rem; color: var(--text); cursor: pointer; font-variant-numeric: tabular-nums; }
+.tt-chip.mk .mk-d { margin-left: 2px; }
+/* Ưu tiên hôm nay */
+.focus .pri-list { margin: 6px 0 4px; }
+.focus-sub { margin: 12px 0 2px; font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+.focus .list .row { padding-left: 0; padding-right: 0; }
+.review-cta.quiet { opacity: .8; }
+/* Tin chính */
+.news { margin-top: 12px; }
+.nw-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.nw-list { list-style: none; margin: 6px 0 0; padding: 0; }
+.nw-row { display: flex; align-items: flex-start; gap: 6px; padding: 9px 0; border-top: 1px solid var(--line); }
+.nw-row:first-child { border-top: 0; }
+.nw-main { flex: 1; min-width: 0; text-decoration: none; color: var(--text); display: flex; flex-direction: column; gap: 2px; }
+.nw-main b { font-weight: 600; font-size: .92rem; line-height: 1.35; }
+.nw-main small { color: var(--muted); font-size: .72rem; }
+.nw-save { border: 0; background: none; cursor: pointer; font-size: .95rem; padding: 2px 4px; opacity: .55; }
+.nw-save:hover { opacity: 1; }
+.nw-more summary { cursor: pointer; color: var(--accent); font-size: .82rem; padding: 6px 0; }
+.nw-tip { margin: 6px 0 0; font-size: .72rem; }
+.tt-chips { flex-wrap: wrap; overflow: visible; gap: 6px; }
+.tt-chips .tt-chip { flex: 1 1 auto; justify-content: center; padding: 4px 6px; font-size: .75rem; }
+.tt-chips .tt-chip .mk-d { font-size: .65rem; }
+/* Nhóm chip: thời tiết (co giãn) + giá (2 chip bằng nhau). Không đủ chỗ thì nhóm giá xuống hàng, mỗi chip một nửa. */
+.tt-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.tt-g { display: flex; gap: 6px; flex: 1 1 auto; }
+.tt-g.mk { flex: 1 1 220px; }
+.tt-g.mk .tt-chip { flex: 1 1 0; min-width: 0; }
+.tt-g.wx .tt-chip { flex: 1 1 auto; }

@@ -189,6 +189,16 @@ export function sessionFor(lt, ymd = today()) {
 }
 
 /** Thẻ "Buổi hôm nay" cho màn Hôm nay. */
+export function sessionRows() {
+  const t = today();
+  const items = store.all('lo_trinh').filter((l) => l.trang_thai === 'Đang học').map((l) => ({ l, b: sessionFor(l, t) })).filter((x) => x.b);
+  return items.map(({ l, b }) => html`
+    <li class="row session ${b.trang_thai === 'Đã xong' ? 'is-done' : ''}" data-session="${b.id}">
+      <div class="doc-icon">${icon(l.loai === 'Tập luyện' ? 'today' : 'note')}</div>
+      <div class="row-main"><div class="row-title">${b.tieu_de}</div>
+        <div class="row-meta"><span>${l.ten}</span>${b.ngay && b.ngay !== t ? html`<span class="due">${fmtDate(b.ngay)}</span>` : ''}${b.gio ? html`<span>${b.gio}</span>` : ''}${b.trang_thai === 'Đã xong' ? html`<span class="tag st-done">Đã xong</span>` : ''}</div></div></li>`);
+}
+
 export function todaySessions() {
   const t = today();
   const items = store.all('lo_trinh').filter((l) => l.trang_thai === 'Đang học').map((l) => ({ l, b: sessionFor(l, t) })).filter((x) => x.b);

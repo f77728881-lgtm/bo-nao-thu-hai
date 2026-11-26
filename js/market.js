@@ -18,7 +18,18 @@ function delta(cur, prev, unit) {
   return html`<i class="mk-d ${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'}${v}</i>`;
 }
 
-/** Dòng gọn trong thẻ đầu trang Hôm nay. */
+/** Chip giá đặt cùng hàng với chip thời tiết/áo khoác trong thẻ đầu trang. */
+export function marketChips() {
+  if (!marketOn()) return [];
+  const [cur, prev] = rows();
+  if (!cur) return [];
+  const out = [];
+  if (cur.usd_ban) out.push(html`<button class="tt-chip mk" data-market title="USD bán ra (Vietcombank)">💵 <b>${dot(cur.usd_ban)}</b>${delta(cur.usd_ban, prev?.usd_ban)}</button>`);
+  if (cur.sjc_ban) out.push(html`<button class="tt-chip mk" data-market title="Vàng miếng SJC bán ra, triệu/lượng">🥇 <b>${tr(cur.sjc_ban)}tr</b>${delta(cur.sjc_ban, prev?.sjc_ban, 'tr')}</button>`);
+  return out;
+}
+
+/** Dòng gọn trong thẻ đầu trang Hôm nay (cũ, giữ để tương thích). */
 export function marketStrip() {
   if (!marketOn()) return raw('');
   const [cur, prev] = rows();

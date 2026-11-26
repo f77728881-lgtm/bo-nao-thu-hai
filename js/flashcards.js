@@ -36,6 +36,13 @@ export function speak(text) {
 }
 
 /** Thẻ tóm tắt cho màn Hôm nay và Rèn luyện. compact: chỉ hiện khi có câu đến hạn. */
+/** Một dòng "ôn câu đến hạn" cho khối Ưu tiên hôm nay (rỗng nếu không có câu đến hạn). */
+export function flashRow() {
+  const due = dueCards();
+  if (!due.length) return null;
+  return html`<li class="row"><div class="doc-icon">🀄</div><div class="row-main"><div class="row-title">Ôn ${due.length} câu tiếng Trung đến hạn</div><div class="row-meta">Sổ câu cần nhớ · khoảng ${Math.max(2, Math.round(due.length / 3))} phút</div></div><button class="btn btn-ghost" data-flash="review">Ôn</button></li>`;
+}
+
 export function flashStrip({ compact = false } = {}) {
   const all = allCards();
   const due = dueCards();

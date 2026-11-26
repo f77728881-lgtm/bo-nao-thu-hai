@@ -5,12 +5,13 @@ import { taskRow, docRow, eventRow, genericRow, section, TABLE_META, quadrant, a
 import { lunarInfo, hourChiIndex } from './lunar.js';
 import { icon } from './icons.js';
 import { todayReadCard } from './reading.js';
-import { marketStrip } from './market.js';
+import { marketChips } from './market.js';
 import { upcomingTripCard } from './travel.js';
-import { habitStrip, todaySessions } from './training.js';
-import { todayReviewCards } from './review.js';
+import { habitStrip, sessionRows } from './training.js';
+import { todayPriorities, closeDayCard } from './review.js';
+import { newsCard } from './news.js';
 import * as gcal from './extcal.js';
-import { flashStrip } from './flashcards.js';
+import { flashRow } from './flashcards.js';
 import { weeklyCta } from './weekly.js';
 import * as weather from './weather.js';
 
@@ -39,10 +40,6 @@ export function todayView() {
   const overdue = tasks.filter((v) => v.han && dayOf(v.han) < t).sort(byWhen('han'));
   const due = tasks.filter((v) => dayOf(v.han) === t).sort(byWhen('han'));
   const shown = new Set([...overdue, ...due].map((v) => v.id));
-  const q1 = tasks.filter((v) => v.gap && v.quan_trong && !shown.has(v.id)).sort(byWhen('han'));
-  q1.forEach((v) => shown.add(v.id));
-  const doing = tasks.filter((v) => v.trang_thai === 'Đang làm' && !shown.has(v.id));
-  const soon = tasks.filter((v) => { const d = dayOf(v.han); return d > t && d <= in7 && !shown.has(v.id) && !doing.includes(v); }).sort(byWhen('han'));
   const doneToday = allTasks.filter((v) => v.trang_thai === 'Xong' && inTab(isDofTask(v)) && (v.hoan_thanh_luc || '').slice(0, 10) === new Date().toISOString().slice(0, 10));
 
   // Lịch hôm nay: sự kiện trong app + lịch Google khác; bỏ lịch cấp trên.
@@ -76,10 +73,7 @@ export function todayView() {
   else body = html`
       ${section('Quá hạn', overdue.map((v) => taskRow(v)), { limit: 5 })}
       ${agendaSection}
-      ${section('Gấp & Quan trọng', q1.map((v) => taskRow(v)), { limit: 5 })}
-      ${section('Đang làm', doing.map((v) => taskRow(v)), { limit: 5 })}
       ${section('Văn bản sắp hạn (7 ngày)', docs.map(docRow), { limit: 5 })}
-      ${section('7 ngày tới', soon.map((v) => taskRow(v)), { limit: 5 })}
       ${personal && inbox.length ? section('Inbox chưa xử lý', inbox.slice(0, 5).map((r) => genericRow('inbox', r)), { more: html`<a class="more-link" href="#/bang/inbox">Xem tất cả →</a>` }) : ''}`;
 
   return html`
@@ -93,11 +87,22 @@ export function todayView() {
     </div>
     ${statFilter ? html`<p class="hint filter-hint">Đang lọc. Chạm lại ô số để xem đầy đủ.</p>` : ''}
     ${!statFilter ? weeklyCta() : ''}
-    ${personal && !statFilter ? html`${todayReviewCards()}${upcomingTripCard()}${habitStrip()}` : ''}
-    <div class="grid today-grid">
-      ${personal && !statFilter ? html`${todaySessions()}${flashStrip({ compact: true })}` : ''}
-      ${body}
-    </div>`;
+    ${personal && !statFilter ? html`${focusCard()}${upcomingTripCard()}${habitStrip()}` : ''}
+    <div class="grid today-grid">${body}</div>
+    ${personal && !statFilter ? html`${newsCard()}${closeDayCard()}` : ''}`;
+}
+
+/** Ưu tiên hôm nay: 3 việc chọn từ tối qua + buổi học/tập + câu cần ôn — gom một chỗ, gọn. */
+function focusCard() {
+  const pri = todayPriorities();
+  const rows = [...sessionRows(), flashRow()].filter(Boolean);
+  if (!pri.length && !rows.length) return raw('');
+  return html`<section class="card focus">
+    <h3 class="card-title">${icon('spark')} Ưu tiên hôm nay</h3>
+    ${pri.length ? html`<ol class="pri-list">${pri.map((v) => html`<li class="${v.trang_thai === 'Xong' ? 'is-done' : ''}" data-open="viec/${v.id}">${v.trang_thai === 'Xong' ? '✓ ' : ''}${v.ten}</li>`)}</ol>`
+      : html`<p class="hint">Tối nay khi Khép lại ngày, chọn 3 việc quan trọng nhất cho ngày mai — sáng ra sẽ hiện ở đây.</p>`}
+    ${rows.length ? html`<h4 class="focus-sub">Học & tập</h4><ul class="list">${rows}</ul>` : ''}
+  </section>`;
 }
 
 /** Thẻ đầu trang: chào + ngày + âm lịch (chạm xem chi tiết) + thời tiết (chạm xem theo giờ) + một hàng nhắc. */
@@ -111,6 +116,7 @@ function topCard(t) {
   if (w && w.umbrella) chips.push(html`<span class="tt-chip rain">☔ Mang ô · mưa ${w.rainWork}%${evening ? ' (mai)' : ''}</span>`);
   else if (w && w.maybeRain) chips.push(html`<span class="tt-chip maybe">🌂 Có thể mưa ${w.rainWork}%</span>`);
   if (w) chips.push(html`<span class="tt-chip">👕 ${w.clothes.split(',')[0]}</span>`);
+  const mk = marketChips();
   return html`<section class="card today-top">
     <div class="tt-main">
       <div class="tt-left">
@@ -122,8 +128,7 @@ function topCard(t) {
         ${w ? html`<span class="tt-temp">${w.icon}<b>${w.now !== null ? w.now : w.tmax}°</b></span><small>${evening ? 'Mai · ' : ''}${w.tmin}–${w.tmax}°</small>` : html`<small>Thời tiết…</small>`}
       </button>
     </div>
-    ${chips.length ? html`<div class="tt-chips">${chips}</div>` : ''}
-    ${marketStrip()}
+    ${chips.length || mk.length ? html`<div class="tt-chips">${chips.length ? html`<div class="tt-g wx">${chips}</div>` : ''}${mk.length ? html`<div class="tt-g mk">${mk}</div>` : ''}</div>` : ''}
   </section>`;
 }
 

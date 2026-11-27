@@ -21,7 +21,6 @@ import { openHabitWizard, openChain } from './habitwizard.js';
 import { startPhotoQueue } from './photos.js';
 import { paraView, bindPara } from './para.js';
 import { openMarket } from './market.js';
-import { onNews, saveNews } from './news.js';
 import { openAsk } from './claude.js';
 import { tasksView, bindTasks, openTaskList } from './tasks.js';
 import { hrView, bindHr, bindHrLinks } from './hr.js';
@@ -131,7 +130,7 @@ document.addEventListener('click', async (e) => {
     if (tip.matches('[data-ask-tip-off]')) { localStorage.setItem('bnth.askTip', today()); tip.closest('.ask-tip')?.remove(); return; }
     searchQ = tip.dataset.askGo; location.hash = '#/tim'; return;
   }
-  const t = e.target.closest('[data-cal-layer],[data-doc-area],[data-rm-goto],[data-ask-open],[data-news-save],[data-market],[data-rc],[data-read-start],[data-read-pages],[data-weather],[data-habit-new],[data-chain],[data-weekly],[data-habit-mini],[data-today-tab],[data-stat],[data-weather-loc],[data-flash],[data-review],[data-habit-toggle],[data-session],[data-trip],[data-lunar],[data-toggle-task],[data-open],[data-new],[data-task-mode],[data-doc-filter],[data-cal-day],[data-cal-nav],[data-cal-today],#sync-status,#fab');
+  const t = e.target.closest('[data-cal-layer],[data-doc-area],[data-rm-goto],[data-ask-open],[data-market],[data-rc],[data-read-start],[data-read-pages],[data-weather],[data-habit-new],[data-chain],[data-weekly],[data-habit-mini],[data-today-tab],[data-stat],[data-weather-loc],[data-flash],[data-review],[data-habit-toggle],[data-session],[data-trip],[data-lunar],[data-toggle-task],[data-open],[data-new],[data-task-mode],[data-doc-filter],[data-cal-day],[data-cal-nav],[data-cal-today],#sync-status,#fab');
   if (!t) return;
   if (t.closest('.sheet') && !t.matches('[data-toggle-task]')) return; // trong biểu mẫu tự xử lý
   if (t.matches('[data-toggle-task]')) {
@@ -155,7 +154,6 @@ document.addEventListener('click', async (e) => {
     return;
   }
   if (t.matches('[data-ask-open]')) { openAsk(parseHash()[0]); return; }
-  if (t.matches('[data-news-save]')) { e.preventDefault(); e.stopPropagation(); saveNews(t.dataset.newsSave); return; }
   if (t.matches('[data-market]')) { openMarket(); return; }
   if (t.matches('[data-rc]')) { e.stopPropagation(); readCardAction(t.dataset.rc); return; }
   if (t.matches('[data-read-start]')) { e.stopPropagation(); openReadStart(t.dataset.readStart || null); return; }
@@ -339,7 +337,6 @@ async function start() {
   }, 60);
   store.subscribe(rerender);
   store.subscribe(() => refreshBar());
-  onNews(rerender);
   mountReadBar();
   startPhotoQueue();
   gcal.subscribe(rerender);

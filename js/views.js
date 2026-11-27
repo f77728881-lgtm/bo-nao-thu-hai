@@ -9,7 +9,6 @@ import { marketChips } from './market.js';
 import { upcomingTripCard } from './travel.js';
 import { habitStrip, sessionRows } from './training.js';
 import { todayPriorities, closeDayCard } from './review.js';
-import { newsCard } from './news.js';
 import * as gcal from './extcal.js';
 import { flashRow } from './flashcards.js';
 import { weeklyCta } from './weekly.js';
@@ -94,7 +93,7 @@ export function todayView() {
     ${!statFilter ? askTipCard() : ''}
     ${personal && !statFilter ? html`${focusCard()}${upcomingTripCard()}${habitStrip()}` : ''}
     <div class="grid today-grid">${body}</div>
-    ${personal && !statFilter ? html`${newsCard()}${closeDayCard()}` : ''}`;
+    ${personal && !statFilter ? html`${closeDayCard()}` : ''}`;
 }
 
 /** Ưu tiên hôm nay: 3 việc chọn từ tối qua + buổi học/tập + câu cần ôn — gom một chỗ, gọn. */

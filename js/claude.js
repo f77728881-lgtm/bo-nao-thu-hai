@@ -26,6 +26,38 @@ export async function askClaude(text) {
   toast('Đã mở Claude (câu hỏi cũng đã chép sẵn — nếu trống thì dán vào).', { ms: 4500 });
 }
 
+// ---------------- Gemini (tài khoản Google của anh) ----------------
+// Gemini KHÔNG đọc/ghi được dữ liệu app (không có connector): dùng cho soạn thảo, dịch, kiến thức chung — để dành hạn mức Claude.
+// Không có cách chính thức điền sẵn câu hỏi vào Gemini, nên app chép câu hỏi vào bộ nhớ tạm rồi mở Gemini để anh dán.
+// Chỉ gửi đúng nội dung anh chọn; không bao giờ tự kèm dữ liệu nhân sự hay tài chính.
+const GEM_PREFIX = 'Trả lời bằng tiếng Việt, ngắn gọn, rõ ràng. ';
+// Tài khoản Google có gói Gemini Pro (có thể khác tài khoản đang đăng nhập mặc định). Chỉ lưu trên máy này.
+const GEM_KEY = 'bnth.geminiTk';
+export const geminiAccount = () => localStorage.getItem(GEM_KEY) || '';
+export function setGeminiAccount() {
+  const v = prompt('Email tài khoản Google có Gemini Pro (chỉ lưu trên máy này, để trống = tài khoản mặc định):', geminiAccount());
+  if (v === null) return false;
+  const e = v.trim();
+  if (e && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) { toast('Email chưa đúng dạng'); return false; }
+  if (e) localStorage.setItem(GEM_KEY, e); else localStorage.removeItem(GEM_KEY);
+  toast(e ? 'Nút Gemini sẽ mở bằng ' + e : 'Nút Gemini mở bằng tài khoản mặc định');
+  return true;
+}
+const geminiUrl = () => 'https://gemini.google.com/app' + (geminiAccount() ? '?authuser=' + encodeURIComponent(geminiAccount()) : '');
+export async function askGemini(text) {
+  const full = clip(GEM_PREFIX + text, MAX);
+  const ok = await copy(full);
+  window.open(geminiUrl(), '_blank', 'noopener');
+  toast(ok ? 'Đã chép câu hỏi — trong Gemini, giữ ngón tay vào ô chat → Dán → Gửi.' : 'Mở Gemini rồi gõ câu hỏi (không chép được tự động).', { ms: 6000 });
+}
+const GEMINI = [
+  ['✍️ Soạn công văn', 'Soạn giúp tôi một công văn về: [nội dung]. Văn phong hành chính EVN, có căn cứ, nội dung chính, tổ chức thực hiện, nơi nhận. Hỏi tôi thông tin còn thiếu trước khi viết.'],
+  ['🪄 Viết lại cho gọn, rõ', 'Viết lại đoạn sau cho gọn, rõ, đúng văn phong hành chính, giữ nguyên ý: [dán đoạn văn]'],
+  ['🌐 Dịch Anh ↔ Việt', 'Dịch đoạn sau sang [tiếng Việt/tiếng Anh], giữ thuật ngữ chuyên ngành điện và nhân sự: [dán đoạn văn]'],
+  ['⚖️ Hỏi quy định lao động', 'Theo Bộ luật Lao động Việt Nam hiện hành, [câu hỏi]. Nêu điều khoản căn cứ và lưu ý thực tế khi áp dụng.'],
+  ['💡 Lên ý tưởng', 'Gợi ý 10 ý tưởng cho: [chủ đề], chia nhóm, mỗi ý một dòng.']
+];
+
 // ---------------- Câu hỏi theo màn ----------------
 const ROUTE_PROMPTS = {
   'hom-nay': [
@@ -63,15 +95,23 @@ export function openAsk(route) {
   const box = document.createElement('div');
   box.className = 'ask';
   box.innerHTML = html`
-    <textarea class="ask-free" rows="3" placeholder="Hỏi Claude bất cứ điều gì về việc, văn bản, ghi chú, lịch của anh…"></textarea>
-    <div class="form-actions" style="margin-top:6px"><span class="hint">Claude dùng connector để tra dữ liệu app.</span><span class="spacer"></span><button class="btn btn-primary" data-ask-free>✨ Hỏi</button></div>
-    <h4>Gợi ý</h4>
-    <div class="ask-list">${list.map(([label, text]) => html`<button class="ask-item" data-ask-text="${text}">${label}</button>`)}</div>
-    <p class="hint">Mở bằng ứng dụng Claude trên điện thoại sẽ tiện nhất. Câu hỏi luôn được chép sẵn vào bộ nhớ tạm.</p>`.__raw;
-  openSheet(box, { title: '✨ Hỏi Claude' });
+    <textarea class="ask-free" rows="3" placeholder="Gõ câu hỏi…"></textarea>
+    <div class="ask-2">
+      <button class="btn btn-primary" data-ask-free>✨ Hỏi Claude<small>đọc/ghi dữ liệu app</small></button>
+      <button class="btn ask-gem" data-ask-gem>🔷 Hỏi Gemini<small>soạn thảo, kiến thức chung</small></button>
+    </div>
+    <p class="hint">Chỉ cần tra cứu? Dùng ô Tìm 🔍 — miễn phí, không tốn lượt AI. Gemini không xem được dữ liệu app; chỉ nhận đúng câu anh gõ.
+      <br>Gemini mở bằng: <b data-gem-acc-label>${geminiAccount() || 'tài khoản mặc định'}</b> · <button class="link" type="button" data-gem-acc>đổi</button></p>
+    <h4>Claude · dùng dữ liệu app</h4>
+    <div class="ask-list">${list.filter(([l]) => l !== '✍️ Soạn công văn').map(([label, text]) => html`<button class="ask-item" data-ask-text="${text}">${label}</button>`)}</div>
+    <h4>Gemini · không cần dữ liệu app</h4>
+    <div class="ask-list">${GEMINI.map(([label, text]) => html`<button class="ask-item gem" data-gem-text="${text}">${label}</button>`)}</div>`.__raw;
+  openSheet(box, { title: '✨ Hỏi AI' });
   const ta = box.querySelector('.ask-free');
   setTimeout(() => ta.focus(), 120);
   box.querySelector('[data-ask-free]').onclick = () => { const q = ta.value.trim(); if (!q) { ta.focus(); return; } closeSheet(); askClaude(q); };
+  box.querySelector('[data-ask-gem]').onclick = () => { const q = ta.value.trim(); if (!q) { ta.focus(); return; } closeSheet(); askGemini(q); };
+  box.querySelector('[data-gem-acc]').onclick = () => { if (setGeminiAccount()) box.querySelector('[data-gem-acc-label]').textContent = geminiAccount() || 'tài khoản mặc định'; };
 }
 
 // ---------------- Câu hỏi kèm bối cảnh một bản ghi ----------------
@@ -113,20 +153,30 @@ function contextPrompts(table, r) {
   return [];
 }
 
-/** Khối "✨ Nhờ Claude" gắn trong biểu mẫu / trình sửa (mở ra mới hiện các lựa chọn). */
+/** Câu cho Gemini kèm nội dung một mục (chỉ soạn thảo; Gemini không lưu được vào app). Không có cho nhân sự/tài chính. */
+function gemPrompts(table, r) {
+  if (table === 'ghi_chu') return [['📝 Tóm tắt ghi chú', `Tóm tắt 1–3 câu và nêu 3 ý chính của ghi chú sau:\n---\n${clip(r.noi_dung, 2500)}\n---`]];
+  if (table === 'viec') return [['✍️ Soạn bản nháp', `Soạn bản nháp sản phẩm cho việc “${r.ten}”${r.mo_ta ? ` (mô tả: ${clip(r.mo_ta, 600)})` : ''}: email, tờ trình hoặc báo cáo phù hợp, văn phong hành chính.`]];
+  if (table === 'van_ban') return [['✍️ Dự thảo trả lời', `Soạn dự thảo văn bản trả lời/báo cáo cho văn bản ${r.so_hieu}${r.trich_yeu ? `: ${clip(r.trich_yeu, 400)}` : ''}, văn phong hành chính EVN.`]];
+  if (table === 'sach') return [['💡 Ý chính cuốn sách', `Tóm tắt các ý chính của cuốn “${r.ten}”${r.tac_gia ? ` – ${r.tac_gia}` : ''} và 5 câu hỏi suy ngẫm để áp dụng vào công việc nhân sự.`]];
+  return [];
+}
+
+/** Khối "✨ Nhờ AI" gắn trong biểu mẫu / trình sửa (mở ra mới hiện các lựa chọn). */
 export function askBox(table, r) {
   const list = r ? contextPrompts(table, r) : [];
-  if (!list.length) return '';
-  return html`<details class="ask-box"><summary>✨ Nhờ Claude</summary><div class="ask-list">${list.map(([label, text]) => html`<button type="button" class="ask-item" data-ask-text="${text}">${label}</button>`)}</div></details>`;
+  const gem = r ? gemPrompts(table, r) : [];
+  if (!list.length && !gem.length) return '';
+  return html`<details class="ask-box"><summary>✨ Nhờ AI</summary><div class="ask-list">${list.map(([label, text]) => html`<button type="button" class="ask-item" data-ask-text="${text}">${label}</button>`)}${gem.map(([label, text]) => html`<button type="button" class="ask-item gem" data-gem-text="${text}">🔷 ${label} (Gemini)</button>`)}</div></details>`;
 }
 
 // Một trình nghe chung cho mọi nút [data-ask-text] (kể cả trong bảng trượt).
 document.addEventListener('click', (e) => {
-  const b = e.target.closest('[data-ask-text]');
+  const b = e.target.closest('[data-ask-text],[data-gem-text]');
   if (!b) return;
   e.preventDefault(); e.stopPropagation();
   if (b.closest('.ask')) closeSheet();
-  askClaude(b.dataset.askText);
+  if (b.dataset.gemText !== undefined) askGemini(b.dataset.gemText); else askClaude(b.dataset.askText);
 }, true);
 
 export { today, store };

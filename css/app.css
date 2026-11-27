@@ -1289,3 +1289,11 @@ html[data-theme="dark"] .rm-check { border-color: #636366; }
 .tc-luu { width: 100%; margin-top: 14px; padding: 12px; font-size: 1rem; }
 .tc-batdau { margin-bottom: 12px; }
 .tc-nhan p { margin: 0 0 8px; }
+
+/* Hỏi AI: Claude + Gemini */
+.ask-2 { display: flex; gap: 8px; margin: 8px 0 4px; }
+.ask-2 .btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 9px 8px; }
+.ask-2 .btn small { font-size: .7rem; font-weight: 400; opacity: .85; }
+.ask-gem { background: #e8f0fe; color: #1a56c4; border: 0; }
+.ask-item.gem { border-color: #c6d8fb; }
+@media (prefers-color-scheme: dark) { .ask-gem { background: #1d2c4a; color: #9fc0ff; } .ask-item.gem { border-color: #2c4270; } }

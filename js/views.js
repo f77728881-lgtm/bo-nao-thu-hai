@@ -15,7 +15,7 @@ import { flashRow } from './flashcards.js';
 import { weeklyCta } from './weekly.js';
 import * as weather from './weather.js';
 import { hrSubtitle, hrForSearch, answerHtml, hrHitsHtml } from './hr.js';
-import { understand, hrHits } from './ask.js';
+import { understand, hrHits, BOOK, BOOK_IDS, tipOfDay } from './ask.js';
 
 const isOpen = (v) => v.trang_thai !== 'Xong';
 const byWhen = (f) => (a, b) => ((a[f] || '9999') < (b[f] || '9999') ? -1 : (a[f] || '9999') > (b[f] || '9999') ? 1 : 0);
@@ -89,6 +89,7 @@ export function todayView() {
     </div>
     ${statFilter ? html`<p class="hint filter-hint">Đang lọc. Chạm lại ô số để xem đầy đủ.</p>` : ''}
     ${!statFilter ? weeklyCta() : ''}
+    ${!statFilter ? askTipCard() : ''}
     ${personal && !statFilter ? html`${focusCard()}${upcomingTripCard()}${habitStrip()}` : ''}
     <div class="grid today-grid">${body}</div>
     ${personal && !statFilter ? html`${newsCard()}${closeDayCard()}` : ''}`;
@@ -371,7 +372,63 @@ export function calendarView() {
 }
 
 // ---------------- Tìm kiếm ----------------
-const ASK_EXAMPLES = ['định biên Cẩm Khê', 'tỷ lệ nữ Lâm Thao', 'ai được điều động tháng này', 'nghỉ hưu năm nay', 'QĐ 3887', 'thẩm định trễ hạn', 'hồ sơ chưa đăng ký DO', 'trình độ phòng TCNS', 'việc quá hạn', 'văn bản sắp hạn'];
+// ---------------- Hỏi nhanh: sổ tay câu hỏi, mẫu đã dùng, mẹo mỗi ngày ----------------
+const USED_KEY = 'bnth.askUsed';
+export const askUsed = () => { try { return JSON.parse(localStorage.getItem(USED_KEY) || '[]'); } catch (e) { return []; } };
+function markUsed(id) {
+  if (!id) return;
+  const u = askUsed();
+  if (!u.includes(id)) { u.push(id); localStorage.setItem(USED_KEY, JSON.stringify(u)); }
+}
+function askTipCard() {
+  if (localStorage.getItem('bnth.askTip') === today()) return '';
+  const used = askUsed();
+  const [, q, note] = tipOfDay(used, today());
+  return html`<div class="ask-tip"><span>💡</span><button class="ask-tip-q" data-ask-go="${q}"><small>Hỏi thử trong ô Tìm · đã dùng ${used.filter((x) => BOOK_IDS.includes(x)).length}/${BOOK_IDS.length} mẫu</small><b>“${q}”</b>${note ? html`<small>${note}</small>` : ''}</button><button class="icon-btn sm" data-ask-tip-off aria-label="Ẩn hôm nay">✕</button></div>`;
+}
+function askBook() {
+  const used = askUsed();
+  const n = used.filter((x) => BOOK_IDS.includes(x)).length;
+  return html`<div class="ask-book-h"><h4 class="ios-g">Sổ tay câu hỏi</h4><small>${n}/${BOOK_IDS.length} mẫu đã dùng</small></div>
+    <div class="ask-prog"><i style="width:${Math.round(n / BOOK_IDS.length * 100)}%"></i></div>
+    ${BOOK.map(([g, xs]) => html`<h5 class="hr-sub">${g}</h5><ul class="ios-list ask-list">${xs.map(([id, q, note]) => html`<li><button class="ask-row" data-ask="${q}"><span class="ask-ok ${used.includes(id) ? 'on' : ''}">${used.includes(id) ? '✓' : ''}</span><span class="ios-t">${q}${note ? html`<small>${note}</small>` : ''}</span><span class="ios-chev">›</span></button></li>`)}</ul>`)}
+    <p class="hint">Mẹo: gõ không dấu cũng được; đổi tên đơn vị, người, tháng, ngày tùy ý. Câu nào app chưa hiểu thì vẫn tìm khắp dữ liệu như bình thường.</p>`;
+}
+const pick = (table, list) => list.map((r) => (table === 'viec' ? taskRow(r) : table === 'van_ban' ? docRow(r) : table === 'su_kien' ? eventRow(r) : genericRow(table, r)));
+const sortOf = { viec: 'han', van_ban: 'han_xu_ly' };
+function lifeCard(a) {
+  const head = (ic, t, n) => html`<div class="ans-h"><span>${ic} ${t}</span>${n !== undefined ? html`<small>${n}</small>` : ''}</div>`;
+  const ICON = { viec: '✅', van_ban: '📄', su_kien: '📅', ghi_chu: '🗒', inbox: '📥', du_an: '📁', sach: '📚', dia_diem: '📍', chuyen_di: '🧳', buoi_hoc: '🎓', nhat_ky_ngay: '🌙' };
+  const lst = (t, list) => (list.length ? html`<ul class="list">${pick(t, sortOf[t] ? list.slice().sort(byWhen(sortOf[t])) : list).slice(0, 40)}</ul>` : html`<p class="empty">Không có.</p>`);
+  if (a.kind === 'list') return html`<section class="ans">${head(ICON[a.table] || '🔎', a.tieu_de, a.list.length)}${lst(a.table, a.list)}</section>`;
+  if (a.kind === 'hom_nay') return html`<section class="ans">${head('☀️', 'Hôm nay')}
+    <h5 class="hr-sub">Lịch <small>${a.su_kien.length}</small></h5>${lst('su_kien', a.su_kien)}
+    <h5 class="hr-sub">Việc hôm nay <small>${a.viec.length}</small></h5>${lst('viec', a.viec)}
+    ${a.qua_han.length ? html`<h5 class="hr-sub">Quá hạn <small>${a.qua_han.length}</small></h5>${lst('viec', a.qua_han)}` : ''}
+    ${a.van_ban.length ? html`<h5 class="hr-sub">Văn bản hạn trong 3 ngày <small>${a.van_ban.length}</small></h5>${lst('van_ban', a.van_ban)}` : ''}</section>`;
+  if (a.kind === 'stats') return html`<section class="ans">${head('📊', a.tieu_de)}<div class="hr-kpis">${a.items.map(([v, l]) => html`<div class="hr-kpi"><b>${v}</b><small>${l}</small></div>`)}</div>
+    ${a.list && a.list.length ? html`<div style="margin-top:10px">${lst(a.table, a.list)}</div>` : ''}</section>`;
+  if (a.kind === 'thoi_quen') return html`<section class="ans">${head('🔁', a.tieu_de, a.items.filter((x) => x.xong).length + '/' + a.items.length)}
+    <ul class="ios-list hr-kv">${a.items.map((x) => html`<li><span>${x.xong ? '✅' : '⚪️'} ${x.ten}</span><small>${x.chuoi ? '🔥 ' + x.chuoi + ' ngày' : ''}</small></li>`)}</ul></section>`;
+  if (a.kind === 'the_hoc') return html`<section class="ans">${head('🀄', a.tieu_de, a.list.length)}
+    ${a.list.length ? html`<ul class="ios-list hr-kv">${a.list.slice(0, 30).map((c) => html`<li><span><b>${c.cau}</b> ${c.pinyin ? html`<small>${c.pinyin}</small>` : ''}</span><small>${c.nghia || ''}</small></li>`)}</ul>` : html`<p class="empty">Hôm nay không có câu đến hạn ôn.</p>`}
+    ${a.hay_quen.length ? html`<h5 class="hr-sub">Hay quên</h5><ul class="ios-list hr-kv">${a.hay_quen.map((c) => html`<li><span><b>${c.cau}</b> <small>${c.nghia || ''}</small></span><small>quên ${c.so_lan_quen} lần</small></li>`)}</ul>` : ''}
+    <button class="link" data-flash="review">Ôn ngay ›</button></section>`;
+  if (a.kind === 'danh_ba') return html`<section class="ans">${head('📇', a.tieu_de, a.nguoi.length + a.don_vi.length)}
+    ${a.nguoi.length || a.don_vi.length ? html`<ul class="ios-list hr-kv">${a.nguoi.map((n) => html`<li><span>${n.ten}<small class="hr-d">${[n.chuc_vu, n.don_vi].filter(Boolean).join(' · ')}</small></span>${n.dien_thoai ? html`<a class="ans-tel" href="tel:${n.dien_thoai}">📞 ${n.dien_thoai}</a>` : html`<small>${n.email || ''}</small>`}</li>`)}
+      ${a.don_vi.map((d) => html`<li><span>${d.ten}<small class="hr-d">${d.dau_moi ? 'Đầu mối: ' + d.dau_moi : ''}</small></span>${d.dien_thoai ? html`<a class="ans-tel" href="tel:${d.dien_thoai}">📞 ${d.dien_thoai}</a>` : html`<small>${d.email || ''}</small>`}</li>`)}</ul>` : html`<p class="empty">Không thấy trong danh bạ.</p>`}</section>`;
+  if (a.kind === 'chua_gui') {
+    const vb = Object.fromEntries(a.van_ban.map((d) => [d.id, d]));
+    const dv = Object.fromEntries(store.all('don_vi').map((d) => [d.id, d]));
+    const by = {}; a.list.forEach((x) => { (by[x.van_ban_id] = by[x.van_ban_id] || []).push(x); });
+    return html`<section class="ans">${head('📮', a.tieu_de, a.list.length)}
+      ${Object.keys(by).length ? Object.entries(by).map(([id, xs]) => html`<h5 class="hr-sub">${vb[id] ? vb[id].so_hieu + ' · ' + (vb[id].trich_yeu || '') : 'Văn bản'} <small>${xs.length}</small></h5>
+        <p class="hr-note">${xs.map((x) => (dv[x.don_vi_id] || {}).ten || x.ten || '?').join(', ')}</p>`) : html`<p class="empty">Các đơn vị đã gửi đủ.</p>`}</section>`;
+  }
+  if (a.kind === 'gia') return html`<section class="ans">${head('💰', 'Tỉ giá & giá vàng')}<div class="tt-chips">${marketChips()}</div><button class="link" data-market>Chi tiết ›</button></section>`;
+  return '';
+}
+
 export function searchView(q, rerender) {
   return html`
     <header class="page-head"><h1>Tìm kiếm</h1></header>
@@ -383,22 +440,19 @@ export function searchView(q, rerender) {
 export function searchResults(q, rerender) {
   q = String(q || '').trim();
   const hr = hrForSearch(rerender);
-  const ans = q ? understand(q, { hr, now: today(), viec: store.all('viec'), van_ban: store.all('van_ban') }) : null;
+  const ans = q ? understand(q, { hr, now: today(), all: (t) => store.all(t) }) : null;
+  if (ans) markUsed(ans.mau);
   const hits = store.search(q);
   const groups = {};
   hits.forEach((h) => (groups[h.table] = groups[h.table] || []).push(h.rec));
-  const hh = q && (!ans || ans.kind === 'viec' || ans.kind === 'van_ban' || ans.kind === 'gia') ? hrHits(q, hr) : { qd: [], don_vi: [], ho_so: [] };
+  const HR_KINDS = ['don_vi', 'quyet_dinh', 'tong_quan', 'ho_so'];
+  const hh = q && (!ans || !HR_KINDS.includes(ans.kind)) ? hrHits(q, hr) : { qd: [], don_vi: [], ho_so: [] };
   const hrN = hh.qd.length + hh.don_vi.length + hh.ho_so.length;
-  let card = '';
-  if (ans && (ans.kind === 'viec' || ans.kind === 'van_ban')) card = html`<section class="ans"><div class="ans-h"><span>${ans.kind === 'viec' ? '✅' : '📄'} ${ans.tieu_de}</span><small>${ans.list.length}</small></div>
-      ${ans.list.length ? html`<ul class="list">${ans.list.sort(byWhen(ans.kind === 'viec' ? 'han' : 'han_xu_ly')).map((r) => (ans.kind === 'viec' ? taskRow(r) : docRow(r)))}</ul>` : html`<p class="empty">Không có.</p>`}</section>`;
-  else if (ans && ans.kind === 'gia') card = html`<section class="ans"><div class="ans-h"><span>💰 Tỉ giá & giá vàng</span><button class="link" data-market>Chi tiết ›</button></div><div class="tt-chips">${marketChips()}</div></section>`;
-  else if (ans) card = answerHtml(ans);
+  const card = !ans ? '' : HR_KINDS.includes(ans.kind) ? answerHtml(ans) : lifeCard(ans);
   return html`${card}
     ${q ? (hits.length || hrN ? html`${hrN ? hrHitsHtml(hh) : ''}<div class="grid">${Object.entries(groups).map(([t, recs]) => section(TABLE_META[t].plural, recs.map((r) => (t === 'viec' ? taskRow(r) : t === 'van_ban' ? docRow(r) : t === 'su_kien' ? eventRow(r) : genericRow(t, r)))))}</div>`
       : ans ? '' : html`<p class="empty big">Không thấy kết quả cho “${q}”.</p>`)
-      : html`<p class="empty big">Tìm trong việc, văn bản, ghi chú, sự kiện, danh bạ, dự án và số liệu nhân sự. Gõ không cần dấu.</p>
-        <h4 class="ios-g">Hỏi nhanh, không cần AI</h4><div class="ask-ex">${ASK_EXAMPLES.map((x) => html`<button class="chip" data-ask="${x}">${x}</button>`)}</div>`}`;
+      : askBook()}`;
 }
 
 // ---------------- Bảng chung ----------------

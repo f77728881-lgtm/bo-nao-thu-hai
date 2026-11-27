@@ -12,7 +12,7 @@ import { captureShare, handlePendingShare } from './share.js';
 import { journalView, bindJournal, openReview } from './review.js';
 import { trainingView, bindTraining, toggleHabit, openSession, openProgram } from './training.js';
 import { toast, errorToast, openSheet, closeSheet, TABLE_META, onTyping } from './ui.js';
-import { html, esc, whenLabel, debounce } from './util.js';
+import { html, esc, whenLabel, debounce, today } from './util.js';
 import * as gcal from './extcal.js';
 import { handleFlash } from './flashcards.js';
 import * as weather from './weather.js';
@@ -123,6 +123,11 @@ function renderStatus() {
 
 // ---------------- Sự kiện giao diện ----------------
 document.addEventListener('click', async (e) => {
+  const tip = e.target.closest('[data-ask-go],[data-ask-tip-off]');
+  if (tip) {
+    if (tip.matches('[data-ask-tip-off]')) { localStorage.setItem('bnth.askTip', today()); tip.closest('.ask-tip')?.remove(); return; }
+    searchQ = tip.dataset.askGo; location.hash = '#/tim'; return;
+  }
   const t = e.target.closest('[data-cal-layer],[data-doc-area],[data-rm-goto],[data-ask-open],[data-news-save],[data-market],[data-rc],[data-read-start],[data-read-pages],[data-weather],[data-habit-new],[data-chain],[data-weekly],[data-habit-mini],[data-today-tab],[data-stat],[data-weather-loc],[data-flash],[data-review],[data-habit-toggle],[data-session],[data-trip],[data-lunar],[data-toggle-task],[data-open],[data-new],[data-task-mode],[data-doc-filter],[data-cal-day],[data-cal-nav],[data-cal-today],#sync-status,#fab');
   if (!t) return;
   if (t.closest('.sheet') && !t.matches('[data-toggle-task]')) return; // trong biểu mẫu tự xử lý

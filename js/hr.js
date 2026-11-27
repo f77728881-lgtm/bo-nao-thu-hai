@@ -3,6 +3,7 @@
 import { call, isDemo } from './api.js';
 import { html, raw, esc, fold, fmtDate, today } from './util.js';
 import { openSheet, closeSheet, toast, errorToast } from './ui.js';
+import { unitStats } from './ask.js';
 
 const KEY = 'bnth.ns';
 let st = null;            // { du_lieu, cau_hinh, ket_noi, ket_noi_luc, ket_noi_loi }
@@ -99,21 +100,12 @@ function coCau(d) {
   const names = rows.map((r) => String(r.B).trim());
   const cur = unit && names.includes(unit) ? rows[names.indexOf(unit)] : null;
   const r = cur || totalRow || null;
-  const colOf = (re) => cols.find((c) => re.test(c.ten));
-  const v = (re) => { const c = colOf(re); return c && r ? r[c.c] : undefined; };
-  const nam = v(/Giới tính · Nam/), nu = v(/Giới tính · Nữ/);
-  const tong = (Number(nam) || 0) + (Number(nu) || 0);
-  // Sheet So sánh chỉ gồm các Điện lực: dòng "Tổng số" của nó không phải toàn công ty → chỉ so khi chọn một đơn vị.
-  const ss = d.so_sanh && cur ? d.so_sanh.dong.find((x) => norm(x.C) === norm(cur.B)) : null;
-  const ssCol = (re) => d.so_sanh && d.so_sanh.cot.find((c) => re.test(c.ten));
-  const ssv = (re) => { const c = ssCol(re); return c && ss ? ss[c.c] : undefined; };
-  const dbGl = ss ? ssv(/Tổng số Định biên \(giao lương\)/) : v(/Định biên giao lương · Tổng số/);
-  const dbTt = ss ? ssv(/tính toán · ĐBLĐ/) : v(/Định biên tính toán · Tổng số/);
+  const u = r ? unitStats(d, r) : null;
+  const nam = u && u.nam, nu = u && u.nu, tong = u ? u.lao_dong : 0, dbGl = u && u.db_gl, dbTt = u && u.db_tt;
   const gap = (n) => (n < 0 ? html`<b class="down">thiếu ${-n} người</b>` : n > 0 ? html`<b class="up">thừa ${n} người</b>` : html`<b>đủ</b>`);
-  const edu = [['Thạc sĩ', /^Thạc sĩ/], ['Đại học', /^Đại học/], ['Cao đẳng', /^Cao đẳng/], ['Trung cấp', /^Trung cấp/], ['CNKT', /^CNKT/]]
-    .map(([l, re]) => [l, cols.filter((c) => re.test(c.ten)).reduce((s, c) => s + (Number(r && r[c.c]) || 0), 0)]);
+  const edu = u ? u.trinh_do : [];
   const eduSum = edu.reduce((s, x) => s + x[1], 0) || 1;
-  const age = cols.filter((c) => /^Tuổi đời/.test(c.ten)).map((c) => [c.ten.replace('Tuổi đời · ', ''), Number(r && r[c.c]) || 0]);
+  const age = u ? u.tuoi : [];
   const groups = {};
   cols.filter((c) => c.c !== 'A' && c.c !== 'B').forEach((c) => { const g = c.ten.includes(' · ') ? c.ten.split(' · ')[0] : 'Khác'; (groups[g] = groups[g] || []).push(c); });
   return html`
@@ -124,9 +116,10 @@ function coCau(d) {
       <div class="hr-kpi"><b>${num(dbGl)}</b><small>Định biên giao lương</small></div>
       <div class="hr-kpi"><b>${num(dbTt)}</b><small>Định biên tính toán</small></div>
       <div class="hr-kpi"><b>${tong ? num((Number(nu) || 0) / tong, 'tỷ lệ') : '—'}</b><small>Nữ ${num(nu)} · Nam ${num(nam)}</small></div>
-      <div class="hr-kpi"><b>${num(v(/^Tuổi bình quân/))}</b><small>Tuổi bình quân</small></div>
-      <div class="hr-kpi"><b>${num(v(/Đảng viên/))}</b><small>Đảng viên</small></div>
+      <div class="hr-kpi"><b>${num(u.tuoi_bq)}</b><small>Tuổi bình quân</small></div>
+      <div class="hr-kpi"><b>${num(u.dang_vien)}</b><small>Đảng viên</small></div>
     </div>
+    ${dbGl == null ? html`<p class="hr-src">Định biên: tệp chỉ có cho các Điện lực (sheet So sánh).</p>` : ''}
     ${typeof dbGl === 'number' && tong ? html`<p class="hr-note">Thực tế <b>${num(tong)}</b> / định biên giao lương <b>${num(dbGl)}</b>: ${gap(tong - dbGl)} (đạt ${num(tong / dbGl, 'tỷ lệ')}).
       ${typeof dbTt === 'number' ? html`<br>So với định biên tính toán ${num(dbTt)}: ${gap(tong - dbTt)}.` : ''}</p>` : ''}
     <h4 class="ios-g">Trình độ</h4>
@@ -295,6 +288,78 @@ export function bindHr(main, rerender) {
   main.querySelector('[data-hr-unit]')?.addEventListener('change', (e) => { unit = e.target.value; localStorage.setItem('bnth.nsUnit', unit); rerender(); });
   main.querySelectorAll('[data-hr-td]').forEach((b) => b.addEventListener('click', () => { tdFilter = b.dataset.hrTd; rerender(); }));
   main.querySelectorAll('[data-hr-hs]').forEach((b) => b.addEventListener('click', () => openHoSo(b.dataset.hrHs)));
+}
+
+// ---------------- Dùng trong ô Tìm (hỏi nhanh) ----------------
+/** Số liệu nhân sự đã lưu trong máy; chưa có thì tải nền rồi gọi lại onReady. */
+export function hrForSearch(onReady) {
+  if (!st && !isDemo() && !loading) load(onReady);
+  return st?.du_lieu || null;
+}
+
+const qdRow = (x) => html`<li><button class="hr-qd" data-hr-goto="bien_dong" data-hr-goq="${x.ten}">
+  <div class="hr-qd-h"><b>${x.ten}</b><span>${x.ngay ? fmtDate(x.ngay, true) : ''}</span></div>
+  <div class="hr-qd-m">${x.loai}${x.tu ? ' · ' + x.tu : ''}${x.den ? html` → <b>${x.den}</b>` : ''}</div>
+  <div class="hr-qd-f">${x.qd ? html`<span class="hr-tag">QĐ ${x.qd}</span>` : html`<span class="hr-tag warn">chưa có số QĐ</span>`}${x.cd_moi ? html` <small>${x.cd_moi}</small>` : ''}</div></button></li>`;
+const hsRow = (x) => html`<li><button class="hr-hs" data-hr-hs="${x.ma}">
+  <div class="hr-qd-h"><b>${x.ten || x.ma}</b><span>${money(x.du_toan_trinh)}</span></div>
+  <div class="hr-qd-m">${x.ma} · ${x.loai || ''}${x.khu_vuc ? ' · ' + x.khu_vuc : ''}</div>
+  <div class="hr-qd-f"><span class="hr-tag ${/^04/.test(x.trang_thai || '') ? 'ok' : /^03/.test(x.trang_thai || '') ? 'mid' : ''}">${ttLabel(x.trang_thai)}</span>
+    ${x.ngay_xong ? html`<small>xong ${fmtDate(x.ngay_xong)}</small>` : ''}${x.tinh_trang_han === 'Trễ hạn' ? html`<span class="hr-tag warn">trễ hạn</span>` : ''}${x.vb_so ? html`<small>DO ${x.vb_so}${x.ngay_dk_do ? ' · ' + fmtDate(x.ngay_dk_do) : ''}</small>` : ''}</div></button></li>`;
+const more = (n, shown) => (n > shown ? html`<p class="hr-src">… và ${n - shown} mục nữa — mở màn hình Nhân sự để xem hết.</p>` : '');
+const LIMIT = 30;
+
+/** Thẻ trả lời nhanh cho các câu hỏi nhân sự (ask.js understand). */
+export function answerHtml(a) {
+  const src = st?.du_lieu?.cap_nhat ? html`<p class="hr-src">Số liệu cập nhật ${when(st.du_lieu.cap_nhat)}</p>` : '';
+  if (a.kind === 'don_vi') {
+    const u = a.so, f = a.focus;
+    const big = f === 'gioi_tinh' ? [[num(u.ty_le_nu, 'tỷ lệ'), 'tỷ lệ nữ'], [num(u.nu), 'nữ'], [num(u.nam), 'nam']]
+      : f === 'tuoi' ? [[num(u.tuoi_bq), 'tuổi bình quân'], ...u.tuoi.slice(0, 2).map(([l, n]) => [n, 'tuổi ' + l])]
+      : f === 'dang_vien' ? [[num(u.dang_vien), 'đảng viên'], [u.lao_dong && u.dang_vien ? num(u.dang_vien / u.lao_dong, 'tỷ lệ') : '—', 'tỷ lệ']]
+      : f === 'dan_toc' ? [[num(u.dan_toc), 'lao động dân tộc']]
+      : f === 'llct' ? u.llct.map(([l, n]) => [n, 'LLCT ' + l.toLowerCase()])
+      : f === 'trinh_do' ? u.trinh_do.filter((x) => x[1]).map(([l, n]) => [n, l])
+      : [[num(u.lao_dong), 'lao động'], [num(u.db_gl), 'định biên giao lương'], [num(u.db_tt), 'định biên tính toán']];
+    const gap = (n) => (n < 0 ? html`<b class="down">thiếu ${-n}</b>` : n > 0 ? html`<b class="up">thừa ${n}</b>` : html`<b>đủ</b>`);
+    return html`<section class="ans">
+      <div class="ans-h"><span>👥 ${u.ten}</span><button class="link" data-hr-goto="co_cau" data-hr-gounit="${u.ten === 'Toàn công ty' ? '' : u.ten}">Xem cơ cấu ›</button></div>
+      <div class="hr-kpis">${big.map(([v, l]) => html`<div class="hr-kpi"><b>${v}</b><small>${l}</small></div>`)}</div>
+      <p class="hr-note">${num(u.lao_dong)} người · nữ ${num(u.ty_le_nu, 'tỷ lệ')} · tuổi BQ ${num(u.tuoi_bq)}${typeof u.db_gl === 'number' ? html` · so định biên giao lương ${num(u.db_gl)}: ${gap(u.lao_dong - u.db_gl)}` : ''}</p>
+      ${f === 'dinh_bien' && u.db_gl == null ? html`<p class="hr-src">Tệp chỉ có định biên của các Điện lực (sheet So sánh).</p>` : ''}${src}</section>`;
+  }
+  if (a.kind === 'quyet_dinh' || a.kind === 'tong_quan') {
+    const list = a.list || [];
+    const head = a.kind === 'tong_quan' ? `Biến động nhân sự · tháng ${+a.thang.slice(5)}/${a.thang.slice(0, 4)}` : a.tieu_de;
+    return html`<section class="ans"><div class="ans-h"><span>📋 ${head}</span><small>${list.length} quyết định</small></div>
+      ${a.kind === 'tong_quan' ? kpis(a.bd.chi_so) : ''}
+      ${list.length ? html`<ul class="ios-list">${list.slice(0, LIMIT).map(qdRow)}</ul>${more(list.length, LIMIT)}` : html`<p class="empty">Không có quyết định nào.</p>`}${src}</section>`;
+  }
+  if (a.kind === 'ho_so') {
+    return html`<section class="ans"><div class="ans-h"><span>🧾 ${a.tieu_de}</span><small>${a.list.length} hồ sơ${a.tong_gia_tri ? ' · ' + money(a.tong_gia_tri) : ''}</small></div>
+      ${a.list.length ? html`<ul class="ios-list">${a.list.slice(0, LIMIT).map(hsRow)}</ul>${more(a.list.length, LIMIT)}` : html`<p class="empty">Không có hồ sơ nào.</p>`}${src}</section>`;
+  }
+  return raw('');
+}
+
+/** Kết quả tìm thô trong số liệu nhân sự (khi câu không phải câu hỏi). */
+export function hrHitsHtml(h) {
+  const parts = [];
+  if (h.don_vi.length) parts.push(html`<h4 class="ios-g">Đơn vị (Cơ cấu)</h4><ul class="ios-list">${h.don_vi.slice(0, 8).map((r) => html`<li><button class="ios-row" data-hr-goto="co_cau" data-hr-gounit="${String(r.B).trim()}"><span class="ios-t">${String(r.B).trim()}</span><span class="ios-chev">›</span></button></li>`)}</ul>`);
+  if (h.qd.length) parts.push(html`<h4 class="ios-g">Quyết định nhân sự</h4><ul class="ios-list">${h.qd.slice(0, 10).map(qdRow)}</ul>`);
+  if (h.ho_so.length) parts.push(html`<h4 class="ios-g">Hồ sơ thẩm định</h4><ul class="ios-list">${h.ho_so.slice(0, 10).map(hsRow)}</ul>`);
+  return raw(parts.map((p) => p.__raw).join(''));
+}
+
+/** Chạm trong thẻ trả lời → mở hồ sơ hoặc nhảy sang màn Nhân sự đúng chỗ. */
+export function bindHrLinks(root) {
+  root.querySelectorAll('[data-hr-hs]').forEach((b) => b.addEventListener('click', () => openHoSo(b.dataset.hrHs)));
+  root.querySelectorAll('[data-hr-goto]').forEach((b) => b.addEventListener('click', () => {
+    tab = b.dataset.hrGoto; localStorage.setItem('bnth.nsTab', tab);
+    if (b.dataset.hrGounit !== undefined) { unit = b.dataset.hrGounit; localStorage.setItem('bnth.nsUnit', unit); }
+    q = b.dataset.hrGoq || '';
+    location.hash = '#/nhan-su';
+  }));
 }
 
 /** Chỉ dùng khi thử giao diện ở chế độ demo. */

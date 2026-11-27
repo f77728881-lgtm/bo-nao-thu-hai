@@ -15,6 +15,8 @@ import { flashRow } from './flashcards.js';
 import { weeklyCta } from './weekly.js';
 import * as weather from './weather.js';
 import { hrSubtitle, hrForSearch, answerHtml, hrHitsHtml } from './hr.js';
+import { financeSummary, tien } from './finance.js';
+const financeSub = () => { const s = financeSummary(today().slice(0, 7)); return store.all('danh_muc').length ? `tháng này chi ${tien(s.chi)}${s.cho_duyet ? ' · ' + s.cho_duyet + ' chờ duyệt' : ''}` : 'thu chi, ngân sách'; };
 import { understand, hrHits, BOOK, BOOK_IDS, tipOfDay } from './ask.js';
 
 const isOpen = (v) => v.trang_thai !== 'Xong';
@@ -489,6 +491,8 @@ export function moreView() {
   const groups = [
     ['Công việc', [
       ['#/nhan-su', 'people', 'Nhân sự', hrSubtitle()]]],
+    ['Tài chính', [
+      ['#/tai-chinh', 'cash', 'Tài chính', financeSub()]]],
     ['Sắp xếp', [
       ['#/para', 'grid', 'Bản đồ PARA', `${activeP} dự án · ${n('linh_vuc')} lĩnh vực · chuyến đi`],
       ['#/bang/inbox', 'inbox', 'Inbox', `${n('inbox', (r) => !r.da_xu_ly)} chưa xử lý`],

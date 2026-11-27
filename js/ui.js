@@ -26,7 +26,11 @@ export const TABLE_META = {
   sach: { icon: '📕', ic: 'book', label: 'Sách', plural: 'Tủ sách' },
   phien_doc: { icon: '📖', ic: 'note', label: 'Phiên đọc', plural: 'Phiên đọc' },
   gia_thi_truong: { icon: '💵', ic: 'list', label: 'Tỉ giá & vàng', plural: 'Tỉ giá & vàng' },
-  muc_tieu_doc: { icon: '🎯', ic: 'spark', label: 'Mục tiêu đọc', plural: 'Mục tiêu đọc' }
+  muc_tieu_doc: { icon: '🎯', ic: 'spark', label: 'Mục tiêu đọc', plural: 'Mục tiêu đọc' },
+  tai_khoan: { icon: '👛', ic: 'cash', label: 'Nguồn tiền', plural: 'Nguồn tiền' },
+  danh_muc: { icon: '🏷', ic: 'list', label: 'Danh mục thu chi', plural: 'Danh mục thu chi' },
+  ngan_sach_thang: { icon: '📊', ic: 'list', label: 'Hạn mức tháng', plural: 'Hạn mức tháng' },
+  giao_dich: { icon: '💸', ic: 'cash', label: 'Giao dịch', plural: 'Giao dịch' }
 };
 
 export const LABELS = {

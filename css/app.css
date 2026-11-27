@@ -1256,3 +1256,35 @@ html[data-theme="dark"] .rm-check { border-color: #636366; }
 .bc-h { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
 .bc-h select { flex: 1; min-width: 0; padding: 9px 10px; border-radius: 10px; border: 0; background: rgba(118, 118, 128, .12); font: inherit; color: var(--text); }
 .bc-text { white-space: pre-wrap; word-break: break-word; font: inherit; font-size: .9rem; line-height: 1.55; background: var(--surface-2); border-radius: 10px; padding: 12px; margin: 0; user-select: text; -webkit-user-select: text; max-height: 60vh; overflow: auto; }
+
+/* ---------------- Tài chính ---------------- */
+.tc-thang { display: flex; align-items: center; gap: 6px; margin: -6px 0 8px; }
+.tc-thang b { font-size: 1.05rem; min-width: 128px; text-align: center; }
+.tc-kpis b.up, .tc-so.up, .hr-kv b.up { color: #248a3d; } .tc-kpis b.down, .tc-so.down { color: #d70015; }
+.tc-badge { background: #ff9500; color: #fff; border-radius: 99px; padding: 0 6px; font-size: .7rem; font-weight: 700; }
+.tc-cho { display: block; width: 100%; text-align: left; margin: 10px 0; padding: 11px 14px; border: 0; border-radius: 12px; background: rgba(255, 149, 0, .16); color: #c93400; font: inherit; font-weight: 600; cursor: pointer; }
+.tc-cho-h { color: #c93400; }
+.tc-dm { display: flex; flex-direction: column; gap: 5px; width: 100%; padding: 10px 14px; border: 0; background: none; font: inherit; color: var(--text); text-align: left; cursor: pointer; }
+.ios-list li + li .tc-dm, .ios-list li + li .tc-g { border-top: .5px solid var(--line); }
+.tc-dm-h { display: flex; justify-content: space-between; gap: 10px; } .tc-dm-h b { font-variant-numeric: tabular-nums; }
+.tc-dm small { color: var(--muted); font-size: .78rem; }
+.tc-bar { height: 7px; border-radius: 4px; background: rgba(118, 118, 128, .16); overflow: hidden; }
+.tc-bar i { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.tc-bar.vuot i { background: #ff3b30; }
+.tc-g { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 14px; border: 0; background: none; font: inherit; color: var(--text); text-align: left; cursor: pointer; }
+.tc-ic { width: 30px; height: 30px; border-radius: 50%; background: var(--surface-2); display: grid; place-items: center; flex: none; }
+.tc-t { flex: 1; min-width: 0; display: flex; flex-direction: column; } .tc-t b { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tc-t small { color: var(--muted); font-size: .78rem; }
+.tc-so { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.tc-row.cho { background: rgba(255, 149, 0, .06); }
+.tc-chips { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 8px; scrollbar-width: none; flex-wrap: nowrap; }
+.tc-chips.pl { padding: 0 14px 10px 54px; }
+.tc-chips .chip { white-space: nowrap; }
+.tc-loc { display: flex; gap: 6px; margin: 12px 0 4px; }
+.tc-loc select { flex: 1; min-width: 0; padding: 8px 8px; border-radius: 10px; border: 0; background: rgba(118, 118, 128, .12); font: inherit; font-size: .88rem; color: var(--text); }
+.tc-loai { display: flex; width: 100%; margin-bottom: 10px; } .tc-loai button { flex: 1; }
+.tc-tien { width: 100%; font-size: 1.6rem; font-weight: 700; padding: 10px 12px; border-radius: 12px; border: 0; background: var(--surface-2); color: var(--text); font-variant-numeric: tabular-nums; }
+.tc-xem { min-height: 1.2em; margin: 4px 2px 10px; color: var(--accent); font-weight: 600; }
+.tc-nd { width: 100%; padding: 10px 12px; border-radius: 10px; border: 0; background: var(--surface-2); font: inherit; color: var(--text); margin-bottom: 6px; }
+.tc-luu { width: 100%; margin-top: 14px; padding: 12px; font-size: 1rem; }
+.tc-batdau { margin-bottom: 12px; }

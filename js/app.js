@@ -25,6 +25,7 @@ import { onNews, saveNews } from './news.js';
 import { openAsk } from './claude.js';
 import { tasksView, bindTasks, openTaskList } from './tasks.js';
 import { hrView, bindHr, bindHrLinks } from './hr.js';
+import { financeView, bindFinance } from './finance.js';
 import { shelfView, bindShelf, openReadStart, askPages, mountReadBar, refreshBar, openBook, readCardAction, quickStart } from './reading.js';
 
 const main = document.getElementById('main');
@@ -44,6 +45,7 @@ const ROUTES = {
   'danh-ba': () => V.contactsView(),
   viec: () => tasksView(),
   'nhan-su': () => hrView(render),
+  'tai-chinh': () => financeView(),
   'van-ban': () => V.docsView(),
   lich: () => V.calendarView(),
   tim: () => V.searchView(searchQ, render),
@@ -83,6 +85,7 @@ function render() {
   if (route === 'para') bindPara(main);
   if (route === 'viec') bindTasks(main, render);
   if (route === 'nhan-su') bindHr(main, render);
+  if (route === 'tai-chinh') bindFinance(main, render);
   if (route === 'tim') {
     const inp = main.querySelector('#search-input');
     if (inp) onTyping(inp, (v) => { searchQ = v; refreshSearch(); });

@@ -1221,3 +1221,4 @@ html[data-theme="dark"] .rm-check { border-color: #636366; }
 .hr-form details .field { margin-top: 8px; }
 .hr-acts { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0; }
 .hr-sheet-t { font-weight: 600; font-size: 1.05rem; line-height: 1.35; margin: 0 2px 12px; }
+.hr-az { margin: 14px 0 6px; } .hr-az > summary { cursor: pointer; color: var(--accent); padding: 6px 0; } .hr-az .hr-conn { margin-top: 6px; }

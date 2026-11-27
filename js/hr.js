@@ -185,7 +185,7 @@ function openHoSo(ma) {
 // ---------------- Kết nối OneDrive ----------------
 function secretWarn() {
   const h = st?.cau_hinh?.ms_secret_het_han;
-  if (!h) return null;
+  if (!h || !st?.ket_noi) return null;
   const n = daysTo(h);
   return n <= 30 ? n : null;
 }
@@ -194,33 +194,39 @@ export function openConnect(rerender) {
   const c = st?.cau_hinh || {};
   const warn = secretWarn();
   const body = html`
-    <div class="hr-conn ${st?.ket_noi ? 'on' : ''}">${st?.ket_noi ? html`✅ Đã kết nối OneDrive${st.ket_noi_luc ? html` <small>từ ${when(st.ket_noi_luc)}</small>` : ''}` : '⚪️ Chưa kết nối OneDrive'}</div>
-    ${st?.ket_noi_loi ? html`<p class="hr-err">${st.ket_noi_loi}</p>` : ''}
-    ${warn !== null ? html`<p class="hr-err">Mật khẩu ứng dụng Azure ${warn < 0 ? 'đã hết hạn' : `còn ${warn} ngày`} — tạo mật khẩu mới trên Azure rồi chạy tools/set_ms_secret.sh.</p>` : ''}
+    <div class="hr-conn ${st?.du_lieu?.nguon === 'mac' ? 'on' : ''}">${st?.du_lieu?.nguon === 'mac' ? html`💻 Máy Mac${st.du_lieu.may ? ' ' + st.du_lieu.may : ''} đang gửi số liệu <small>lần gần nhất ${when(st.du_lieu.cap_nhat)}</small>` : '💻 Chưa có máy Mac gửi số liệu'}</div>
+    <p class="hint">Máy Mac đọc 3 tệp trong thư mục OneDrive đã đồng bộ, 20 phút kiểm tra một lần, chỉ gửi khi tệp đổi. Máy tắt thì app giữ số liệu lần cuối.</p>
     <form class="hr-form" data-hr-form>
-      <div class="field"><label>Mã ứng dụng Azure (Application / Client ID)</label><input name="ms_client_id" value="${c.ms_client_id || ''}" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
-      <div class="field"><label>Mật khẩu ứng dụng hết hạn ngày</label><input name="ms_secret_het_han" type="date" value="${c.ms_secret_het_han || ''}"></div>
       <details><summary>Đường dẫn tệp trên OneDrive</summary>
-        <p class="hint">{nam} tự thay bằng năm hiện tại. Đầu năm mới, nếu chưa có tệp năm mới thì app dùng tệp năm trước. Tệp Cơ cấu: app tự chọn thư mục “Tháng N” mới nhất, tệp có chữ “(tự động)” sửa gần nhất.</p>
+        <p class="hint">{nam} tự thay bằng năm hiện tại. Đầu năm, nếu chưa có tệp năm mới thì dùng tệp năm trước. Tệp Cơ cấu: tự chọn thư mục “Tháng N” mới nhất, tệp có chữ “(tự động)” sửa gần nhất.</p>
         <div class="field"><label>Tệp Biến động</label><input name="bien_dong" value="${c.bien_dong || ''}"></div>
         <div class="field"><label>Thư mục báo cáo (chứa Tháng N/1-Cơ cấu)</label><input name="co_cau_thu_muc" value="${c.co_cau_thu_muc || ''}"></div>
         <div class="field"><label>Tên tệp Cơ cấu có chứa</label><input name="co_cau_loc" value="${c.co_cau_loc || ''}"></div>
         <div class="field"><label>Tệp Thẩm định</label><input name="tham_dinh" value="${c.tham_dinh || ''}"></div>
+        <button class="btn" type="submit">Lưu đường dẫn</button>
       </details>
+    </form>
+    <details class="hr-az"><summary>Lấy thẳng từ OneDrive, không cần Mac (cần Azure)</summary>
+    <div class="hr-conn ${st?.ket_noi ? 'on' : ''}">${st?.ket_noi ? html`✅ Đã kết nối OneDrive${st.ket_noi_luc ? html` <small>từ ${when(st.ket_noi_luc)}</small>` : ''}` : '⚪️ Chưa kết nối'}</div>
+    ${st?.ket_noi_loi ? html`<p class="hr-err">${st.ket_noi_loi}</p>` : ''}
+    ${warn !== null ? html`<p class="hr-err">Mật khẩu ứng dụng Azure ${warn < 0 ? 'đã hết hạn' : `còn ${warn} ngày`} — tạo mật khẩu mới trên Azure rồi chạy tools/set_ms_secret.sh.</p>` : ''}
+    <form class="hr-form" data-hr-form2>
+      <div class="field"><label>Mã ứng dụng Azure (Application / Client ID)</label><input name="ms_client_id" value="${c.ms_client_id || ''}" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+      <div class="field"><label>Mật khẩu ứng dụng hết hạn ngày</label><input name="ms_secret_het_han" type="date" value="${c.ms_secret_het_han || ''}"></div>
       <button class="btn" type="submit">Lưu cấu hình</button>
     </form>
     <div class="hr-acts">
       <button class="btn btn-primary" data-hr-login>${st?.ket_noi ? 'Kết nối lại' : 'Kết nối OneDrive'}</button>
       ${st?.ket_noi ? html`<button class="btn" data-hr-refresh>Tải số liệu ngay</button><button class="btn btn-ghost" data-hr-logout>Ngắt kết nối</button>` : ''}
     </div>
-    <p class="hint">Máy chủ tự tải lúc 8:10 và 14:10 mỗi ngày. App chỉ có quyền đọc tệp (Files.Read), không sửa được gì trên OneDrive.</p>`;
-  const sheet = openSheet(body.__raw, { title: 'Kết nối OneDrive' });
+    <p class="hint">Máy chủ tự tải lúc 8:10 và 14:10 mỗi ngày. App chỉ có quyền đọc tệp (Files.Read).</p></details>`;
+  const sheet = openSheet(body.__raw, { title: 'Nguồn số liệu' });
   const root = sheet.body;
-  root.querySelector('[data-hr-form]').addEventListener('submit', async (e) => {
+  root.querySelectorAll('[data-hr-form],[data-hr-form2]').forEach((f) => f.addEventListener('submit', async (e) => {
     e.preventDefault();
     const p = Object.fromEntries(new FormData(e.target).entries());
     try { await call('ns_cau_hinh', p); toast('Đã lưu cấu hình'); await load(); closeSheet(); openConnect(rerender); } catch (err) { errorToast(err); }
-  });
+  }));
   root.querySelector('[data-hr-login]').addEventListener('click', async () => {
     const id = root.querySelector('[name=ms_client_id]').value.trim();
     try {
@@ -241,6 +247,7 @@ export function openConnect(rerender) {
 
 async function refresh(rerender) {
   if (isDemo()) return toast('Bản thử không tải được OneDrive');
+  if (!st?.ket_noi) { await load(rerender); return toast('Số liệu do máy Mac gửi lên mỗi khi tệp thay đổi (20 phút kiểm tra một lần)'); }
   toast('Đang tải 3 tệp từ OneDrive… (khoảng 1 phút)');
   try {
     const r = await call('ns_cap_nhat');
@@ -252,13 +259,12 @@ async function refresh(rerender) {
 // ---------------- Màn hình ----------------
 function empty(name) {
   return html`<div class="empty hr-empty"><p>Chưa có số liệu ${name}.</p>
-    <p>${st?.ket_noi ? 'Bấm ↻ để tải từ OneDrive.' : 'Kết nối OneDrive một lần, máy chủ sẽ tự tải mỗi ngày.'}</p>
-    ${st?.ket_noi ? '' : html`<button class="btn btn-primary" data-hr-connect>Kết nối OneDrive</button>`}</div>`;
+    <p>${st?.ket_noi ? 'Bấm ↻ để tải từ OneDrive.' : 'Máy Mac có OneDrive sẽ tự gửi số liệu lên khi tệp thay đổi (cài bằng tools/cai_nhansu_mac.sh).'}</p></div>`;
 }
 
 export function hrSubtitle() {
   const d = st?.du_lieu;
-  if (!d || !d.cap_nhat) return st?.ket_noi ? 'chưa tải số liệu' : 'chưa kết nối OneDrive';
+  if (!d || !d.cap_nhat) return 'chưa có số liệu';
   const b = d.bien_dong?.chi_so?.find((k) => /CUỐI KỲ/i.test(k.ten));
   return (b ? `${dot(b.gia_tri)} người · ` : '') + 'cập nhật ' + when(d.cap_nhat);
 }
@@ -270,8 +276,8 @@ export function hrView(rerender) {
   const warn = secretWarn();
   const bodyOf = { bien_dong: bienDong, co_cau: coCau, tham_dinh: thamDinh }[tab] || bienDong;
   return html`<header class="page-head"><h1>Nhân sự</h1>
-      <div class="hr-head-acts"><button class="icon-btn" data-hr-refresh title="Tải ngay từ OneDrive" aria-label="Tải ngay">↻</button><button class="icon-btn" data-hr-connect title="Kết nối OneDrive" aria-label="Kết nối OneDrive">⚙︎</button></div></header>
-    ${d.cap_nhat ? html`<p class="hr-src top">Cập nhật ${when(d.cap_nhat)} · tự tải 8:10 và 14:10</p>` : ''}
+      <div class="hr-head-acts"><button class="icon-btn" data-hr-refresh title="Tải ngay từ OneDrive" aria-label="Tải ngay">↻</button><button class="icon-btn" data-hr-connect title="Nguồn số liệu" aria-label="Nguồn số liệu">⚙︎</button></div></header>
+    ${d.cap_nhat ? html`<p class="hr-src top">Cập nhật ${when(d.cap_nhat)} · ${d.nguon === 'mac' ? `từ máy Mac${d.may ? ' ' + d.may : ''}, tự gửi khi tệp đổi` : 'tự tải 8:10 và 14:10'}</p>` : ''}
     ${st?.ket_noi_loi ? html`<p class="hr-err" data-hr-connect>${st.ket_noi_loi}</p>` : ''}
     ${warn !== null ? html`<p class="hr-err" data-hr-connect>Mật khẩu ứng dụng Azure ${warn < 0 ? 'đã hết hạn' : `còn ${warn} ngày`} — chạm để xem cách gia hạn.</p>` : ''}
     <div class="seg hr-tabs">${[['bien_dong', 'Biến động'], ['co_cau', 'Cơ cấu'], ['tham_dinh', 'Thẩm định']].map(([k, l]) => html`<button class="${tab === k ? 'on' : ''}" data-hr-tab="${k}">${l}</button>`)}</div>

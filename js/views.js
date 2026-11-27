@@ -14,6 +14,7 @@ import * as gcal from './extcal.js';
 import { flashRow } from './flashcards.js';
 import { weeklyCta } from './weekly.js';
 import * as weather from './weather.js';
+import { hrSubtitle } from './hr.js';
 
 const isOpen = (v) => v.trang_thai !== 'Xong';
 const byWhen = (f) => (a, b) => ((a[f] || '9999') < (b[f] || '9999') ? -1 : (a[f] || '9999') > (b[f] || '9999') ? 1 : 0);
@@ -413,6 +414,8 @@ export function moreView() {
   const n = (t, f) => store.all(t).filter(f || (() => true)).length;
   const activeP = n('du_an', (d) => d.trang_thai === 'Đang làm' || d.trang_thai === 'Tạm dừng');
   const groups = [
+    ['Công việc', [
+      ['#/nhan-su', 'people', 'Nhân sự', hrSubtitle()]]],
     ['Sắp xếp', [
       ['#/para', 'grid', 'Bản đồ PARA', `${activeP} dự án · ${n('linh_vuc')} lĩnh vực · chuyến đi`],
       ['#/bang/inbox', 'inbox', 'Inbox', `${n('inbox', (r) => !r.da_xu_ly)} chưa xử lý`],

@@ -24,6 +24,7 @@ import { openMarket } from './market.js';
 import { onNews, saveNews } from './news.js';
 import { openAsk } from './claude.js';
 import { tasksView, bindTasks, openTaskList } from './tasks.js';
+import { hrView, bindHr } from './hr.js';
 import { shelfView, bindShelf, openReadStart, askPages, mountReadBar, refreshBar, openBook, readCardAction, quickStart } from './reading.js';
 
 const main = document.getElementById('main');
@@ -42,6 +43,7 @@ const ROUTES = {
   para: () => paraView(),
   'danh-ba': () => V.contactsView(),
   viec: () => tasksView(),
+  'nhan-su': () => hrView(render),
   'van-ban': () => V.docsView(),
   lich: () => V.calendarView(),
   tim: () => V.searchView(searchQ),
@@ -79,6 +81,7 @@ function render() {
   if (route === 'tu-sach') bindShelf(main, render);
   if (route === 'para') bindPara(main);
   if (route === 'viec') bindTasks(main, render);
+  if (route === 'nhan-su') bindHr(main, render);
   if (route === 'danh-ba') main.querySelectorAll('[data-contact-tab]').forEach((b) => b.addEventListener('click', () => { V.setContactTab(b.dataset.contactTab); render(); }));
   if (keepFocus || route === 'tim') {
     const inp = document.getElementById(focusId || 'search-input');

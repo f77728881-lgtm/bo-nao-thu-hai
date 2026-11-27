@@ -11,7 +11,7 @@ import { settingsView, bindSettings, applyPrefs } from './settings.js';
 import { captureShare, handlePendingShare } from './share.js';
 import { journalView, bindJournal, openReview } from './review.js';
 import { trainingView, bindTraining, toggleHabit, openSession, openProgram } from './training.js';
-import { toast, errorToast, openSheet, closeSheet, TABLE_META } from './ui.js';
+import { toast, errorToast, openSheet, closeSheet, TABLE_META, onTyping } from './ui.js';
 import { html, esc, whenLabel, debounce } from './util.js';
 import * as gcal from './extcal.js';
 import { handleFlash } from './flashcards.js';
@@ -69,6 +69,7 @@ function render() {
   }
   const view = ROUTES[route] || ROUTES['hom-nay'];
   const focusId = ['search-input', 'note-search'].includes(document.activeElement?.id) ? document.activeElement.id : null;
+  if (focusId === 'search-input') searchQ = document.activeElement.value;
   const keepFocus = !!focusId;
   const caret = keepFocus ? document.activeElement.selectionStart : 0;
   main.innerHTML = view(arg).__raw;
@@ -83,8 +84,9 @@ function render() {
   if (route === 'viec') bindTasks(main, render);
   if (route === 'nhan-su') bindHr(main, render);
   if (route === 'tim') {
-    bindHrLinks(main);
-    main.querySelectorAll('[data-ask]').forEach((b) => b.addEventListener('click', () => { searchQ = b.dataset.ask; render(); }));
+    const inp = main.querySelector('#search-input');
+    if (inp) onTyping(inp, (v) => { searchQ = v; refreshSearch(); });
+    bindSearchResults();
   }
   if (route === 'danh-ba') main.querySelectorAll('[data-contact-tab]').forEach((b) => b.addEventListener('click', () => { V.setContactTab(b.dataset.contactTab); render(); }));
   if (keepFocus || route === 'tim') {
@@ -195,8 +197,23 @@ document.addEventListener('change', (e) => {
   if (f) { V.setTaskFilter(f.dataset.taskFilter, f.value); render(); }
 });
 
-const onSearch = debounce((q) => { searchQ = q; if (parseHash()[0] === 'tim') render(); }, 120);
-document.addEventListener('input', (e) => { if (e.target.id === 'search-input') onSearch(e.target.value); });
+// Ô Tìm: chỉ vẽ lại phần kết quả, giữ nguyên ô gõ (bộ gõ tiếng Việt trên điện thoại không bị ngắt khi đang ghép dấu).
+function refreshSearch() {
+  const box = document.getElementById('search-results');
+  if (!box) return render();
+  box.innerHTML = V.searchResults(searchQ, refreshSearch).__raw;
+  bindSearchResults();
+}
+function bindSearchResults() {
+  const box = document.getElementById('search-results');
+  if (!box) return;
+  bindHrLinks(box);
+  box.querySelectorAll('[data-ask]').forEach((b) => b.addEventListener('click', () => {
+    searchQ = b.dataset.ask;
+    const inp = document.getElementById('search-input'); if (inp) inp.value = searchQ;
+    refreshSearch();
+  }));
+}
 
 document.addEventListener('keydown', (e) => {
   const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName);
@@ -303,7 +320,13 @@ async function start() {
   if (isDemo()) document.body.classList.add('demo');
   Auth.load();
   await store.init();
-  const rerender = debounce(() => { if (!document.querySelector('.sheet-wrap') && !document.activeElement?.closest?.('[data-doffice-form]')) render(); else renderStatus(); }, 60);
+  const rerender = debounce(() => {
+    const ae = document.activeElement;
+    // Đang gõ trong ô tìm: chỉ làm mới kết quả, không vẽ lại ô gõ (tránh ngắt bộ gõ tiếng Việt).
+    if (ae?.id === 'search-input') { refreshSearch(); renderStatus(); return; }
+    if (ae?.matches?.('#note-search, [data-hr-q]')) { renderStatus(); return; }
+    if (!document.querySelector('.sheet-wrap') && !ae?.closest?.('[data-doffice-form]')) render(); else renderStatus();
+  }, 60);
   store.subscribe(rerender);
   store.subscribe(() => refreshBar());
   onNews(rerender);

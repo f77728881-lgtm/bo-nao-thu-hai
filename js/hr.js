@@ -2,7 +2,7 @@
 // Máy chủ tải lúc 8:10 và 14:10 mỗi ngày; bấm ↻ để tải ngay. Dữ liệu giữ trong máy để xem khi mất mạng.
 import { call, isDemo } from './api.js';
 import { html, raw, esc, fold, fmtDate, today } from './util.js';
-import { openSheet, closeSheet, toast, errorToast } from './ui.js';
+import { openSheet, closeSheet, toast, errorToast, onTyping } from './ui.js';
 import { unitStats } from './ask.js';
 
 const KEY = 'bnth.ns';
@@ -75,9 +75,10 @@ function bienDong(d) {
     <h4 class="ios-g">Tháng ${d.thang || '?'}</h4>${kpis(d.chi_so)}
     <h4 class="ios-g">Quyết định nhân sự</h4>
     <div class="hr-tools">
-      <input class="hr-q" type="search" placeholder="Tìm tên, đơn vị, số QĐ…" value="${q}" data-hr-q>
-      ${f ? '' : html`<select data-hr-month>${months.map((m) => html`<option value="${m}" ${m === month ? 'selected' : ''}>Tháng ${+m.slice(5)}/${m.slice(0, 4)}</option>`)}</select>`}
+      <input class="hr-q" type="search" placeholder="Tìm tên, đơn vị, số QĐ…" value="${q}" data-hr-q autocomplete="off" autocorrect="off" spellcheck="false">
+      <select data-hr-month>${months.map((m) => html`<option value="${m}" ${m === month ? 'selected' : ''}>Tháng ${+m.slice(5)}/${m.slice(0, 4)}</option>`)}</select>
     </div>
+    <div class="hr-res">
     ${list.length ? Object.keys(groups).map((g) => html`<h5 class="hr-sub">${g} <small>${groups[g].length}</small></h5>
       <ul class="ios-list">${groups[g].map((x) => html`<li><div class="hr-qd">
         <div class="hr-qd-h"><b>${x.ten}</b><span>${x.ngay ? fmtDate(x.ngay, true) : ''}</span></div>
@@ -89,7 +90,7 @@ function bienDong(d) {
       <ul class="ios-list hr-kv">${d.theo_thang.map((r) => html`<li><span>${r.ten}</span><b>${num(r.so[mi])}</b><small>cả năm ${num(r.so[r.so.length - 1])}</small></li>`)}</ul>` : ''}
     ${changed.length ? html`<h4 class="ios-g">Đơn vị có biến động trong tháng</h4>
       <ul class="ios-list hr-kv">${changed.map((r) => html`<li><span>${r.B}${r.J ? html`<small class="hr-d">${r.J}</small>` : ''}</span><b>${r.C} → ${r.H}</b><small class="${r.I > 0 ? 'up' : r.I < 0 ? 'down' : ''}">${r.I > 0 ? '+' : ''}${r.I || 0}</small></li>`)}</ul>` : ''}
-    ${srcLine(d)}`;
+    ${srcLine(d)}</div>`;
 }
 
 // ---------------- Cơ cấu ----------------
@@ -150,7 +151,8 @@ function thamDinh(d) {
     .sort((a, b) => ((a.ngay_nhan || '') < (b.ngay_nhan || '') ? 1 : -1));
   return html`
     ${kpis(d.chi_so)}
-    <div class="hr-tools"><input class="hr-q" type="search" placeholder="Tìm tên công trình, mã, số VB…" value="${q}" data-hr-q></div>
+    <div class="hr-tools"><input class="hr-q" type="search" placeholder="Tìm tên công trình, mã, số VB…" value="${q}" data-hr-q autocomplete="off" autocorrect="off" spellcheck="false"></div>
+    <div class="hr-res">
     <div class="hr-chips">${[['all', 'Tất cả'], ['dang', 'Đang xử lý'], ['xong', 'Đã thẩm định'], ['do', 'Đã ĐK D-Office'], ['tre', 'Trễ hạn']].map(([k, l]) => html`<button class="chip ${tdFilter === k ? 'on' : ''}" data-hr-td="${k}">${l} ${counts[k]}</button>`)}</div>
     ${list.length ? html`<ul class="ios-list">${list.slice(0, 200).map((x) => html`<li><button class="hr-hs" data-hr-hs="${x.ma}">
       <div class="hr-qd-h"><b>${x.ten || x.ma}</b><span>${money(x.du_toan_trinh)}</span></div>
@@ -160,7 +162,7 @@ function thamDinh(d) {
         ${x.tinh_trang_han === 'Trễ hạn' ? html`<span class="hr-tag warn">trễ ${x.so_ngay ? x.so_ngay + ' ngày' : ''}</span>` : ''}
         ${x.vb_so ? html`<small>DO ${x.vb_so}</small>` : ''}</div>
     </button></li>`)}</ul>` : html`<p class="empty">Không có hồ sơ nào.</p>`}
-    <p class="hr-src">${d.cap_nhat || ''}</p>${srcLine(d)}`;
+    <p class="hr-src">${d.cap_nhat || ''}</p>${srcLine(d)}</div>`;
 }
 
 function openHoSo(ma) {
@@ -278,16 +280,29 @@ export function hrView(rerender) {
 }
 
 export function bindHr(main, rerender) {
-  const keep = (sel) => { const el = main.querySelector(sel); if (el) { el.focus(); el.setSelectionRange?.(el.value.length, el.value.length); } };
   main.querySelectorAll('[data-hr-tab]').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.hrTab; localStorage.setItem('bnth.nsTab', tab); q = ''; rerender(); }));
   main.querySelectorAll('[data-hr-connect]').forEach((b) => b.addEventListener('click', () => openConnect(rerender)));
   main.querySelector('[data-hr-refresh]')?.addEventListener('click', () => refresh(rerender));
-  let t = null;
-  main.querySelector('[data-hr-q]')?.addEventListener('input', (e) => { q = e.target.value; clearTimeout(t); t = setTimeout(() => { rerender(); keep('[data-hr-q]'); }, 250); });
+  // Ô tìm: chỉ thay phần kết quả, không vẽ lại ô gõ (bộ gõ tiếng Việt trên điện thoại không bị ngắt).
+  const qi = main.querySelector('[data-hr-q]');
+  if (qi) onTyping(qi, (v) => {
+    q = v;
+    const box = main.querySelector('.hr-res');
+    if (!box) return rerender();
+    const tmp = document.createElement('div');
+    tmp.innerHTML = hrView(rerender).__raw;
+    const fresh = tmp.querySelector('.hr-res');
+    if (!fresh) return rerender();
+    box.innerHTML = fresh.innerHTML;
+    bindRows(box, rerender);
+  }, 200);
   main.querySelector('[data-hr-month]')?.addEventListener('change', (e) => { month = e.target.value; rerender(); });
   main.querySelector('[data-hr-unit]')?.addEventListener('change', (e) => { unit = e.target.value; localStorage.setItem('bnth.nsUnit', unit); rerender(); });
-  main.querySelectorAll('[data-hr-td]').forEach((b) => b.addEventListener('click', () => { tdFilter = b.dataset.hrTd; rerender(); }));
-  main.querySelectorAll('[data-hr-hs]').forEach((b) => b.addEventListener('click', () => openHoSo(b.dataset.hrHs)));
+  bindRows(main, rerender);
+}
+function bindRows(root, rerender) {
+  root.querySelectorAll('[data-hr-td]').forEach((b) => b.addEventListener('click', () => { tdFilter = b.dataset.hrTd; rerender(); }));
+  root.querySelectorAll('[data-hr-hs]').forEach((b) => b.addEventListener('click', () => openHoSo(b.dataset.hrHs)));
 }
 
 // ---------------- Dùng trong ô Tìm (hỏi nhanh) ----------------

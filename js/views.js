@@ -373,6 +373,15 @@ export function calendarView() {
 // ---------------- Tìm kiếm ----------------
 const ASK_EXAMPLES = ['định biên Cẩm Khê', 'tỷ lệ nữ Lâm Thao', 'ai được điều động tháng này', 'nghỉ hưu năm nay', 'QĐ 3887', 'thẩm định trễ hạn', 'hồ sơ chưa đăng ký DO', 'trình độ phòng TCNS', 'việc quá hạn', 'văn bản sắp hạn'];
 export function searchView(q, rerender) {
+  return html`
+    <header class="page-head"><h1>Tìm kiếm</h1></header>
+    <div class="search-box"><input id="search-input" type="search" placeholder="Tìm hoặc hỏi: định biên Cẩm Khê, QĐ 3887…" value="${q}" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search"></div>
+    <div id="search-results">${searchResults(q, rerender)}</div>`;
+}
+
+/** Phần kết quả (cập nhật riêng khi gõ, không vẽ lại ô gõ để bộ gõ tiếng Việt không bị ngắt). */
+export function searchResults(q, rerender) {
+  q = String(q || '').trim();
   const hr = hrForSearch(rerender);
   const ans = q ? understand(q, { hr, now: today(), viec: store.all('viec'), van_ban: store.all('van_ban') }) : null;
   const hits = store.search(q);
@@ -385,10 +394,7 @@ export function searchView(q, rerender) {
       ${ans.list.length ? html`<ul class="list">${ans.list.sort(byWhen(ans.kind === 'viec' ? 'han' : 'han_xu_ly')).map((r) => (ans.kind === 'viec' ? taskRow(r) : docRow(r)))}</ul>` : html`<p class="empty">Không có.</p>`}</section>`;
   else if (ans && ans.kind === 'gia') card = html`<section class="ans"><div class="ans-h"><span>💰 Tỉ giá & giá vàng</span><button class="link" data-market>Chi tiết ›</button></div><div class="tt-chips">${marketChips()}</div></section>`;
   else if (ans) card = answerHtml(ans);
-  return html`
-    <header class="page-head"><h1>Tìm kiếm</h1></header>
-    <div class="search-box"><input id="search-input" type="search" placeholder="Tìm hoặc hỏi: định biên Cẩm Khê, QĐ 3887…" value="${q}" autocomplete="off" enterkeyhint="search"></div>
-    ${card}
+  return html`${card}
     ${q ? (hits.length || hrN ? html`${hrN ? hrHitsHtml(hh) : ''}<div class="grid">${Object.entries(groups).map(([t, recs]) => section(TABLE_META[t].plural, recs.map((r) => (t === 'viec' ? taskRow(r) : t === 'van_ban' ? docRow(r) : t === 'su_kien' ? eventRow(r) : genericRow(t, r)))))}</div>`
       : ans ? '' : html`<p class="empty big">Không thấy kết quả cho “${q}”.</p>`)
       : html`<p class="empty big">Tìm trong việc, văn bản, ghi chú, sự kiện, danh bạ, dự án và số liệu nhân sự. Gõ không cần dấu.</p>

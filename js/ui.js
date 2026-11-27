@@ -88,6 +88,14 @@ export function openSheet(content, { title = '', onClose } = {}) {
   requestAnimationFrame(() => wrap.classList.add('open'));
   return { el: wrap, body, close };
 }
+/** Ô tìm gõ tiếng Việt an toàn: chờ bộ gõ ghép dấu xong (Telex/VNI trên iPhone) rồi mới báo, có giãn cách. */
+export function onTyping(input, fn, ms = 160) {
+  let t = null, composing = false;
+  const fire = () => { clearTimeout(t); t = setTimeout(() => fn(input.value), ms); };
+  input.addEventListener('compositionstart', () => { composing = true; });
+  input.addEventListener('compositionend', () => { composing = false; fire(); });
+  input.addEventListener('input', (e) => { if (composing || e.isComposing) return; fire(); });
+}
 export function closeSheet() { document.querySelector('.sheet-wrap')?._close?.(); }
 
 // ---------------- Mảnh giao diện ----------------

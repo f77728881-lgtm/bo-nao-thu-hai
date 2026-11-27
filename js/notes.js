@@ -2,7 +2,7 @@
 // checklist tick ngay trên thẻ, trình soạn tự lưu khi đóng.
 import * as store from './store.js';
 import { html, raw, esc, fold, whenLabel } from './util.js';
-import { openSheet, toast, errorToast } from './ui.js';
+import { openSheet, toast, errorToast, onTyping } from './ui.js';
 import { icon } from './icons.js';
 import { stripHtml, addPhotos, openPhoto, onPhotos, thumbUrl } from './photos.js';
 import { askBox } from './claude.js';
@@ -245,13 +245,15 @@ export function notesView() {
         <button class="icon-btn" data-note-new data-note-new-check title="Danh sách việc mới" aria-label="Danh sách mới">${icon('list')}</button>
         <button class="icon-btn nx-compose" data-note-new title="Ghi chú mới" aria-label="Ghi chú mới">${icon('plus')}</button>
       </header>
-      <input class="nx-search" type="search" id="note-search" placeholder="Tìm kiếm" value="${query}" autocomplete="off">
+      <input class="nx-search" type="search" id="note-search" placeholder="Tìm kiếm" value="${query}" autocomplete="off" autocorrect="off" spellcheck="false">
+      <div class="nx-results">
       ${hint && !query ? html`<p class="nx-hint">${hint}${tab === PROMPT_LABEL ? html` <button class="link" data-prompt-starter>Thêm bộ prompt mẫu</button>` : ''}</p>` : ''}
       ${query ? html`<p class="nx-hint">${notes.length} ghi chú khớp “${query}”.</p>` : ''}
       ${pinned.length ? html`<h4 class="nx-g">Đã ghim</h4><ul class="nx-list">${pinned.map(noteRow)}</ul>` : ''}
       ${groups.map((G) => html`<h4 class="nx-g">${G.g}</h4><ul class="nx-list">${G.items.map(noteRow)}</ul>`)}
       ${!notes.length ? html`<p class="empty big">${tab === INBOX && !query ? 'Inbox trống. Ghi chú mới sẽ vào đây trước khi xếp.' : 'Không có ghi chú.'}</p>` : ''}
       <p class="nx-count">${notes.length} ghi chú</p>
+      </div>
     </section>
     <div class="nx-empty-pane">${icon('note')}<p>Chọn một ghi chú để xem</p></div>
   </div>`;
@@ -264,8 +266,18 @@ export function bindNotes(root, rerender) {
   }));
   const s = root.querySelector('#note-search');
   if (s) {
-    let t;
-    s.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { query = s.value.trim(); rerender(true); }, 150); });
+    // Chỉ thay phần danh sách, không vẽ lại ô gõ (bộ gõ tiếng Việt trên điện thoại không bị ngắt).
+    onTyping(s, (v) => {
+      query = v.trim();
+      const box = root.querySelector('.nx-results');
+      if (!box) return rerender(true);
+      const tmp = document.createElement('div');
+      tmp.innerHTML = notesView().__raw;
+      const fresh = tmp.querySelector('.nx-results');
+      if (!fresh) return rerender(true);
+      box.innerHTML = fresh.innerHTML;
+      bindNotes(box, rerender);
+    });
   }
   root.querySelectorAll('[data-note-new]').forEach((b) => b.addEventListener('click', () => openNote(null, { checklist: b.hasAttribute('data-note-new-check') })));
   root.querySelector('[data-note-folder]')?.addEventListener('change', (e) => { tab = e.target.value; query = ''; localStorage.setItem('bnth.noteTab', tab); rerender(); });

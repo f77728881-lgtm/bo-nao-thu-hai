@@ -6,6 +6,7 @@ import { html, raw, today, addDays, dayOf, fmtDate, weekdayName, whenLabel, fold
 import { toast, errorToast } from './ui.js';
 import { icon } from './icons.js';
 import { parse } from './quickadd.js';
+import { tenLap } from './laplai.js';
 
 const KEY = 'bnth.taskList';
 let cur = localStorage.getItem(KEY) || 'today';
@@ -67,7 +68,7 @@ function reminderRow(v, { context = true } = {}) {
     <div class="rm-main" data-open="viec/${v.id}">
       <div class="rm-title">${v.gap && v.quan_trong && !done ? html`<b class="rm-flag">!!</b> ` : v.quan_trong && !done ? html`<b class="rm-flag">!</b> ` : ''}${v.ten}</div>
       ${note ? html`<div class="rm-note">${note.slice(0, 120)}</div>` : ''}
-      <div class="rm-meta">${v.han ? html`<span class="${late ? 'late' : ''}">${whenLabel(v.han, { overdue: !done })}</span>` : ''}${context && proj ? html`<span>📁 ${proj.ten}</span>` : ''}${context && area ? html`<span>${area.bieu_tuong || '🗂'} ${area.ten}</span>` : ''}${isDof(v) ? html`<span>D-Office</span>` : ''}</div>
+      <div class="rm-meta">${v.han ? html`<span class="${late ? 'late' : ''}">${whenLabel(v.han, { overdue: !done })}</span>` : ''}${context && proj ? html`<span>📁 ${proj.ten}</span>` : ''}${context && area ? html`<span>${area.bieu_tuong || '🗂'} ${area.ten}</span>` : ''}${isDof(v) ? html`<span>D-Office</span>` : ''}${v.lap_lai && !done ? html`<span title="Tích xong thì tự tạo kỳ sau">↻ ${tenLap(v.lap_lai)}</span>` : ''}</div>
     </div>
     <button class="rm-info" data-open="viec/${v.id}" aria-label="Chi tiết">${icon('dots')}</button>
   </li>`;

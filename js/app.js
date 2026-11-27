@@ -251,7 +251,7 @@ function openQuickAdd() {
     box.querySelectorAll('[data-qa-type]').forEach((b) => b.classList.toggle('on', b.dataset.qaType === parsed.type));
     const c = parsed.chips.map((ch) => ({
       when: `🗓 ${whenLabel(ch.v, { overdue: false })}`, minutes: `⏱ ${ch.v} phút`, gap: '⚡ Gấp', qt: '⭐ Quan trọng',
-      area: `🗂 ${ch.v}`, project: `📁 ${ch.v}`, place: `📍 ${ch.v}`
+      area: `🗂 ${ch.v}`, project: `📁 ${ch.v}`, place: `📍 ${ch.v}`, repeat: `↻ ${ch.v}`
     })[ch.k]);
     box.querySelector('.qa-preview').innerHTML = input.value.trim()
       ? `<b>${esc(parsed.title || input.value)}</b> ${c.map((x) => `<span class="tag">${esc(x)}</span>`).join(' ')}`
@@ -288,6 +288,8 @@ function reshape(p, type, raw) {
     ghi_chu: { tieu_de: title.slice(0, 80), noi_dung: raw.trim() },
     inbox: { noi_dung: raw.trim() }
   }[type];
+  const rep = p.chips.find((c) => c.k === 'repeat');
+  if (rep && (type === 'viec' || type === 'su_kien')) data.lap_lai = rep.rule;
   Object.keys(data).forEach((k) => (data[k] === undefined || data[k] === '') && delete data[k]);
   return { ...p, type, data };
 }

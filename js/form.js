@@ -4,6 +4,7 @@ import { call } from './api.js';
 import { html, raw, esc, fold, whenLabel, fmtDate } from './util.js';
 import { openSheet, label, TABLE_META, toast, errorToast, closeSheet } from './ui.js';
 import { askBox } from './claude.js';
+import { PRESETS, tenLap } from './laplai.js';
 
 // Trường hiện trước, theo bảng (còn lại xếp sau, trong mục "Thêm").
 const PRIMARY = {
@@ -29,6 +30,12 @@ const HIDDEN = new Set(['id', 'created_at', 'updated_at', 'archived', 'cal_event
 function fieldInput(table, k, f, v) {
   const id = `f-${k}`;
   const lab = html`<label for="${id}">${f.label || label(k)}${f.required ? html` <i class="req">*</i>` : ''}</label>`;
+  if (k === 'lap_lai') {
+    const cur = String(v || '').replace(/^RRULE:/i, '').toUpperCase();
+    const known = PRESETS.some(([r]) => r === cur);
+    return html`<div class="field">${lab}<select id="${id}" name="${k}">${PRESETS.map(([r, t]) => html`<option value="${r}" ${r === cur ? raw('selected') : ''}>${t}</option>`)}${!known && cur ? html`<option value="${cur}" selected>${tenLap(cur).charAt(0).toUpperCase() + tenLap(cur).slice(1)}</option>` : ''}</select>
+      ${table === 'viec' ? html`<small class="hint">Tích xong thì app tự tạo việc kỳ sau. Cần có hạn.</small>` : ''}</div>`;
+  }
   switch (f.type) {
     case 'bool':
       return html`<div class="field field-bool"><label class="switch"><input type="checkbox" id="${id}" name="${k}" ${v ? raw('checked') : ''}><span></span> ${f.label || label(k)}</label></div>`;

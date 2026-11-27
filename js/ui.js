@@ -2,6 +2,7 @@
 import { html, raw, esc, whenLabel, dayOf, today } from './util.js';
 import * as store from './store.js';
 import { icon, iconHtml } from './icons.js';
+import { tenLap } from './laplai.js';
 
 export const TABLE_META = {
   viec: { icon: '✅', ic: 'task', label: 'Việc', plural: 'Việc' },
@@ -143,6 +144,7 @@ export function taskRow(v, { showArea = true } = {}) {
         ${v.trang_thai !== 'Chưa bắt đầu' && !done ? html`<span class="tag ${statusClass(v.trang_thai)}">${v.trang_thai}</span>` : ''}
         ${showArea && v.linh_vuc_id ? html`<span class="tag">${areaName(v.linh_vuc_id)}</span>` : ''}
         ${proj ? html`<span class="tag">📁 ${proj.ten}</span>` : ''}
+        ${v.lap_lai && !done ? html`<span class="tag">↻ ${tenLap(v.lap_lai)}</span>` : ''}
         ${v._pending ? html`<span class="tag tag-pending">chờ gửi</span>` : ''}
       </div>
     </div>

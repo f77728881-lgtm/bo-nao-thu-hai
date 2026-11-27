@@ -91,6 +91,31 @@ export function parse(input, { areas = [], projects = [], now = today() } = {}) 
   // 6. Ngày
   let day = null;
   const setDay = (d) => { day = d; };
+  // 6a. Lặp lại: "hằng ngày", "mỗi tuần thứ 2", "hằng tháng ngày 5", "cuối mỗi tháng", "hằng quý", "hằng năm"
+  let lapLai = '', lapTen = '';
+  const BY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+  take(/\s(?:hang|moi)\s(?:ngay\slam\sviec|ngay\sthuong)\b/, () => { lapLai = 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR'; lapTen = 'ngày làm việc'; let n = 0; while ([0, 6].includes(weekday(addDays(now, n)))) n++; setDay(addDays(now, n)); }) ||
+  take(/\s(?:hang|moi)\sngay\b/, () => { lapLai = 'FREQ=DAILY'; lapTen = 'hằng ngày'; setDay(now); }) ||
+  take(/\s(?:hang|moi)\stuan(?:\s(?:vao\s)?(chu nhat|cn|thu [2-7]|thu (?:hai|ba|tu|nam|sau|bay)|t[2-7]))?\b/, (m) => {
+    const t = m[1] !== undefined ? WD_MAP[m[1]] : weekday(now);
+    lapLai = 'FREQ=WEEKLY' + (m[1] !== undefined ? ';BYDAY=' + BY[t] : ''); lapTen = 'hằng tuần';
+    setDay(addDays(now, (t - weekday(now) + 7) % 7));
+  }) ||
+  take(/\s(?:cuoi\smoi\sthang|cuoi\sthang\shang\sthang|hang\sthang\svao\scuoi\sthang)\b/, () => {
+    lapLai = 'FREQ=MONTHLY;BYMONTHDAY=-1'; lapTen = 'cuối mỗi tháng';
+    const [y, mo] = now.split('-').map(Number); setDay(`${y}-${pad(mo)}-${pad(new Date(Date.UTC(y, mo, 0)).getUTCDate())}`);
+  }) ||
+  take(/\s(?:hang|moi)\sthang(?:\s(?:vao\s)?ngay\s(\d{1,2}))?\b/, (m) => {
+    let [y, mo, d0] = now.split('-').map(Number);
+    const d = m[1] ? Math.min(31, Math.max(1, +m[1])) : d0;
+    lapLai = 'FREQ=MONTHLY' + (m[1] ? ';BYMONTHDAY=' + d : ''); lapTen = 'hằng tháng' + (m[1] ? ` (ngày ${d})` : '');
+    const dim = (yy, mm) => new Date(Date.UTC(yy, mm, 0)).getUTCDate();
+    let cand = `${y}-${pad(mo)}-${pad(Math.min(d, dim(y, mo)))}`;
+    if (cand < now) { mo += 1; if (mo > 12) { mo = 1; y += 1; } cand = `${y}-${pad(mo)}-${pad(Math.min(d, dim(y, mo)))}`; }
+    setDay(cand);
+  }) ||
+  take(/\s(?:hang|moi)\squy\b/, () => { lapLai = 'FREQ=MONTHLY;INTERVAL=3'; lapTen = 'hằng quý'; }) ||
+  take(/\s(?:hang|moi)\snam\b/, () => { lapLai = 'FREQ=YEARLY'; lapTen = 'hằng năm'; });
   let periodHint = null;
   take(/\s(sang|trua|chieu|toi)\s(nay|mai|mot)\b/, (m) => { periodHint = m[1]; setDay(addDays(now, { nay: 0, mai: 1, mot: 2 }[m[2]])); }) ||
   take(/\s(?:ngay\s)?(\d{1,2})\sthang\s(\d{1,2})(?:\s(?:nam\s)?(\d{4}))?\b/, (m) => {
@@ -141,7 +166,7 @@ export function parse(input, { areas = [], projects = [], now = today() } = {}) 
   // 9. Chọn loại
   if (!type) {
     if (time && (EVENT_WORDS.test(f(t)) || diaDiem)) type = 'su_kien';
-    else if (day || gap || quanTrong || linhVuc || duAn) type = 'viec';
+    else if (day || gap || quanTrong || linhVuc || duAn || lapLai) type = 'viec';
     else type = 'inbox';
   }
 
@@ -152,6 +177,7 @@ export function parse(input, { areas = [], projects = [], now = today() } = {}) 
     if (minutes) data.thoi_luong_phut = minutes;
     if (linhVuc) data.linh_vuc_id = linhVuc.id;
     if (duAn) data.du_an_id = duAn.id;
+    if (lapLai) { data.lap_lai = lapLai; if (!data.han) data.han = now; }
   } else if (type === 'su_kien') {
     const start = when || now;
     data = { ten: t, bat_dau: start, dia_diem: diaDiem };
@@ -162,6 +188,7 @@ export function parse(input, { areas = [], projects = [], now = today() } = {}) 
     }
     if (linhVuc) data.linh_vuc_id = linhVuc.id;
     if (duAn) data.du_an_id = duAn.id;
+    if (lapLai) data.lap_lai = lapLai;
   } else if (type === 'ghi_chu') {
     const lines = input.trim().replace(TYPE_PREFIX[2][0], '');
     const firstBreak = t.indexOf('. ');
@@ -179,6 +206,7 @@ export function parse(input, { areas = [], projects = [], now = today() } = {}) 
   if (linhVuc) chips.push({ k: 'area', v: linhVuc.ten });
   if (duAn) chips.push({ k: 'project', v: duAn.ten });
   if (diaDiem) chips.push({ k: 'place', v: diaDiem });
+  if (lapLai) chips.push({ k: 'repeat', v: lapTen, rule: lapLai });
   return { type, data, chips, title: t };
 }
 

@@ -335,6 +335,14 @@ function reportBox(ten, text, names) {
 /** Thẻ trả lời nhanh cho các câu hỏi nhân sự (ask.js understand). */
 export function answerHtml(a) {
   const src = st?.du_lieu?.cap_nhat ? html`<p class="hr-src">Số liệu cập nhật ${when(st.du_lieu.cap_nhat)}</p>` : '';
+  const copyBox = (t) => html`<div class="bc-h"><span></span><button class="btn btn-primary" data-copy-report>Sao chép</button></div><pre class="bc-text" data-bc-text>${t}</pre>`;
+  if (a.kind === 'lanh_dao') return html`<section class="ans"><div class="ans-h"><span>👔 Lãnh đạo · ${a.ten}</span></div>${copyBox(a.text)}${src}</section>`;
+  if (a.kind === 'cbql_tong') return html`<section class="ans"><div class="ans-h"><span>👔 Trưởng, phó các đơn vị</span></div>
+    ${a.tom_tat && a.tom_tat.length ? html`<div class="hr-kpis">${a.tom_tat.map((x) => html`<div class="hr-kpi"><b>${x.tong}</b><small>${x.ten}: ${x.truong} trưởng · ${x.pho} phó</small></div>`)}</div>` : ''}
+    <div style="margin-top:10px">${copyBox(a.text)}</div>${src}</section>`;
+  if (a.kind === 'tieu_chuan') return html`<section class="ans"><div class="ans-h"><span>📐 Tiêu chuẩn chức danh</span></div>
+    ${a.item ? copyBox(a.text) : html`<p class="empty">Chọn chức danh:</p>`}
+    <div class="ask-ex" style="margin-top:10px">${a.names.map((n) => html`<button class="chip" data-ask="tiêu chuẩn ${n.toLowerCase()}">${n}</button>`)}</div>${src}</section>`;
   if (a.kind === 'bao_cao_cc') {
     if (!a.ten) return html`<section class="ans"><div class="ans-h"><span>📋 Tổng hợp cơ cấu</span></div><p class="empty">Chưa rõ đơn vị nào — chọn trong danh sách.</p>${reportBox('', '', ['', ...a.names])}</section>`;
     return html`<section class="ans"><div class="ans-h"><span>📋 Cơ cấu · ${a.ten}</span><small>đến ${a.den_ngay ? fmtDate(a.den_ngay, true) : ''}</small></div>${reportBox(a.ten, a.text, a.names)}${src}</section>`;

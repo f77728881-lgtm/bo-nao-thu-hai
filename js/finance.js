@@ -5,6 +5,10 @@ import * as store from './store.js';
 import { html, raw, today, fmtDate, addDays, fold, weekdayName } from './util.js';
 import { openSheet, closeSheet, toast, errorToast } from './ui.js';
 import { openRecord } from './form.js';
+import { call, isDemo } from './api.js';
+
+const DIEM_NHAN = 'https://bnth-mcp.f77728881.workers.dev/tc/nhan';
+let nhan = null; // trạng thái điểm nhận tự động (tải khi mở tab Ngân sách)
 
 let tab = localStorage.getItem('bnth.tcTab') || 'tong_quan';
 let thang = today().slice(0, 7);
@@ -218,7 +222,53 @@ function nganSach(s) {
     <h4 class="ios-g">Nguồn tiền</h4>
     ${TK().length ? html`<ul class="ios-list hr-kv">${store.all('tai_khoan').map((t) => html`<li><span><button class="link" data-tk-sua="${t.id}">${t.ten}</button><small class="hr-d">${[t.loai, t.ngan_hang, t.nhan_dien ? '…' + t.nhan_dien : ''].filter(Boolean).join(' · ')}</small></span></li>`)}</ul>` : html`<p class="hint">Chưa có nguồn tiền (ví, tài khoản lương…). Không bắt buộc ở giai đoạn này.</p>`}
     <div class="hr-acts"><button class="btn" data-new-tk>＋ Nguồn tiền</button></div>
-    <p class="hr-src">Không ghi số tài khoản, số thẻ hay số dư. “Nhận diện” chỉ cần tối đa 4 số cuối để sau này khớp tin báo ngân hàng.</p>`;
+    <p class="hr-src">Không ghi số tài khoản, số thẻ hay số dư. “Nhận diện” chỉ cần tối đa 4 số cuối để khớp tin báo ngân hàng.</p>
+    <h4 class="ios-g">Nhận tự động từ ngân hàng</h4>
+    <div class="ans tc-nhan">${nhan === null ? html`<p class="hint">Đang tải trạng thái…</p>` : nhan.co_khoa
+      ? html`<p>✅ Đang bật${nhan.tin_luc ? html` · tin gần nhất ${new Date(nhan.tin_luc).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}` : ' · chưa nhận tin nào'} · ${nhan.so_tin} giao dịch đã nhận${nhan.thu_luc ? html`<br><small class="hint">Thử kết nối thành công lúc ${new Date(nhan.thu_luc).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}</small>` : ''}</p>
+        <div class="hr-acts"><button class="btn" data-khoa-tao>Tạo khóa mới</button><button class="btn btn-ghost" data-khoa-tat>Tắt nhận tự động</button></div>`
+      : html`<p class="hint">Điện thoại (MacroDroid) gửi thông báo biến động của Timo về đây. Tạo khóa rồi làm theo hướng dẫn cài macro.</p>
+        <div class="hr-acts"><button class="btn btn-primary" data-khoa-tao>Tạo khóa nhận tự động</button></div>`}</div>`;
+}
+
+async function loadNhan(rerender) {
+  try { nhan = isDemo() ? { co_khoa: false, so_tin: 0 } : await call('tc_nhan_trang_thai'); } catch (e) { nhan = { co_khoa: false, so_tin: 0, loi: true }; }
+  rerender();
+}
+async function taoKhoa(rerender) {
+  if (nhan?.co_khoa && !confirm('Tạo khóa mới thì khóa cũ trong MacroDroid hết hiệu lực. Tiếp tục?')) return;
+  if (isDemo()) return toast('Bản thử không tạo khóa thật');
+  try {
+    const r = await call('tc_khoa_tao');
+    const body = html`<p><b>Khóa chỉ hiện một lần.</b> Chép vào MacroDroid ngay; máy chủ chỉ giữ bản băm nên không xem lại được.</p>
+      <h5 class="hr-sub">Địa chỉ nhận (URL)</h5><pre class="bc-text" data-copy-src>${DIEM_NHAN}</pre><button class="btn" data-copy-this>Sao chép địa chỉ</button>
+      <h5 class="hr-sub">Header X-BNTH-Khoa</h5><pre class="bc-text" data-copy-src>${r.khoa}</pre><button class="btn btn-primary" data-copy-this>Sao chép khóa</button>
+      <p class="hint">Không gửi khóa này cho ai, kể cả Claude. Lộ khóa thì bấm “Tạo khóa mới”.</p>`;
+    const sh = openSheet(body.__raw, { title: 'Khóa nhận tự động' });
+    sh.body.querySelectorAll('[data-copy-this]').forEach((b) => (b.onclick = async () => {
+      const t = b.previousElementSibling.textContent;
+      try { await navigator.clipboard.writeText(t); toast('Đã sao chép'); } catch (e) { const rg = document.createRange(); rg.selectNodeContents(b.previousElementSibling); const s = getSelection(); s.removeAllRanges(); s.addRange(rg); toast('Đã bôi đen — giữ ngón tay → Sao chép'); }
+    }));
+    nhan = null; loadNhan(rerender);
+  } catch (e) { errorToast(e); }
+}
+
+/** Sau khi phân loại một giao dịch tự động: đề xuất quy tắc "lần sau tự xếp" (anh đồng ý mới lưu). */
+function deXuatQuyTac(g, dmId) {
+  const d = store.get('danh_muc', dmId);
+  if (!d || !g.noi_dung || g.cach_ghi !== 'Tự động') return;
+  const goiY = g.noi_dung.replace(/\b(chuyen tien|chuyển tiền|tu timo|từ timo|from my timo|sent by|thanh toan|thanh toán)\b/ig, ' ').replace(/\s+/g, ' ').trim().slice(0, 40);
+  if (!goiY) return;
+  const body = html`<p>Lần sau nội dung có chữ này thì tự xếp vào <b>${d.bieu_tuong || ''} ${d.ten}</b>?</p>
+    <input class="tc-nd" data-kw value="${goiY}"><p class="hint">Sửa cho ngắn và đặc trưng (vd: “winmart”, “grab”). Tránh tên người hay chữ chung chung.</p>
+    <div class="hr-acts"><button class="btn btn-primary" data-kw-ok>Lưu quy tắc</button><button class="btn btn-ghost" data-kw-no>Không</button></div>`;
+  const sh = openSheet(body.__raw, { title: 'Tự phân loại' });
+  sh.body.querySelector('[data-kw-no]').onclick = () => sh.close();
+  sh.body.querySelector('[data-kw-ok]').onclick = async () => {
+    const kw = sh.body.querySelector('[data-kw]').value.trim().toLowerCase();
+    if (kw.length < 2) { toast('Từ khóa quá ngắn'); return; }
+    try { await store.update('danh_muc', d.id, { tu_khoa: [...new Set([...(d.tu_khoa || []), kw])] }); sh.close(); toast(`Đã thêm “${kw}” vào ${d.ten}`, { kind: 'ok' }); } catch (e) { errorToast(e); }
+  };
 }
 
 export function financeView() {
@@ -248,8 +298,15 @@ export function bindFinance(main, rerender) {
   main.querySelectorAll('[data-pl]').forEach((b) => b.addEventListener('click', async (e) => {
     e.stopPropagation();
     const [gid, did] = b.dataset.pl.split('|');
-    try { await store.update('giao_dich', gid, { danh_muc_id: did, trang_thai: 'Đã duyệt' }); toast('Đã phân loại: ' + name('danh_muc', did), { kind: 'ok' }); rerender(); } catch (err) { errorToast(err); }
+    const g = store.get('giao_dich', gid);
+    try { await store.update('giao_dich', gid, { danh_muc_id: did, trang_thai: 'Đã duyệt' }); toast('Đã phân loại: ' + name('danh_muc', did), { kind: 'ok' }); rerender(); deXuatQuyTac(g, did); } catch (err) { errorToast(err); }
   }));
+  if (tab === 'ngan_sach' && nhan === null) loadNhan(rerender);
+  main.querySelector('[data-khoa-tao]')?.addEventListener('click', () => taoKhoa(rerender));
+  main.querySelector('[data-khoa-tat]')?.addEventListener('click', async () => {
+    if (!confirm('Tắt nhận tự động? MacroDroid sẽ bị từ chối cho tới khi tạo khóa mới.')) return;
+    try { await call('tc_khoa_tat'); nhan = null; loadNhan(rerender); } catch (e) { errorToast(e); }
+  });
 }
 
 /** Dòng gọn cho ô Tìm: "chi tiêu tháng này". */

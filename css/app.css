@@ -1288,3 +1288,4 @@ html[data-theme="dark"] .rm-check { border-color: #636366; }
 .tc-nd { width: 100%; padding: 10px 12px; border-radius: 10px; border: 0; background: var(--surface-2); font: inherit; color: var(--text); margin-bottom: 6px; }
 .tc-luu { width: 100%; margin-top: 14px; padding: 12px; font-size: 1rem; }
 .tc-batdau { margin-bottom: 12px; }
+.tc-nhan p { margin: 0 0 8px; }

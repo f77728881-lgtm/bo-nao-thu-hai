@@ -380,12 +380,14 @@ export function standardText(x, canCu) {
 function cbqlAnswer(fq, hr) {
   const bd = hr.bien_dong || {};
   const tc = bd.tieu_chuan;
+  if (/\btieu chuan\b/.test(fq) && !(tc && tc.list && tc.list.length)) return { kind: 'cho_so_lieu', tieu_de: 'Tiêu chuẩn chức danh' };
   if (/\btieu chuan\b/.test(fq) && tc && tc.list && tc.list.length) {
     const x = pickStandard(fq, tc.list);
     return { kind: 'tieu_chuan', mau: 'tieu_chuan', item: x, text: x ? standardText(x, tc.can_cu) : '', names: tc.list.map((y) => y.ap_dung) };
   }
   const cb = bd.cbql;
-  if (!cb || !cb.don_vi || !cb.don_vi.length) return null;
+  const asksLead0 = /lanh dao|ai la truong|gom nhung ai|truong pho|\bcbql\b|can bo quan ly/.test(fq);
+  if ((!cb || !cb.don_vi || !cb.don_vi.length)) return asksLead0 ? { kind: 'cho_so_lieu', tieu_de: 'Trưởng, phó các đơn vị' } : null;
   const asksLead = /lanh dao|ai la truong|gom nhung ai|gom ai|truong pho|truong phong|truong dien luc|giam doc|chanh van phong|doi truong/.test(fq);
   const asksCount = /\bcbql\b|can bo quan ly/.test(fq) || (/so luong|bao nhieu|tong so|thong ke|\bdem\b/.test(fq) && /\b(truong|pho|lanh dao)\b/.test(fq));
   if (!asksLead && !asksCount) return null;
@@ -401,6 +403,7 @@ export function understand(q, ctx) {
   const fq = fold(q);
   if (!fq || fq.length < 3) return null;
   const hr = ctx.hr || {};
+  if (/\b(tong hop|bao cao|viet|soan) co cau\b|^co cau (lao dong|to chuc)/.test(fq) && !(hr.co_cau && hr.co_cau.bao_cao)) return { kind: 'cho_so_lieu', tieu_de: 'Báo cáo cơ cấu' };
   if (/\b(tong hop|bao cao|viet|soan) co cau\b|^co cau (lao dong|to chuc)/.test(fq) && hr.co_cau && hr.co_cau.bao_cao) {
     const names = Object.keys(hr.co_cau.bao_cao);
     const ten = pickReport(fq, names);

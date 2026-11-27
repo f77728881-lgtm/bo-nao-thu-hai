@@ -16,11 +16,13 @@ let loading = false;
 
 try { st = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { st = null; }
 
+let lastLoad = 0;          // lần tải gần nhất trong phiên này (bản trong máy có thể đã cũ)
 async function load(rerender) {
   if (isDemo() || loading) return;
   loading = true;
   try {
     st = await call('ns_xem');
+    lastLoad = Date.now();
     try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* đầy bộ nhớ: bỏ qua */ }
     rerender?.();
   } catch (e) { if (!st) errorToast(e); } finally { loading = false; }
@@ -310,9 +312,11 @@ function bindRows(root, rerender) {
 // ---------------- Dùng trong ô Tìm (hỏi nhanh) ----------------
 /** Số liệu nhân sự đã lưu trong máy; chưa có thì tải nền rồi gọi lại onReady. */
 export function hrForSearch(onReady) {
-  if (!st && !isDemo() && !loading) load(onReady);
+  // Mở app lần đầu trong phiên hoặc đã quá 5 phút: lấy bản mới từ máy chủ (bản lưu trong máy có thể thiếu phần mới).
+  if (!isDemo() && !loading && Date.now() - lastLoad > 5 * 60e3) load(onReady);
   return st?.du_lieu || null;
 }
+export const hrLoading = () => loading;
 
 const qdRow = (x) => html`<li><button class="hr-qd" data-hr-goto="bien_dong" data-hr-goq="${x.ten}">
   <div class="hr-qd-h"><b>${x.ten}</b><span>${x.ngay ? fmtDate(x.ngay, true) : ''}</span></div>
@@ -336,6 +340,8 @@ function reportBox(ten, text, names) {
 export function answerHtml(a) {
   const src = st?.du_lieu?.cap_nhat ? html`<p class="hr-src">Số liệu cập nhật ${when(st.du_lieu.cap_nhat)}</p>` : '';
   const copyBox = (t) => html`<div class="bc-h"><span></span><button class="btn btn-primary" data-copy-report>Sao chép</button></div><pre class="bc-text" data-bc-text>${t}</pre>`;
+  if (a.kind === 'cho_so_lieu') return html`<section class="ans"><div class="ans-h"><span>⏳ ${a.tieu_de}</span></div>
+    <p class="hr-note">${loading ? 'Đang lấy số liệu nhân sự mới nhất từ máy chủ, vài giây nữa kết quả sẽ hiện ở đây.' : 'Máy chưa có phần số liệu này. Kiểm tra mạng rồi gõ lại, hoặc mở Thêm → Nhân sự để tải.'}</p></section>`;
   if (a.kind === 'lanh_dao') return html`<section class="ans"><div class="ans-h"><span>👔 Lãnh đạo · ${a.ten}</span></div>${copyBox(a.text)}${src}</section>`;
   if (a.kind === 'cbql_tong') return html`<section class="ans"><div class="ans-h"><span>👔 Trưởng, phó các đơn vị</span></div>
     ${a.tom_tat && a.tom_tat.length ? html`<div class="hr-kpis">${a.tom_tat.map((x) => html`<div class="hr-kpi"><b>${x.tong}</b><small>${x.ten}: ${x.truong} trưởng · ${x.pho} phó</small></div>`)}</div>` : ''}

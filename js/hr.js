@@ -129,6 +129,7 @@ function coCau(d) {
     <details class="hr-all"><summary>Tất cả cột của bảng Cơ cấu</summary>
       ${Object.keys(groups).map((g) => html`<h5 class="hr-sub">${g}</h5><ul class="ios-list hr-kv">${groups[g].map((c) => html`<li><span>${c.ten.includes(' · ') ? c.ten.split(' · ').slice(1).join(' · ') : c.ten}</span><b>${num(r[c.c], c.ten)}</b></li>`)}</ul>`)}
     </details>`}
+    ${d.bao_cao ? html`<button class="btn" data-hr-report style="margin-top:12px">📋 Báo cáo viết lời — sao chép gửi đi</button>` : ''}
     <p class="hr-src">${d.den_ngay ? html`Số liệu đến ${fmtDate(d.den_ngay, true)}` : ''}${d.tuoi_bq ? html` · tuổi BQ toàn công ty ${d.tuoi_bq}` : ''}${d.thang_thu_muc ? html` · thư mục ${d.thang_thu_muc}` : ''}</p>
     ${srcLine(d)}`;
 }
@@ -282,6 +283,7 @@ export function hrView(rerender) {
 export function bindHr(main, rerender) {
   main.querySelectorAll('[data-hr-tab]').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.hrTab; localStorage.setItem('bnth.nsTab', tab); q = ''; rerender(); }));
   main.querySelectorAll('[data-hr-connect]').forEach((b) => b.addEventListener('click', () => openConnect(rerender)));
+  main.querySelector('[data-hr-report]')?.addEventListener('click', () => openReport(unit || 'Toàn Công ty'));
   main.querySelector('[data-hr-refresh]')?.addEventListener('click', () => refresh(rerender));
   // Ô tìm: chỉ thay phần kết quả, không vẽ lại ô gõ (bộ gõ tiếng Việt trên điện thoại không bị ngắt).
   const qi = main.querySelector('[data-hr-q]');
@@ -324,9 +326,19 @@ const hsRow = (x) => html`<li><button class="hr-hs" data-hr-hs="${x.ma}">
 const more = (n, shown) => (n > shown ? html`<p class="hr-src">… và ${n - shown} mục nữa — mở màn hình Nhân sự để xem hết.</p>` : '');
 const LIMIT = 30;
 
+/** Văn bản báo cáo + nút Sao chép (dán thẳng vào Word/Zalo). */
+function reportBox(ten, text, names) {
+  return html`<div class="bc-h"><select data-bc-unit>${names.map((n) => html`<option ${n === ten ? 'selected' : ''}>${n}</option>`)}</select>
+    <button class="btn btn-primary" data-copy-report>Sao chép</button></div>
+    <pre class="bc-text" data-bc-text>${text}</pre>`;
+}
 /** Thẻ trả lời nhanh cho các câu hỏi nhân sự (ask.js understand). */
 export function answerHtml(a) {
   const src = st?.du_lieu?.cap_nhat ? html`<p class="hr-src">Số liệu cập nhật ${when(st.du_lieu.cap_nhat)}</p>` : '';
+  if (a.kind === 'bao_cao_cc') {
+    if (!a.ten) return html`<section class="ans"><div class="ans-h"><span>📋 Tổng hợp cơ cấu</span></div><p class="empty">Chưa rõ đơn vị nào — chọn trong danh sách.</p>${reportBox('', '', ['', ...a.names])}</section>`;
+    return html`<section class="ans"><div class="ans-h"><span>📋 Cơ cấu · ${a.ten}</span><small>đến ${a.den_ngay ? fmtDate(a.den_ngay, true) : ''}</small></div>${reportBox(a.ten, a.text, a.names)}${src}</section>`;
+  }
   if (a.kind === 'don_vi') {
     const u = a.so, f = a.focus;
     const big = f === 'gioi_tinh' ? [[num(u.ty_le_nu, 'tỷ lệ'), 'tỷ lệ nữ'], [num(u.nu), 'nữ'], [num(u.nam), 'nam']]
@@ -367,7 +379,41 @@ export function hrHitsHtml(h) {
 }
 
 /** Chạm trong thẻ trả lời → mở hồ sơ hoặc nhảy sang màn Nhân sự đúng chỗ. */
+async function copyText(t) {
+  try { await navigator.clipboard.writeText(t); return true; } catch (e) {
+    const ta = document.createElement('textarea'); ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch (err) { ok = false; } ta.remove(); return ok;
+  }
+}
+function bindReport(root) {
+  root.querySelectorAll('[data-copy-report]').forEach((b) => b.addEventListener('click', async () => {
+    const pre = b.closest('section, .sheet-body, .ans')?.querySelector('[data-bc-text]');
+    const t = pre?.textContent || '';
+    if (!t) return;
+    if (await copyText(t)) { b.textContent = 'Đã chép ✓'; setTimeout(() => { b.textContent = 'Sao chép'; }, 1500); toast('Đã sao chép — dán vào Word hoặc Zalo'); return; }
+    // Trình duyệt chặn chép tự động: bôi đen sẵn để anh giữ ngón tay → Sao chép.
+    const rg = document.createRange(); rg.selectNodeContents(pre); const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(rg);
+    toast('Đã bôi đen — giữ ngón tay lên chữ rồi chọn Sao chép');
+  }));
+  root.querySelectorAll('[data-bc-unit]').forEach((s) => s.addEventListener('change', () => {
+    const box = s.closest('section, .sheet-body, .ans');
+    const t = st?.du_lieu?.co_cau?.bao_cao?.[s.value];
+    const pre = box?.querySelector('[data-bc-text]');
+    if (pre) pre.textContent = t || '';
+    const h = box?.querySelector('.ans-h span'); if (h && t) h.textContent = '📋 Cơ cấu · ' + s.value;
+  }));
+}
+/** Mở báo cáo viết lời của một đơn vị (từ tab Cơ cấu). */
+function openReport(ten) {
+  const bc = st?.du_lieu?.co_cau?.bao_cao || {};
+  const names = Object.keys(bc);
+  if (!names.length) return toast('Tệp Cơ cấu chưa có sheet Danh mục — cần lần tải mới từ máy Mac.');
+  const n = bc[ten] ? ten : 'Toàn Công ty';
+  const sh = openSheet(reportBox(n, bc[n] || '', names).__raw, { title: 'Báo cáo cơ cấu' });
+  bindReport(sh.body);
+}
 export function bindHrLinks(root) {
+  bindReport(root);
   root.querySelectorAll('[data-hr-hs]').forEach((b) => b.addEventListener('click', () => openHoSo(b.dataset.hrHs)));
   root.querySelectorAll('[data-hr-goto]').forEach((b) => b.addEventListener('click', () => {
     tab = b.dataset.hrGoto; localStorage.setItem('bnth.nsTab', tab);

@@ -1251,3 +1251,8 @@ html[data-theme="dark"] .rm-check { border-color: #636366; }
 .ask-ok.on { background: var(--green, #34c759); border-color: transparent; }
 .ans-tel { color: var(--accent); text-decoration: none; white-space: nowrap; font-weight: 500; }
 .ans .list { margin: 0; }
+
+/* Báo cáo cơ cấu viết lời */
+.bc-h { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.bc-h select { flex: 1; min-width: 0; padding: 9px 10px; border-radius: 10px; border: 0; background: rgba(118, 118, 128, .12); font: inherit; color: var(--text); }
+.bc-text { white-space: pre-wrap; word-break: break-word; font: inherit; font-size: .9rem; line-height: 1.55; background: var(--surface-2); border-radius: 10px; padding: 12px; margin: 0; user-select: text; -webkit-user-select: text; max-height: 60vh; overflow: auto; }

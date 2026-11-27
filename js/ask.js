@@ -297,11 +297,30 @@ function lifeAnswer(fq, ctx) {
   return null;
 }
 
+// ---------------- Báo cáo cơ cấu viết lời (đúng mẫu sheet "Báo cáo cơ cấu") ----------------
+const BC_EXTRA = [[/\b(xi nghiep|xn|xnld|xnldct|cao the|110)\b/, /^Xí nghiệp/], [/\bhotline\b/, /^HOTLINE/i], [/\b(bql|qlda|ban quan ly|ban qlda)\b/, /^BQL/], [/\b(trung tam|thi nghiem|ttnd|tt tnd)\b/, /^Trung tâm thí nghiệm/],
+  [/\b(khoi co quan|co quan|phong ban|cac phong)\b/, /^Khối cơ quan/], [/\b(ban giam doc|bgd)\b/, /^Ban giám đốc/], [/\b(dang uy|cong doan)\b/, /^Văn phòng Đảng ủy/]];
+/** Chọn báo cáo theo câu: tên đơn vị/viết tắt; không nêu đơn vị = Toàn Công ty. */
+export function pickReport(fq, names) {
+  const rest = fq.replace(/^(viet|soan) /, ' ').replace(/\b(tong hop|bao cao|soan|co cau|lao dong|to chuc|nhan su|cua|cho|ve)\b/g, ' ').replace(/\s+/g, ' ').trim();
+  for (const [re, nm] of BC_EXTRA) if (re.test(rest)) { const n = names.find((x) => nm.test(x)); if (n) return n; }
+  let best = null, len = 0;
+  names.forEach((n) => aliases(n).forEach((a) => { if (a.length > len && (' ' + rest + ' ').includes(' ' + a + ' ')) { best = n; len = a.length; } }));
+  if (best) return best;
+  if (!rest || /\b(cong ty|toan cong ty|pcpt|toan pc|toan bo)\b/.test(rest)) return names.find((x) => x === 'Toàn Công ty') || null;
+  return null;
+}
+
 /** Hiểu câu hỏi → câu trả lời có cấu trúc, hoặc null nếu không nhận ra. */
 export function understand(q, ctx) {
   const fq = fold(q);
   if (!fq || fq.length < 3) return null;
   const hr = ctx.hr || {};
+  if (/\b(tong hop|bao cao|viet|soan) co cau\b|^co cau (lao dong|to chuc)/.test(fq) && hr.co_cau && hr.co_cau.bao_cao) {
+    const names = Object.keys(hr.co_cau.bao_cao);
+    const ten = pickReport(fq, names);
+    return { kind: 'bao_cao_cc', mau: 'bao_cao_cc', ten, names, text: ten ? hr.co_cau.bao_cao[ten] : '', den_ngay: hr.co_cau.den_ngay };
+  }
   const a = lifeAnswer(fq, ctx);
   if (a) return a;
   const td = tdAnswer(fq, hr);
@@ -341,7 +360,7 @@ export const BOOK = [
   ['☀️ Hôm nay & lịch', [['hom_nay', 'hôm nay có gì', 'lịch, việc, quá hạn, văn bản sắp hạn'], ['lich', 'lịch ngày mai', 'hoặc: lịch tuần này, lịch thứ 6, lịch tháng 12'], ['hop', 'họp tuần này', 'chỉ các cuộc họp']]],
   ['✅ Việc', [['viec_qua_han', 'việc quá hạn', ''], ['viec_ngay', 'việc hôm nay', 'hoặc: việc ngày mai, việc thứ 2'], ['viec_tuan', 'việc tuần sau', ''], ['viec_gap', 'việc gấp', 'gấp hoặc quan trọng'], ['viec_cho', 'việc đang chờ', ''], ['viec_xong', 'việc đã xong tuần này', 'để tổng kết'], ['viec_linh_vuc', 'việc đào tạo', 'việc + tên lĩnh vực'], ['viec_khong_han', 'việc chưa có hạn', '']]],
   ['📄 Văn bản', [['vb_han', 'văn bản sắp hạn', 'hoặc: văn bản hạn tuần sau'], ['vb_qua_han', 'văn bản quá hạn', ''], ['vb_chu_tri', 'văn bản chủ trì', 'hoặc: văn bản phối hợp'], ['vb_ngay', 'văn bản tuần này', 'ban hành trong tuần'], ['dv_chua_gui', 'văn bản đơn vị chưa gửi', 'theo dõi 47 đơn vị']]],
-  ['👥 Nhân sự', [['dv_dinh_bien', 'định biên Cẩm Khê', 'thừa/thiếu so với định biên'], ['dv_gioi_tinh', 'tỷ lệ nữ Lâm Thao', ''], ['dv_trinh_do', 'trình độ phòng TCNS', 'viết tắt tên phòng được'], ['dv_tuoi', 'tuổi bình quân Hòa Bình', ''], ['dv_tong', 'Phù Ninh', 'gõ tên đơn vị = xem nhanh'], ['bien_dong', 'biến động tháng này', ''], ['qd_loai', 'điều động tháng 12', 'nghỉ hưu, bổ nhiệm, tuyển mới…'], ['qd_ten', 'Nguyễn Văn Hùng', 'tên người → quyết định'], ['qd_so', 'QĐ 3887', 'số quyết định'], ['td_loc', 'thẩm định trễ hạn', 'hoặc: hồ sơ KV2 chưa đăng ký DO'], ['td_ma', 'TD26-001', 'mã hồ sơ']]],
+  ['👥 Nhân sự', [['dv_dinh_bien', 'định biên Cẩm Khê', 'thừa/thiếu so với định biên'], ['dv_gioi_tinh', 'tỷ lệ nữ Lâm Thao', ''], ['dv_trinh_do', 'trình độ phòng TCNS', 'viết tắt tên phòng được'], ['dv_tuoi', 'tuổi bình quân Hòa Bình', ''], ['dv_tong', 'Phù Ninh', 'gõ tên đơn vị = xem nhanh'], ['bien_dong', 'biến động tháng này', ''], ['bao_cao_cc', 'tổng hợp cơ cấu công ty', 'hoặc: …Điện lực Cẩm Khê, Xí nghiệp, BQL, phòng TCNS — viết sẵn, bấm Sao chép'], ['qd_loai', 'điều động tháng 12', 'nghỉ hưu, bổ nhiệm, tuyển mới…'], ['qd_ten', 'Nguyễn Văn Hùng', 'tên người → quyết định'], ['qd_so', 'QĐ 3887', 'số quyết định'], ['td_loc', 'thẩm định trễ hạn', 'hoặc: hồ sơ KV2 chưa đăng ký DO'], ['td_ma', 'TD26-001', 'mã hồ sơ']]],
   ['🗒 Ghi chú & dự án', [['gc_ve', 'ghi chú về BHXH', 'ghi chú + chủ đề'], ['gc_ghim', 'ghi chú ghim', ''], ['gc_ngay', 'ghi chú tuần này', ''], ['inbox', 'inbox chưa xử lý', ''], ['du_an', 'dự án đang làm', 'hoặc: dự án sắp hạn']]],
   ['🌱 Bản thân', [['sach_dang', 'đang đọc sách gì', 'hoặc: sách muốn đọc'], ['sach_nam', 'đọc được bao nhiêu sách năm nay', 'so với mục tiêu'], ['thoi_quen', 'thói quen hôm nay', 'kèm chuỗi ngày'], ['on_tieng_trung', 'câu tiếng Trung cần ôn', ''], ['buoi_hoc', 'buổi học tiếp theo', ''], ['tam_trang', 'tâm trạng tuần này', 'từ nhật ký ngày']]],
   ['📇 Danh bạ, nơi chốn, giá', [['sdt', 'số điện thoại Hùng', 'người hoặc đơn vị'], ['dia_diem', 'quán ăn ở Việt Trì', 'hoặc: cà phê muốn đến'], ['chuyen_di', 'chuyến đi sắp tới', ''], ['gia', 'giá vàng', 'USD, SJC, nhẫn']]]

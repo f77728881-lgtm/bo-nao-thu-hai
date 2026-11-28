@@ -459,8 +459,11 @@ export function searchResults(q, rerender) {
   const card = !ans ? '' : HR_KINDS.includes(ans.kind) ? answerHtml(ans) : lifeCard(ans);
   return html`${card}
     ${q ? (hits.length || hrN ? html`${hrN ? hrHitsHtml(hh) : ''}<div class="grid">${Object.entries(groups).map(([t, recs]) => section(TABLE_META[t].plural, recs.map((r) => (t === 'viec' ? taskRow(r) : t === 'van_ban' ? docRow(r) : t === 'su_kien' ? eventRow(r) : genericRow(t, r)))))}</div>`
-      : ans ? '' : html`<p class="empty big">Không thấy kết quả cho “${q}”.</p>`)
-      : askBook()}`;
+      : ans ? '' : html`<p class="empty big">Không thấy trong app kết quả cho “${q}”.</p>`)
+      : askBook()}
+    ${q ? (hits.length || hrN || ans
+      ? html`<p class="ask-ai-more"><button class="link" data-ask-open data-ask-q="${q}">✨ Chưa đúng ý? Hỏi AI câu này</button></p>`
+      : html`<div class="ask-ai-cta"><button class="btn btn-primary" data-ask-open data-ask-q="${q}">✨ Hỏi AI: “${q.length > 40 ? q.slice(0, 40) + '…' : q}”</button><small>Claude đọc được dữ liệu app (tốn lượt); Gemini chỉ soạn thảo, kiến thức chung.</small></div>`) : ''}`;
 }
 
 // ---------------- Bảng chung ----------------

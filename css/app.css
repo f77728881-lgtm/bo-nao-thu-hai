@@ -1345,3 +1345,8 @@ body.demo .brand-name[hidden] { display: inline; }
 .seg-pick span { display: block; text-align: center; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); font-size: .9rem; cursor: pointer; white-space: nowrap; }
 .seg-pick input:checked + span { background: var(--accent, #007aff); border-color: transparent; color: #fff; font-weight: 600; }
 .seg-pick input:focus-visible + span { outline: 2px solid var(--accent, #007aff); }
+
+/* Ô Tìm trước, không ra mới hỏi AI */
+.ask-ai-more { text-align: center; margin: 14px 0 4px; font-size: .9rem; }
+.ask-ai-cta { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 8px 0 16px; text-align: center; }
+.ask-ai-cta small { color: var(--muted); max-width: 320px; }

@@ -90,7 +90,7 @@ const ALWAYS = [
   ['✍️ Soạn công văn', 'Soạn giúp tôi một công văn về: [nội dung]. Văn phong hành chính EVN, có căn cứ, nội dung chính, tổ chức thực hiện, nơi nhận. Hỏi tôi thông tin còn thiếu trước khi viết.']
 ];
 
-export function openAsk(route) {
+export function openAsk(route, prefill = '') {
   const list = [...(ROUTE_PROMPTS[route] || ROUTE_PROMPTS['hom-nay']), ...ALWAYS];
   const box = document.createElement('div');
   box.className = 'ask';
@@ -108,6 +108,7 @@ export function openAsk(route) {
     <div class="ask-list">${GEMINI.map(([label, text]) => html`<button class="ask-item gem" data-gem-text="${text}">${label}</button>`)}</div>`.__raw;
   openSheet(box, { title: '✨ Hỏi AI' });
   const ta = box.querySelector('.ask-free');
+  if (prefill) ta.value = prefill;
   setTimeout(() => ta.focus(), 120);
   box.querySelector('[data-ask-free]').onclick = () => { const q = ta.value.trim(); if (!q) { ta.focus(); return; } closeSheet(); askClaude(q); };
   box.querySelector('[data-ask-gem]').onclick = () => { const q = ta.value.trim(); if (!q) { ta.focus(); return; } closeSheet(); askGemini(q); };

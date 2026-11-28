@@ -153,7 +153,7 @@ document.addEventListener('click', async (e) => {
     toast(`Đã xếp vào ${a?.ten || 'lĩnh vực'}`, { kind: 'ok', actionLabel: 'Hoàn tác', onAction: () => store.update('van_ban', id, { linh_vuc_id: '' }) });
     return;
   }
-  if (t.matches('[data-ask-open]')) { openAsk(parseHash()[0]); return; }
+  if (t.matches('[data-ask-open]')) { openAsk(parseHash()[0], t.dataset.askQ || (parseHash()[0] === 'tim' ? searchQ || '' : '')); return; }
   if (t.matches('[data-market]')) { openMarket(); return; }
   if (t.matches('[data-rc]')) { e.stopPropagation(); readCardAction(t.dataset.rc); return; }
   if (t.matches('[data-read-start]')) { e.stopPropagation(); openReadStart(t.dataset.readStart || null); return; }

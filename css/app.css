@@ -1297,3 +1297,15 @@ html[data-theme="dark"] .rm-check { border-color: #636366; }
 .ask-gem { background: #e8f0fe; color: #1a56c4; border: 0; }
 .ask-item.gem { border-color: #c6d8fb; }
 @media (prefers-color-scheme: dark) { .ask-gem { background: #1d2c4a; color: #9fc0ff; } .ask-item.gem { border-color: #2c4270; } }
+
+/* Sổ địa điểm: bộ lọc */
+.pl-filter { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.pl-q { width: 100%; padding: 9px 12px; border-radius: 10px; border: 0; background: rgba(118, 118, 128, .12); font: inherit; color: var(--text); }
+.pl-row { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; align-items: center; }
+.pl-row .chip { white-space: nowrap; }
+.pl-lab { flex: none; width: 22px; text-align: center; }
+.tag-dac { background: rgba(255, 149, 0, .16); color: #c93400; }
+.chips-pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-pick input { display: none; }
+.chip-pick span { display: inline-block; padding: 6px 12px; border-radius: 99px; background: var(--surface-2); cursor: pointer; font-size: .88rem; }
+.chip-pick input:checked + span { background: var(--accent); color: #fff; }

@@ -5,6 +5,7 @@ import { html, raw, esc, fold, whenLabel, fmtDate } from './util.js';
 import { openSheet, label, TABLE_META, toast, errorToast, closeSheet } from './ui.js';
 import { askBox } from './claude.js';
 import { PRESETS, tenLap } from './laplai.js';
+import { THANH_PHO, TINH_CU } from './diadanh.js';
 
 // Trường hiện trước, theo bảng (còn lại xếp sau, trong mục "Thêm").
 const PRIMARY = {
@@ -62,8 +63,10 @@ function fieldInput(table, k, f, v) {
       return html`<details class="field"><summary>${f.label || label(k)} (${cur.size})</summary><div class="refs">${opts.map((o) => html`<label class="ref-opt"><input type="checkbox" name="${k}" value="${o.id}" ${cur.has(o.id) ? raw('checked') : ''}> ${store.titleOf(f.ref, o)}</label>`)}</div></details>`;
     }
     case 'list':
+      if (f.options) { const cur = new Set(v || []); return html`<div class="field">${lab}<div class="chips-pick">${f.options.map((o) => html`<label class="chip-pick"><input type="checkbox" name="${k}" value="${o}" ${cur.has(o) ? raw('checked') : ''}><span>${o}</span></label>`)}</div></div>`; }
       return html`<div class="field">${lab}<input id="${id}" name="${k}" value="${(v || []).join(', ')}" placeholder="phân cách bằng dấu phẩy"></div>`;
     default:
+      if (k === 'dia_danh') return html`<div class="field">${lab}<input id="${id}" name="${k}" value="${v ?? ''}" list="dl-dia-danh" placeholder="để trống: app tự đoán từ địa chỉ"><datalist id="dl-dia-danh">${[...new Set([...store.all('dia_diem').map((p) => p.dia_danh).filter(Boolean), ...THANH_PHO, ...TINH_CU])].map((n) => html`<option value="${n}">`)}</datalist></div>`;
       return html`<div class="field">${lab}<input id="${id}" name="${k}" value="${v ?? ''}" ${k === 'dien_thoai' ? raw('type="tel"') : k === 'email' ? raw('type="email"') : k.startsWith('link') || k === 'url' ? raw('type="url"') : ''}></div>`;
   }
 }
@@ -73,7 +76,7 @@ function readForm(form, fields) {
   for (const [k, f] of Object.entries(fields)) {
     if (HIDDEN.has(k) || f.type === 'sys') continue;
     if (f.type === 'bool') { const el = form.elements[k]; if (el) out[k] = el.checked; continue; }
-    if (f.type === 'refs') { out[k] = [...form.querySelectorAll(`input[name="${k}"]:checked`)].map((i) => i.value); continue; }
+    if (f.type === 'refs' || (f.type === 'list' && f.options)) { out[k] = [...form.querySelectorAll(`input[name="${k}"]:checked`)].map((i) => i.value); continue; }
     const el = form.elements[k];
     if (!el) continue;
     let v = el.value;

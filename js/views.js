@@ -426,6 +426,12 @@ function lifeCard(a) {
       ${Object.keys(by).length ? Object.entries(by).map(([id, xs]) => html`<h5 class="hr-sub">${vb[id] ? vb[id].so_hieu + ' · ' + (vb[id].trich_yeu || '') : 'Văn bản'} <small>${xs.length}</small></h5>
         <p class="hr-note">${xs.map((x) => (dv[x.don_vi_id] || {}).ten || x.ten || '?').join(', ')}</p>`) : html`<p class="empty">Các đơn vị đã gửi đủ.</p>`}</section>`;
   }
+  if (a.kind === 'goi_y_quan') return html`<section class="ans">${head(a.tieu_de.startsWith('Chỗ ở') ? '🏨' : '🍽', a.tieu_de, a.list.length)}
+    ${a.list.length ? html`<ul class="ios-list">${a.list.map(({ p, ly }) => html`<li><button class="tc-g" data-open="dia_diem/${p.id}">
+      <span class="tc-ic">${p.trang_thai === 'Yêu thích' ? '❤️' : p.loai === 'Lưu trú' ? '🏨' : p.loai === 'Cà phê' ? '☕' : '🍜'}</span>
+      <span class="tc-t"><b>${p.ten.split(',')[0]}</b><small>${[p.dia_danh || p.tinh, ly ? 'có ' + ly : '', p.mon_nen_thu && !ly.includes(p.mon_nen_thu) ? 'nên gọi: ' + p.mon_nen_thu : '', p.muc_gia].filter(Boolean).join(' · ')}</small></span>
+      ${p.danh_gia ? html`<span class="tc-so">${'★'.repeat(Math.round(p.danh_gia))}</span>` : ''}</button></li>`)}</ul>`
+      : html`<p class="empty">Chưa có nơi nào trong Sổ địa điểm khớp${a.dish ? ' món “' + a.dish + '”' : ''}${a.dd ? ' ở ' + a.dd : ''}. Khi lưu quán, điền “Món” và “Đặc sản” để lần sau app gợi ý được.</p>`}</section>`;
   if (a.kind === 'gia') return html`<section class="ans">${head('💰', 'Tỉ giá & giá vàng')}<div class="tt-chips">${marketChips()}</div><button class="link" data-market>Chi tiết ›</button></section>`;
   return '';
 }
@@ -443,11 +449,11 @@ export function searchResults(q, rerender) {
   const hr = hrForSearch(rerender);
   const ans = q ? understand(q, { hr, now: today(), all: (t) => store.all(t) }) : null;
   if (ans) markUsed(ans.mau);
-  const hits = store.search(q);
+  const hits = ans && ans.kind === 'goi_y_quan' ? [] : store.search(q); // gợi ý quán: không chen kết quả tìm thường
   const groups = {};
   hits.forEach((h) => (groups[h.table] = groups[h.table] || []).push(h.rec));
   const HR_KINDS = ['don_vi', 'quyet_dinh', 'tong_quan', 'ho_so', 'bao_cao_cc', 'lanh_dao', 'cbql_tong', 'tieu_chuan', 'cho_so_lieu'];
-  const hh = q && (!ans || !HR_KINDS.includes(ans.kind)) ? hrHits(q, hr) : { qd: [], don_vi: [], ho_so: [] };
+  const hh = q && (!ans || (!HR_KINDS.includes(ans.kind) && ans.kind !== 'goi_y_quan')) ? hrHits(q, hr) : { qd: [], don_vi: [], ho_so: [] };
   const hrN = hh.qd.length + hh.don_vi.length + hh.ho_so.length;
   const card = !ans ? '' : HR_KINDS.includes(ans.kind) ? answerHtml(ans) : lifeCard(ans);
   return html`${card}

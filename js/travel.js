@@ -2,11 +2,33 @@
 // kế hoạch tìm hiểu trước và checklist chuẩn bị sinh từ bộ mẫu (đồ "hay quên" của các chuyến trước được đẩy lên đầu).
 import * as store from './store.js';
 import { html, raw, esc, today, addDays, diffDays, fmtDate, fold, weekdayName } from './util.js';
-import { openSheet, toast, errorToast, closeSheet } from './ui.js';
+import { openSheet, toast, errorToast, closeSheet, onTyping } from './ui.js';
 import { openRecord } from './form.js';
 
 let tab = 'trips';
 let myPos = null; // { lat, lng, at }
+// Bộ lọc Sổ địa điểm (tab Đã đến / Muốn đến)
+const loc = { q: '', loai: '', dd: '', bua: '', mon: '' };
+const BUA = ['Ăn sáng', 'Ăn trưa', 'Ăn tối', 'Ăn đêm', 'Ăn vặt', 'Cà phê'];
+export const diaDanhOf = (p) => p.dia_danh || p.tinh || '';
+function placeText(p) { return fold([p.ten, p.dia_chi, p.dia_danh, p.tinh, p.mon_nen_thu, p.ghi_chu, (p.mon || []).join(' '), (p.dac_san || []).join(' '), (p.nhan || []).join(' '), p.loai].join(' ')); }
+function filterBar(list) {
+  const count = (f) => { const m = {}; list.forEach((p) => f(p).forEach((k) => { if (k) m[k] = (m[k] || 0) + 1; })); return Object.entries(m).sort((a, b) => b[1] - a[1]); };
+  const chips = (key, entries, label) => entries.length ? html`<div class="pl-row"><span class="pl-lab">${label}</span>${entries.map(([k, n]) => html`<button class="chip ${loc[key] === k ? 'on' : ''}" data-pl-f="${key}|${k}">${k} <small>${n}</small></button>`)}</div>` : '';
+  return html`<div class="pl-filter">
+    <input class="pl-q" type="search" placeholder="Tìm quán, món, đặc sản, địa danh…" value="${loc.q}" data-pl-q autocomplete="off" autocorrect="off" spellcheck="false">
+    ${chips('dd', count((p) => [diaDanhOf(p)]), '📍')}
+    ${chips('loai', count((p) => [p.loai || 'Khác']), '🏷')}
+    ${chips('bua', count((p) => p.bua || []).sort((a, b) => BUA.indexOf(a[0]) - BUA.indexOf(b[0])), '🕒')}
+    ${chips('mon', count((p) => [...(p.mon || []), ...(p.dac_san || [])]).slice(0, 14), '🍽')}
+    ${Object.values(loc).some(Boolean) ? html`<button class="link" data-pl-clear>Bỏ lọc</button>` : ''}
+  </div>`;
+}
+function applyFilter(list) {
+  const f = fold(loc.q);
+  return list.filter((p) => (!loc.dd || diaDanhOf(p) === loc.dd) && (!loc.loai || (p.loai || 'Khác') === loc.loai) && (!loc.bua || (p.bua || []).includes(loc.bua))
+    && (!loc.mon || [...(p.mon || []), ...(p.dac_san || [])].includes(loc.mon)) && (!f || f.split(' ').every((w) => placeText(p).includes(w))));
+}
 
 function distKm(a, b) {
   const R = 6371, rad = (x) => (x * Math.PI) / 180;
@@ -112,11 +134,12 @@ export function travelView() {
   } else if (tab === 'map') {
     body = html`<div id="place-map" class="place-map"></div><p class="hint">Xanh lá: đã đến · Hồng: yêu thích · Cam: muốn đến · Chấm xanh: bạn đang ở đây</p>`;
   } else if (tab === 'places' || tab === 'want') {
-    const list = (tab === 'want' ? want : been).sort((a, b) => (b.danh_gia || 0) - (a.danh_gia || 0));
+    const all = (tab === 'want' ? want : been);
+    const list = applyFilter(all).sort((a, b) => (b.trang_thai === 'Yêu thích') - (a.trang_thai === 'Yêu thích') || (b.danh_gia || 0) - (a.danh_gia || 0));
     const groups = {};
-    list.forEach((p) => (groups[p.loai || 'Khác'] = groups[p.loai || 'Khác'] || []).push(p));
-    body = list.length
-      ? html`<div class="grid">${Object.entries(groups).map(([k, ps]) => html`<section class="card"><h3 class="card-title">${placeIcon(k)} ${k} <span class="count">${ps.length}</span></h3><ul class="list">${ps.map(placeRow)}</ul></section>`)}</div>`
+    list.forEach((p) => (groups[loc.dd ? (p.loai || 'Khác') : diaDanhOf(p) || 'Chưa rõ nơi'] = groups[loc.dd ? (p.loai || 'Khác') : diaDanhOf(p) || 'Chưa rõ nơi'] || []).push(p));
+    body = all.length
+      ? html`${filterBar(all)}<div id="pl-res">${list.length ? html`<div class="grid">${Object.entries(groups).map(([k, ps]) => html`<section class="card"><h3 class="card-title">${loc.dd ? placeIcon(k) : '📍'} ${k} <span class="count">${ps.length}</span></h3><ul class="list">${ps.map(placeRow)}</ul></section>`)}</div>` : html`<p class="empty">Không có nơi nào khớp bộ lọc.</p>`}</div>`
       : html`<p class="empty big">${tab === 'want' ? 'Chưa lưu nơi nào muốn đến. Dán link Google Maps hoặc nhắn Claude để lưu.' : 'Chưa có địa điểm đã đến.'}</p>`;
   } else {
     const upcoming = trips.filter((t) => ['Lên kế hoạch', 'Sẵn sàng', 'Đang đi'].includes(t._st)).sort((a, b) => ((a.tu_ngay || '9') < (b.tu_ngay || '9') ? -1 : 1));
@@ -149,9 +172,10 @@ function placeRow(p) {
   const trip = p.chuyen_di_id && store.get('chuyen_di', p.chuyen_di_id);
   return html`<li class="row" data-open="dia_diem/${p.id}">
     <div class="doc-icon">${placeIcon(p.loai)}</div>
-    <div class="row-main"><div class="row-title">${p.ten} ${p.danh_gia ? html`<span class="stars">${stars(p.danh_gia)}</span>` : ''}</div>
+    <div class="row-main"><div class="row-title">${p.trang_thai === 'Yêu thích' ? '❤️ ' : ''}${p.ten} ${p.danh_gia ? html`<span class="stars">${stars(p.danh_gia)}</span>` : ''}</div>
       ${p.dia_chi ? html`<div class="row-sub">${p.dia_chi}</div>` : ''}
-      <div class="row-meta">${p.mon_nen_thu ? html`<span>🍽 ${p.mon_nen_thu}</span>` : ''}${p.muc_gia ? html`<span>💰 ${p.muc_gia}</span>` : ''}${trip ? html`<span class="tag">✈️ ${trip.ten}</span>` : ''}
+      <div class="row-meta">${diaDanhOf(p) ? html`<span class="tag">📍 ${diaDanhOf(p)}</span>` : ''}${(p.bua || []).map((b) => html`<span class="tag">${b}</span>`)}${(p.dac_san || []).map((d) => html`<span class="tag tag-dac">⭐ ${d}</span>`)}${(p.mon || []).slice(0, 4).map((m) => html`<span class="tag">${m}</span>`)}</div>
+      <div class="row-meta">${p.mon_nen_thu ? html`<span>🍽 Nên gọi: ${p.mon_nen_thu}</span>` : ''}${p.muc_gia ? html`<span>💰 ${p.muc_gia}</span>` : ''}${trip ? html`<span class="tag">✈️ ${trip.ten}</span>` : ''}
         ${p.lat && p.lng ? html`<a class="tag" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">🧭 Chỉ đường</a>` : p.link_goc ? html`<a class="tag" href="${p.link_goc}" target="_blank" rel="noopener">🗺 Maps</a>` : ''}</div></div></li>`;
 }
 
@@ -336,6 +360,15 @@ export function bindTravel(root, rerender) {
     if ((tab === 'near' || tab === 'map') && (!myPos || Date.now() - myPos.at > 120000)) locate(rerender);
   }));
   root.querySelector('[data-locate]')?.addEventListener('click', () => locate(rerender));
+  root.querySelectorAll('[data-pl-f]').forEach((b) => b.addEventListener('click', () => { const [k, v] = b.dataset.plF.split('|'); loc[k] = loc[k] === v ? '' : v; rerender(); }));
+  root.querySelector('[data-pl-clear]')?.addEventListener('click', () => { Object.keys(loc).forEach((k) => (loc[k] = '')); rerender(); });
+  const qi = root.querySelector('[data-pl-q]');
+  if (qi) onTyping(qi, (v) => {
+    loc.q = v;
+    const box = root.querySelector('#pl-res'); if (!box) return rerender();
+    const tmp = document.createElement('div'); tmp.innerHTML = travelView().__raw;
+    box.innerHTML = tmp.querySelector('#pl-res')?.innerHTML || '';
+  });
   if (tab === 'map') drawMap(root.querySelector('#place-map'));
   root.querySelector('[data-trip-new]')?.addEventListener('click', () => openRecord('chuyen_di', null, { trang_thai: 'Lên kế hoạch' }));
   root.querySelector('[data-place-new]')?.addEventListener('click', () => openRecord('dia_diem', null, { trang_thai: tab === 'want' ? 'Muốn đến' : 'Đã đến' }));

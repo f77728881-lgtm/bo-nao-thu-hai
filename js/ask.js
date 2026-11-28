@@ -2,6 +2,7 @@
 // Thuần dữ liệu (không đụng giao diện) để chạy thử được bằng tests/ask_test.mjs.
 // understand(q, ctx) → { kind, tieu_de, ... } hoặc null.  ctx = { hr, now, viec, van_ban, gia }
 import { fold } from './util.js';
+import { THANH_PHO, TINH_CU } from './diadanh.js';
 
 const QD_KIEU = [
   [/dieu dong|luan chuyen/, 'Điều động nội bộ'], [/bo nhiem/, 'Bổ nhiệm'], [/nghi huu|ve huu/, 'Nghỉ hưu'],
@@ -280,6 +281,9 @@ function lifeAnswer(fq, ctx) {
     const dv = all('don_vi').filter((d) => fold([d.ten, d.ma, d.dau_moi].join(' ')).includes(q));
     return { kind: 'danh_ba', mau: 'sdt', tieu_de: 'Liên hệ “' + q + '”', nguoi: ng, don_vi: dv };
   }
+  // Gợi ý quán theo món / nơi / bữa: "muốn ăn cá", "ăn sáng Việt Trì", "đặc sản Hải Phòng", "khách sạn Hòa Bình"
+  const goiY = goiYQuan(fq, all('dia_diem'), ctx._q);
+  if (goiY) return goiY;
   // Địa điểm, chuyến đi
   const LOAI = [[/quan an|an uong|nha hang|an gi\b|\ban ngon/, 'Quán ăn'], [/ca phe|cafe|coffee/, 'Cà phê'], [/tham quan|choi|di dau/, 'Điểm tham quan'], [/khach san|luu tru|nha nghi|homestay/, 'Lưu trú']];
   const loai = LOAI.find(([re]) => re.test(fq));
@@ -295,6 +299,54 @@ function lifeAnswer(fq, ctx) {
   if (/chuyen di|du lich|cong tac/.test(fq) && /sap|toi|ke hoach|dang/.test(fq)) return L('chuyen_di', 'Chuyến đi sắp tới', all('chuyen_di').filter((c) => c.trang_thai !== 'Đã đi' && (!c.tu_ngay || c.tu_ngay >= now)).sort((a, b) => ((a.tu_ngay || '9') < (b.tu_ngay || '9') ? -1 : 1)), { mau: 'chuyen_di' });
   if (/gia vang|\bsjc\b|vang nhan|ty gia|ti gia|\busd\b|do la/.test(fq)) return { kind: 'gia', mau: 'gia' };
   return null;
+}
+
+// ---------------- Gợi ý quán ăn / chỗ ở từ Sổ địa điểm ----------------
+const MEAL = [[/\ban sang\b|\bbua sang\b/, 'Ăn sáng'], [/\ban trua\b|\bbua trua\b/, 'Ăn trưa'], [/\ban toi\b|\bbua toi\b/, 'Ăn tối'], [/\ban dem\b|\bdem khuya\b/, 'Ăn đêm'], [/\ban vat\b/, 'Ăn vặt']];
+const FOOD_INTENT = /\b(muon an|them an|an gi|an o dau|quan nao|goi y quan|quan ngon|dac san|an sang|an trua|an toi|an dem|an vat|khach san|nha nghi|homestay|cho ngu|o dau tot|nha hang)\b|^an\s/;
+const FOOD_STOP = /\b(muon|them|an|gi|o|dau|quan|nao|goi|y|ngon|dac|san|sang|trua|toi|dem|vat|bua|khach|nha|nghi|homestay|cho|ngu|tot|hang|tai|gan|mon|di|thi|nen|co|khong|the|la|cua|cho)\b/g;
+function nhanDiaDanh(fq, places) {
+  const names = [...new Set([...places.map((p) => p.dia_danh).filter(Boolean), ...THANH_PHO, ...TINH_CU])];
+  let best = '';
+  names.forEach((n) => { const k = fold(n); if ((' ' + fq + ' ').includes(' ' + k + ' ') && k.length > fold(best).length) best = n; });
+  return best;
+}
+export function goiYQuan(fq, places, goc = '') {
+  if (!FOOD_INTENT.test(fq)) return null;
+  const meal = MEAL.find(([re]) => re.test(fq));
+  const hotel = /\b(khach san|nha nghi|homestay|cho ngu)\b/.test(fq);
+  const dd = nhanDiaDanh(fq, places);
+  let rest = fq;
+  if (dd) rest = (' ' + rest + ' ').replace(' ' + fold(dd) + ' ', ' ');
+  const words = rest.replace(FOOD_STOP, ' ').split(' ').filter((w) => w.length >= 2 || /^(ca|ga|bo|oc|de|vit|cua|tom|muc|lau|pho|bun|che|xoi|banh|com|chao)$/.test(w));
+  const dish = words.join(' ').trim();
+  const inPlace = (p) => !dd || [p.dia_danh, p.tinh, p.dia_chi, p.ten].some((x) => (' ' + fold(x || '') + ' ').includes(' ' + fold(dd) + ' '));
+  const hasWord = (s, w) => { const t = ' ' + fold(s || '') + ' '; return t.includes(' ' + w + ' ') && !(w === 'ca' && /\bca phe\b/.test(t) && !/\bca (?!phe)/.test(t)); };
+  const scored = places.filter((p) => !p.archived && inPlace(p))
+    .filter((p) => (hotel ? p.loai === 'Lưu trú' : p.loai !== 'Lưu trú'))
+    .filter((p) => !meal || (p.bua || []).includes(meal[1]) || !(p.bua || []).length)
+    .map((p) => {
+      let s = 0; const ly = [];
+      if (dish) {
+        const w = dish.split(' ');
+        const inList = (list) => (list || []).filter((x) => w.every((t) => hasWord(x, t)));
+        const m1 = inList(p.mon), m2 = inList(p.dac_san);
+        if (m2.length) { s += 6; ly.push('đặc sản ' + m2.join(', ')); }
+        if (m1.length) { s += 5; ly.push(m1.join(', ')); }
+        if (w.every((t) => hasWord(p.mon_nen_thu, t))) { s += 4; if (!ly.length) ly.push(p.mon_nen_thu); }
+        if (!s && w.every((t) => hasWord([p.ten, p.ghi_chu].join(' '), t))) { s += 2; ly.push('có nhắc trong ghi chú'); }
+        if (!s) return null;
+      }
+      if (meal && (p.bua || []).includes(meal[1])) s += 2;
+      s += p.trang_thai === 'Yêu thích' ? 3 : p.trang_thai === 'Đã đến' ? 1 : 0;
+      s += (Number(p.danh_gia) || 0) / 2;
+      return { p, s, ly: ly.join(' · ') };
+    }).filter(Boolean).sort((a, b) => b.s - a.s);
+  // Hiện món đúng dấu như anh gõ: lấy lại các chữ gốc tương ứng với phần món.
+  const dw = dish.split(' ');
+  const dishGoc = goc ? String(goc).split(/\s+/).filter((x) => dw.includes(fold(x))).join(' ') || dish : dish;
+  const tieu = [hotel ? 'Chỗ ở' : dish ? 'Quán có ' + dishGoc : 'Quán ăn', meal ? meal[1].toLowerCase() : '', dd ? 'ở ' + dd : ''].filter(Boolean).join(' ');
+  return { kind: 'goi_y_quan', mau: 'goi_y_quan', tieu_de: tieu, list: scored.slice(0, 12), dish: dishGoc, dd, meal: meal ? meal[1] : '' };
 }
 
 // ---------------- Báo cáo cơ cấu viết lời (đúng mẫu sheet "Báo cáo cơ cấu") ----------------
@@ -400,6 +452,7 @@ function cbqlAnswer(fq, hr) {
 
 /** Hiểu câu hỏi → câu trả lời có cấu trúc, hoặc null nếu không nhận ra. */
 export function understand(q, ctx) {
+  ctx = { ...ctx, _q: q };
   const fq = fold(q);
   if (!fq || fq.length < 3) return null;
   const hr = ctx.hr || {};
@@ -453,7 +506,7 @@ export const BOOK = [
   ['👥 Nhân sự', [['dv_dinh_bien', 'định biên Cẩm Khê', 'thừa/thiếu so với định biên'], ['dv_gioi_tinh', 'tỷ lệ nữ Lâm Thao', ''], ['dv_trinh_do', 'trình độ phòng TCNS', 'viết tắt tên phòng được'], ['dv_tuoi', 'tuổi bình quân Hòa Bình', ''], ['dv_tong', 'Phù Ninh', 'gõ tên đơn vị = xem nhanh'], ['bien_dong', 'biến động tháng này', ''], ['cbql_tong', 'số lượng trưởng phó', '12 phòng, 31 Điện lực, XN, BQL, TT — không tính BGĐ, ĐU-CĐ'], ['lanh_dao', 'lãnh đạo phòng TCNS', 'hoặc: ban lãnh đạo Điện lực Cẩm Khê — trưởng là ai, các phó'], ['tieu_chuan', 'tiêu chuẩn tổ trưởng tổng hợp', 'hoặc: tiêu chuẩn phó trưởng điện lực, kế toán viên'], ['bao_cao_cc', 'tổng hợp cơ cấu công ty', 'hoặc: …Điện lực Cẩm Khê, Xí nghiệp, BQL, phòng TCNS — viết sẵn, bấm Sao chép'], ['qd_loai', 'điều động tháng 12', 'nghỉ hưu, bổ nhiệm, tuyển mới…'], ['qd_ten', 'Nguyễn Văn Hùng', 'tên người → quyết định'], ['qd_so', 'QĐ 3887', 'số quyết định'], ['td_loc', 'thẩm định trễ hạn', 'hoặc: hồ sơ KV2 chưa đăng ký DO'], ['td_ma', 'TD26-001', 'mã hồ sơ']]],
   ['🗒 Ghi chú & dự án', [['gc_ve', 'ghi chú về BHXH', 'ghi chú + chủ đề'], ['gc_ghim', 'ghi chú ghim', ''], ['gc_ngay', 'ghi chú tuần này', ''], ['inbox', 'inbox chưa xử lý', ''], ['du_an', 'dự án đang làm', 'hoặc: dự án sắp hạn']]],
   ['🌱 Bản thân', [['sach_dang', 'đang đọc sách gì', 'hoặc: sách muốn đọc'], ['sach_nam', 'đọc được bao nhiêu sách năm nay', 'so với mục tiêu'], ['thoi_quen', 'thói quen hôm nay', 'kèm chuỗi ngày'], ['on_tieng_trung', 'câu tiếng Trung cần ôn', ''], ['buoi_hoc', 'buổi học tiếp theo', ''], ['tam_trang', 'tâm trạng tuần này', 'từ nhật ký ngày']]],
-  ['📇 Danh bạ, nơi chốn, giá', [['sdt', 'số điện thoại Hùng', 'người hoặc đơn vị'], ['dia_diem', 'quán ăn ở Việt Trì', 'hoặc: cà phê muốn đến'], ['chuyen_di', 'chuyến đi sắp tới', ''], ['gia', 'giá vàng', 'USD, SJC, nhẫn']]]
+  ['📇 Danh bạ, nơi chốn, giá', [['sdt', 'số điện thoại Hùng', 'người hoặc đơn vị'], ['goi_y_quan', 'muốn ăn cá', 'hoặc: ăn sáng Việt Trì, đặc sản Hải Phòng, khách sạn Hòa Bình'], ['dia_diem', 'quán ăn ở Việt Trì', 'hoặc: cà phê muốn đến'], ['chuyen_di', 'chuyến đi sắp tới', ''], ['gia', 'giá vàng', 'USD, SJC, nhẫn']]]
 ];
 export const BOOK_IDS = BOOK.flatMap(([, xs]) => xs.map((x) => x[0]));
 /** Mẹo hỏi trong ngày: ưu tiên mẫu chưa dùng, đổi mỗi ngày. */

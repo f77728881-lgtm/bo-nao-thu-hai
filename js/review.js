@@ -273,6 +273,7 @@ export function todayReviewCards() {
 }
 
 // ---------------- Màn Nhật ký ngày ----------------
+export const NHIN_LAI_TABS = (on) => html`<div class="seg" style="margin-bottom:12px"><a class="${on === 'ngay' ? 'on' : ''}" href="#/nhat-ky">🌙 Từng ngày</a><a class="${on === 'tuan' ? 'on' : ''}" href="#/on-tuan">🗓 Ôn tuần</a></div>`;
 export function journalView() {
   const t = today();
   const rows = store.all('nhat_ky_ngay').sort((a, b) => (a.ngay < b.ngay ? 1 : -1));
@@ -282,7 +283,9 @@ export function journalView() {
   const emo = {}; vals.forEach((r) => (r.cam_xuc || []).forEach((e) => (emo[e] = (emo[e] || 0) + 1)));
   const topEmo = Object.entries(emo).sort((a, b) => b[1] - a[1]).slice(0, 5);
   return html`
-    <header class="page-head"><h1>Nhật ký & tâm trạng</h1><button class="btn btn-primary" data-review>${icon('moon')} ${entryFor(t) ? 'Xem lại hôm nay' : 'Tổng kết hôm nay'}</button></header>
+    <header class="page-head"><h1>Nhìn lại</h1><button class="btn btn-primary" data-review>${icon('moon')} ${entryFor(t) ? 'Xem lại hôm nay' : 'Khép lại hôm nay'}</button></header>
+    ${NHIN_LAI_TABS('ngay')}
+    <p class="hint">Mỗi tối khép lại ngày (5 phút). Chiều thứ 6 ôn tuần: phần nhìn lại tự lấy từ nhật ký các ngày trong tuần, không phải gõ lại.</p>
     <div class="stat-row">
       <div class="stat"><b>${avg('tam_trang')}</b><span>tâm trạng TB</span></div>
       <div class="stat"><b>${avg('nang_luong')}</b><span>năng lượng TB</span></div>

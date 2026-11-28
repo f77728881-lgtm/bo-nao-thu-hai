@@ -90,10 +90,10 @@ export function todayView() {
       ${stat('daxong', doneToday.length, 'đã xong', 'stat-green')}
     </div>
     ${statFilter ? html`<p class="hint filter-hint">Đang lọc. Chạm lại ô số để xem đầy đủ.</p>` : ''}
-    ${!statFilter ? weeklyCta() : ''}
     ${!statFilter ? askTipCard() : ''}
     ${personal && !statFilter ? html`${focusCard()}${upcomingTripCard()}${habitStrip()}` : ''}
     <div class="grid today-grid">${body}</div>
+    ${!statFilter ? weeklyCta() : ''}
     ${personal && !statFilter ? html`${closeDayCard()}` : ''}`;
 }
 
@@ -517,11 +517,11 @@ export function moreView() {
     ['Sắp xếp', [
       ['#/para', 'grid', 'Bản đồ PARA', `${activeP} dự án · ${n('linh_vuc')} lĩnh vực · chuyến đi`],
       ['#/ghi-chu', 'inbox', 'Inbox', `${inboxCount()} chưa xếp · ghi chú #0_Inbox`],
-      ['#/on-tuan', 'calendar', 'Ôn tuần', '15 phút chiều thứ 6']]],
+      ]],
     ['Bản thân', [
       ['#/tu-sach', 'book', 'Tủ sách', `${n('sach', (b) => b.trang_thai === 'Đã đọc' && String(b.xong_ngay || '').startsWith(today().slice(0, 4)))} cuốn năm nay`],
       ['#/ren-luyen', 'spark', 'Rèn luyện', 'thói quen, lộ trình học & tập'],
-      ['#/nhat-ky', 'moon', 'Nhật ký & tâm trạng', 'tổng kết cuối ngày'],
+      ['#/nhat-ky', 'moon', 'Nhìn lại ngày & tuần', 'khép lại ngày · ôn tuần · tâm trạng'],
       ['#/hanh-trinh', 'travel', 'Hành trình & địa điểm', `${n('chuyen_di')} chuyến · ${n('dia_diem')} địa điểm`]]],
     ['Tiện ích', [
       ['#/lich', 'calendar', 'Lịch & sự kiện', 'tháng này, lịch Google'],

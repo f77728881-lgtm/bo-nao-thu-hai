@@ -1350,3 +1350,6 @@ body.demo .brand-name[hidden] { display: inline; }
 .ask-ai-more { text-align: center; margin: 14px 0 4px; font-size: .9rem; }
 .ask-ai-cta { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 8px 0 16px; text-align: center; }
 .ask-ai-cta small { color: var(--muted); max-width: 320px; }
+.nk-lines { margin: 6px 0 0; padding-left: 18px; font-size: .9rem; } .nk-lines li + li { margin-top: 3px; }
+.seg a { text-decoration: none; text-align: center; padding: 6px 12px; border-radius: 8px; font-size: 0.8125rem; color: var(--muted); }
+.seg a.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); font-weight: 600; }

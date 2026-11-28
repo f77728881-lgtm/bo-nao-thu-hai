@@ -6,6 +6,7 @@ import { openSheet, toast, errorToast } from './ui.js';
 import { icon } from './icons.js';
 import * as gcal from './extcal.js';
 import { isInboxNote } from './notes.js';
+import { NHIN_LAI_TABS } from './review.js';
 
 /** Mã tuần ISO "YYYY-Www" của một ngày. */
 export function isoWeek(ymd) {
@@ -32,10 +33,22 @@ export function weeklyCta() {
   return html`<button class="review-cta weekly-cta" data-weekly>🗓<span><b>Ôn tuần · 15 phút</b><small>Dọn Inbox · xem dự án · việc trễ · lịch tuần sau · 3 ưu tiên</small></span></button>`;
 }
 
+/** Gom nhật ký các ngày thuộc tuần wk: số ngày, tâm trạng TB, việc xong, các dòng đáng nhớ. */
+export function nhatKyTuan(wk) {
+  const rs = store.all('nhat_ky_ngay').filter((r) => r.ngay && isoWeek(r.ngay) === wk).sort((a, b) => (a.ngay < b.ngay ? -1 : 1));
+  const m = rs.filter((r) => r.tam_trang);
+  const d = (r) => weekdayName(r.ngay, true);
+  const tot = rs.flatMap((r) => [r.biet_on, r.dieu_hoc].filter(Boolean).map((x) => `${d(r)}: ${String(x).trim()}`));
+  const lines = rs.flatMap((r) => [r.biet_on && `🙏 ${d(r)}: ${r.biet_on}`, r.dieu_hoc && `💡 ${d(r)}: ${r.dieu_hoc}`, r.muon_cai_thien && `🔧 ${d(r)}: ${r.muon_cai_thien}`].filter(Boolean));
+  const doi = rs.filter((r) => r.muon_cai_thien).map((r) => `${d(r)}: ${String(r.muon_cai_thien).trim()}`);
+  return { doi, days: rs.length, mood: m.length ? (m.reduce((s, r) => s + r.tam_trang, 0) / m.length).toFixed(1).replace('.', ',') : '', done: rs.reduce((s, r) => s + (r.so_viec_xong || 0), 0), tot, lines };
+}
+
 export function openWeekly() {
   const wk = isoWeek(today());
   const prev = weekEntry(wk);
-  const st = { buoc: [...(prev?.buoc || [])], dieu_tot: prev?.dieu_tot || '', can_doi: prev?.can_doi || '', uu_tien: [...(prev?.uu_tien || [])] };
+  // Chưa ghi "điều làm tốt" thì điền sẵn từ nhật ký các ngày trong tuần (biết ơn, điều học được).
+  const st = { buoc: [...(prev?.buoc || [])], dieu_tot: prev?.dieu_tot || nhatKyTuan(wk).tot.join('\n'), can_doi: prev?.can_doi || nhatKyTuan(wk).doi.join('\n'), uu_tien: [...(prev?.uu_tien || [])] };
   let step = 0;
   const box = document.createElement('div');
   box.className = 'weekly';
@@ -91,7 +104,10 @@ export function openWeekly() {
           : html`<p class="empty">Chưa có câu hỏi lớn. Vào Ghi chú → ❓ Câu hỏi để viết vài câu (ví dụ: “Làm sao để công tác tuyển dụng của Công ty nhanh và đúng người hơn?”).</p>`}`;
     }
     const opens = store.all('viec').filter((v) => v.trang_thai !== 'Xong').sort((a, b) => ((b.gap && b.quan_trong) - (a.gap && a.quan_trong)) || ((a.han || '9') < (b.han || '9') ? -1 : 1)).slice(0, 30);
+    const nk = nhatKyTuan(wk);
     return html`<h3>6. Nhìn lại & 3 ưu tiên</h3>
+      ${nk.days ? html`<div class="hr-note"><b>Từ nhật ký tuần này</b> · ${nk.days} ngày đã khép lại${nk.mood ? ` · tâm trạng TB ${nk.mood}/5` : ''}${nk.done ? ` · ✓ ${nk.done} việc xong` : ''}
+        ${nk.lines.length ? html`<ul class="nk-lines">${nk.lines.slice(0, 8).map((l) => html`<li>${l}</li>`)}</ul>` : ''}</div>` : html`<p class="hint">Tuần này chưa khép lại ngày nào; tối nay thử 5 phút “Khép lại ngày” để lần ôn tuần sau có sẵn tư liệu.</p>`}
       <div class="field"><label>Điều làm tốt tuần này</label><textarea data-st="dieu_tot" rows="3">${st.dieu_tot}</textarea></div>
       <div class="field"><label>Điều sẽ đổi tuần sau</label><textarea data-st="can_doi" rows="2">${st.can_doi}</textarea></div>
       <h4>3 ưu tiên tuần sau</h4>
@@ -146,7 +162,8 @@ export function openWeekly() {
 export function weeklyView() {
   const rows = store.all('on_tuan').sort((a, b) => (a.tuan < b.tuan ? 1 : -1));
   const cur = weekEntry();
-  return html`<header class="page-head"><h1>Ôn tuần</h1></header>
+  return html`<header class="page-head"><h1>Nhìn lại</h1></header>
+    ${NHIN_LAI_TABS('tuan')}
     <button class="review-cta" data-weekly>🗓<span><b>${cur?.hoan_thanh ? 'Xem lại ôn tuần này' : 'Bắt đầu ôn tuần'}</b><small>6 bước · khoảng 15 phút · nên làm chiều thứ 6</small></span></button>
     <div class="grid">${rows.map((r) => html`<section class="card"><h3 class="card-title">${r.tuan} ${r.hoan_thanh ? '✓' : html`<small class="hint">dở</small>`}</h3>
       ${r.dieu_tot ? html`<p><b>Làm tốt:</b> ${r.dieu_tot}</p>` : ''}${r.can_doi ? html`<p><b>Sẽ đổi:</b> ${r.can_doi}</p>` : ''}

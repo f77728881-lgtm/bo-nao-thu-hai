@@ -1333,3 +1333,15 @@ body.demo .brand-name[hidden] { display: inline; }
 .ghim-li { display: flex; align-items: center; } .ghim-li > .ios-row { flex: 1; min-width: 0; }
 .ghim-btn { border: 0; background: none; color: var(--muted, #8e8e93); font-size: 1.15rem; padding: 8px 12px 8px 4px; cursor: pointer; }
 .ghim-btn.on { color: #ff9f0a; }
+
+/* Biểu mẫu gọn: lưới 2 cột cho trường ngắn, lựa chọn ít thành nút chạm */
+.fgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.fgrid > * { grid-column: 1 / -1; }
+.fgrid > .half { grid-column: auto; }
+.fgrid > .half.field-bool { align-self: end; padding: 8px 0; }
+.seg-pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg-pick label { flex: 1 1 auto; }
+.seg-pick input { position: absolute; opacity: 0; pointer-events: none; }
+.seg-pick span { display: block; text-align: center; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); font-size: .9rem; cursor: pointer; white-space: nowrap; }
+.seg-pick input:checked + span { background: var(--accent, #007aff); border-color: transparent; color: #fff; font-weight: 600; }
+.seg-pick input:focus-visible + span { outline: 2px solid var(--accent, #007aff); }

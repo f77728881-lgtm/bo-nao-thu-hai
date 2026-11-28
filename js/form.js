@@ -26,6 +26,21 @@ const PRIMARY = {
   buoi_hoc: ['tieu_de', 'ngay', 'gio', 'tuan', 'thu_tu', 'muc_tieu', 'noi_dung', 'bai_tap', 'tai_lieu', 'trang_thai'],
   nhat_ky_chuyen_di: ['ngay', 'tieu_de', 'noi_dung', 'tam_trang', 'dia_diem_ids', 'chi_tieu', 'chuyen_di_id']
 };
+// Khi tạo mới chỉ hỏi chừng này (còn lại nằm trong "Thêm thông tin"); khi sửa thì hiện thêm các trường đã có giá trị.
+const CREATE = {
+  viec: ['ten', 'han', 'lap_lai', 'gap', 'quan_trong', 'du_an_id'],
+  van_ban: ['so_hieu', 'trich_yeu', 'han_xu_ly', 'vai_tro', 'link_doffice'],
+  dia_diem: ['ten', 'link_goc', 'dia_chi', 'loai', 'trang_thai', 'bua', 'mon'],
+  su_kien: ['ten', 'bat_dau', 'ket_thuc', 'dia_diem', 'loai'],
+  ghi_chu: ['tieu_de', 'noi_dung', 'nhan'],
+  nguoi: ['ten', 'don_vi', 'chuc_vu', 'dien_thoai'],
+  du_an: ['ten', 'han', 'linh_vuc_id', 'ket_qua'],
+  chuyen_di: ['ten', 'diem_den', 'tu_ngay', 'den_ngay', 'loai']
+};
+const SHORT = new Set(['bool', 'date', 'num', 'ref', 'enum']);
+const hasVal = (x) => x !== undefined && x !== null && x !== '' && x !== false && !(Array.isArray(x) && !x.length);
+/** Lựa chọn ít, chữ ngắn → hiện thành nút chạm thay cho ô thả xuống. */
+const asChips = (f) => f.type === 'enum' && f.values.length <= 4 && f.values.join('').length <= 40;
 const HIDDEN = new Set(['id', 'created_at', 'updated_at', 'archived', 'cal_event_id', 'cal_pending', 'hoan_thanh_luc', 'nguon', 'checklist', 'tim_hieu', 'lich_trinh', 'dat_cho']);
 
 function fieldInput(table, k, f, v) {
@@ -45,6 +60,7 @@ function fieldInput(table, k, f, v) {
     case 'num':
       return html`<div class="field">${lab}<input id="${id}" name="${k}" type="number" step="any" inputmode="decimal" value="${v ?? ''}"></div>`;
     case 'enum':
+      if (asChips(f)) return html`<div class="field">${html`<label>${f.label || label(k)}</label>`}<div class="seg seg-pick">${f.values.map((o) => html`<label><input type="radio" name="${k}" value="${o}" ${o === v ? raw('checked') : ''}><span>${o}</span></label>`)}</div></div>`;
       return html`<div class="field">${lab}<select id="${id}" name="${k}"><option value=""></option>${f.values.map((o) => html`<option ${o === v ? raw('selected') : ''}>${o}</option>`)}</select></div>`;
     case 'date':
       return html`<div class="field">${lab}<input id="${id}" name="${k}" type="date" value="${v || ''}"></div>`;
@@ -102,8 +118,16 @@ export function openRecord(table, id, defaults = {}) {
   if (id && !rec) { toast('Không tìm thấy bản ghi (có thể đã bị lưu trữ).'); return; }
   const v = rec || defaults;
   const fields = sch.fields;
-  const primary = (PRIMARY[table] || []).filter((k) => fields[k]);
-  const rest = Object.keys(fields).filter((k) => !primary.includes(k) && !HIDDEN.has(k) && fields[k].type !== 'sys');
+  const usable = (k) => fields[k] && !HIDDEN.has(k) && fields[k].type !== 'sys';
+  const base = (!rec && CREATE[table]) || PRIMARY[table] || [];
+  // Trường đã có giá trị (sửa, hoặc điền sẵn khi tạo) luôn hiện ra ngoài, theo thứ tự PRIMARY rồi lược đồ.
+  const order = [...new Set([...base, ...(PRIMARY[table] || []), ...Object.keys(fields)])].filter(usable);
+  const primary = order.filter((k) => base.includes(k) || (hasVal(v[k]) && (rec || fields[k].def === undefined || v[k] !== fields[k].def)));
+  const rest = order.filter((k) => !primary.includes(k));
+  const cell = (k) => {
+    const h = fieldInput(table, k, fields[k], v[k]).__raw;
+    return raw(SHORT.has(fields[k].type) && !asChips(fields[k]) ? h.replace('class="field', 'class="half field') : h);
+  };
 
   const extra = rec ? extraFor(table, rec) : table === 'dia_diem' ? placeTools(null) : '';
   const meta = rec ? html`<p class="meta">Nguồn: ${rec.nguon || '—'} · tạo ${fmtDate((rec.created_at || '').slice(0, 10), true)} · sửa ${whenLabel((rec.updated_at || '').slice(0, 10), { overdue: false })}${rec.cal_event_id ? ' · 📅 đã lên lịch' : ''}</p>` : '';
@@ -111,8 +135,8 @@ export function openRecord(table, id, defaults = {}) {
   const form = document.createElement('form');
   form.className = 'record-form';
   form.innerHTML = html`
-    ${primary.map((k) => fieldInput(table, k, fields[k], v[k]))}
-    ${rest.length ? html`<details class="more"><summary>Thêm thông tin</summary>${rest.map((k) => fieldInput(table, k, fields[k], v[k]))}</details>` : ''}
+    <div class="fgrid">${primary.map(cell)}</div>
+    ${rest.length ? html`<details class="more"><summary>Thêm thông tin (${rest.length})</summary><div class="fgrid">${rest.map(cell)}</div></details>` : ''}
     ${extra}
     ${meta}
     ${rec && ['viec', 'van_ban', 'du_an', 'sach'].includes(table) ? askBox(table, rec) : ''}

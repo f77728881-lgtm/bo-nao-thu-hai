@@ -1363,3 +1363,12 @@ body.demo .brand-name[hidden] { display: inline; }
 .lock-screen { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 60px 20px; }
 .lock-ic { font-size: 3rem; }
 .pin-in { letter-spacing: .4em; font-size: 1.3rem !important; text-align: center; }
+
+/* Nói để nhập */
+.search-box, .qa-wrap { position: relative; }
+.search-box:has(.mic-btn) input { padding-right: 48px; }
+.qa-wrap:has(.mic-btn) textarea { padding-right: 48px; }
+.mic-btn { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 38px; height: 38px; border: 0; border-radius: 50%; background: transparent; font-size: 1.15rem; cursor: pointer; }
+.qa-wrap .mic-btn { top: 8px; transform: none; }
+.mic-btn.on { background: #ff3b30; animation: mic-pulse 1.2s ease-in-out infinite; }
+@keyframes mic-pulse { 50% { box-shadow: 0 0 0 8px rgba(255, 59, 48, .2); } }

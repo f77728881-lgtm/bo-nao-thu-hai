@@ -1,5 +1,6 @@
 // Khung app: điều hướng, thanh tab, nhập nhanh, đồng bộ định kỳ.
 import { isLocked, lockView, bindLock } from './lock.js';
+import { micButton } from './voice.js';
 import { CONFIG } from './config.js';
 import { Auth, isDemo } from './api.js';
 import * as store from './store.js';
@@ -242,7 +243,7 @@ const TYPE_LABEL = { viec: '✅ Việc', su_kien: '📅 Sự kiện', ghi_chu: '
 function openQuickAdd() {
   const box = document.createElement('div');
   box.className = 'quick';
-  box.innerHTML = `<textarea id="qa-input" rows="2" placeholder="Ví dụ: mai 9h họp giao ban @phòng họp #đào tạo !gấp" enterkeyhint="done"></textarea>
+  box.innerHTML = `<div class="qa-wrap"><textarea id="qa-input" rows="2" placeholder="Ví dụ: mai 9h họp giao ban @phòng họp #đào tạo !gấp" enterkeyhint="done"></textarea>${micButton('qa-input')}</div>
     <div class="qa-types">${Object.entries(TYPE_LABEL).map(([k, l]) => `<button type="button" class="chip" data-qa-type="${k}">${l}</button>`).join('')}</div>
     <div class="qa-preview" aria-live="polite"></div>
     <p class="hint">Hiểu: hôm nay, mai, mốt, thứ 6, thứ 3 tuần sau, cuối tuần, 25/12 · 9h, 14h30, 3h chiều · 2 tiếng, 45p · #lĩnh vực · !gấp !qt · @địa điểm · tiền tố “việc:”, “ghi chú:”</p>

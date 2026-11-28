@@ -12,6 +12,7 @@ import { todayPriorities, closeDayCard } from './review.js';
 import { isInboxNote, inboxCount } from './notes.js';
 import { healthCard } from './health.js';
 import { isLocked } from './lock.js';
+import { micButton } from './voice.js';
 import * as gcal from './extcal.js';
 import { flashRow } from './flashcards.js';
 import { weeklyCta } from './weekly.js';
@@ -443,7 +444,7 @@ function lifeCard(a) {
 export function searchView(q, rerender) {
   return html`
     <header class="page-head"><h1>Tìm kiếm</h1></header>
-    <div class="search-box"><input id="search-input" type="search" placeholder="Tìm hoặc hỏi: định biên Cẩm Khê, QĐ 3887…" value="${q}" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search"></div>
+    <div class="search-box"><input id="search-input" type="search" placeholder="Tìm hoặc hỏi: định biên Cẩm Khê, QĐ 3887…" value="${q}" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search">${raw(micButton('search-input'))}</div>
     <div id="search-results">${searchResults(q, rerender)}</div>`;
 }
 

@@ -457,7 +457,7 @@ export function searchResults(q, rerender) {
   const hits = ans && ans.kind === 'goi_y_quan' ? [] : store.search(q); // gợi ý quán: không chen kết quả tìm thường
   const groups = {};
   hits.forEach((h) => (groups[h.table] = groups[h.table] || []).push(h.rec));
-  const HR_KINDS = ['don_vi', 'quyet_dinh', 'tong_quan', 'ho_so', 'bao_cao_cc', 'lanh_dao', 'cbql_tong', 'tieu_chuan', 'cho_so_lieu'];
+  const HR_KINDS = ['chuc_danh', 'don_vi', 'quyet_dinh', 'tong_quan', 'ho_so', 'bao_cao_cc', 'lanh_dao', 'cbql_tong', 'tieu_chuan', 'cho_so_lieu'];
   const hrLocked = locked && ans && HR_KINDS.includes(ans.kind);
   const hh = !locked && q && (!ans || (!HR_KINDS.includes(ans.kind) && ans.kind !== 'goi_y_quan')) ? hrHits(q, hr) : { qd: [], don_vi: [], ho_so: [] };
   const hrN = hh.qd.length + hh.don_vi.length + hh.ho_so.length;

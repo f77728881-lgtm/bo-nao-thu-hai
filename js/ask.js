@@ -434,6 +434,35 @@ export function standardText(x, canCu) {
     x.trinh_do ? '1. Trình độ:\n' + lines(x.trinh_do) : '', x.nang_luc ? '2. Năng lực:\n' + lines(x.nang_luc) : '', x.kinh_nghiem ? '3. Kinh nghiệm:\n' + lines(x.kinh_nghiem) : '',
     x.trinh_do_min || tn ? `Kiểm tra nhanh: trình độ tối thiểu ${x.trinh_do_min || '—'}${x.bac_tho ? ' (hoặc bậc thợ ≥ ' + x.bac_tho + '/7)' : ''}${tn ? '; thâm niên ngành: ' + tn : ''}.` : ''].filter(Boolean).join('\n');
 }
+// ---- Ai giữ chức danh gì (sheet DS chức danh: [họ tên, chức danh, tổ, đơn vị]) ----
+// Đội trưởng/phó, trưởng/phó đơn vị: đã có ở phần lãnh đạo (CBQL), không xử lý ở đây.
+const ROLE_RE = /\b(to truong|to pho|ky thuat vien|thu kho|ke toan vien|nhan vien cong nghe thong tin|can bo an toan)\b/;
+const unitKeys = (dv) => { const f = fold(dv); const out = [f]; const s = f.replace(/^(dien luc|xi nghiep|trung tam|ban quan ly|doi) /, ''); if (s !== f && s.length >= 3) out.push(s); return out; };
+/** Câu kiểu "tổ trưởng tổ tổng hợp Điện lực Đà Bắc là ai" → các dòng khớp nhất. */
+export function chucDanhAnswer(fq, hr) {
+  if (!ROLE_RE.test(fq) || /\btieu chuan\b/.test(fq)) return null;
+  const cd = hr.bien_dong && hr.bien_dong.chuc_danh;
+  if (!cd || !cd.list || !cd.list.length) return { kind: 'cho_so_lieu', tieu_de: 'Danh sách chức danh' };
+  const units = [...new Set(cd.list.map((r) => r[3]).filter(Boolean))];
+  let unit = null, ulen = 0, ukey = '';
+  units.forEach((u) => unitKeys(u).forEach((k) => { if (k.length > ulen && (' ' + fq + ' ').includes(' ' + k + ' ')) { unit = u; ulen = k.length; ukey = k; } }));
+  const role = (fq.match(ROLE_RE) || [])[1];
+  let rest = (' ' + fq + ' ').replace(' ' + ukey + ' ', ' ').replace(role, ' ')
+    .replace(/\b(la ai|ai la|ai dang|cua|tai|o|thuoc|dien luc|hien nay|hien tai|cho biet|cac|nhung|danh sach|gom)\b/g, ' ').replace(/\bto\b/g, ' ').replace(/\s+/g, ' ').trim();
+  const words = rest ? rest.split(' ').filter((w) => w.length >= 2) : [];
+  let rows = cd.list.filter((r) => (!unit || r[3] === unit) && fold(r[1]).startsWith(role));
+  const score = (r) => { const t = fold(r[1] + ' ' + r[2]); return words.filter((w) => (' ' + t + ' ').includes(' ' + w + ' ')).length; };
+  if (words.length) {
+    const best = Math.max(0, ...rows.map(score));
+    rows = best ? rows.filter((r) => score(r) === best) : [];
+    // Đúng tên tổ ("Tổ Tổng hợp") xếp trước tổ dài hơn có cùng chữ ("Tổ Quản lý tổng hợp").
+    rows.sort((a, b) => a[2].length - b[2].length);
+  }
+  const head = [role ? (q0 => q0.charAt(0).toUpperCase() + q0.slice(1))(({ 'to truong': 'tổ trưởng', 'to pho': 'tổ phó', 'ky thuat vien': 'kỹ thuật viên', 'thu kho': 'thủ kho', 'ke toan vien': 'kế toán viên', 'nhan vien cong nghe thong tin': 'nhân viên CNTT', 'can bo an toan': 'cán bộ an toàn' })[role]) : 'Chức danh', words.length ? '“' + rest + '”' : '', unit || ''].filter(Boolean).join(' · ');
+  const text = rows.slice(0, 40).map((r) => `${r[1]}${r[2] && fold(r[1]).indexOf(fold(r[2]).replace(/^to /, '')) < 0 ? ' (' + r[2] + ')' : ''} – ${r[3]}: ${r[0]}`).join('\n');
+  return { kind: 'chuc_danh', mau: 'chuc_danh', tieu_de: head, list: rows.slice(0, 40), tong: rows.length, text, loc: cd.loc || '' };
+}
+
 function cbqlAnswer(fq, hr) {
   const bd = hr.bien_dong || {};
   const tc = bd.tieu_chuan;
@@ -467,6 +496,8 @@ export function understand(q, ctx) {
     const ten = pickReport(fq, names);
     return { kind: 'bao_cao_cc', mau: 'bao_cao_cc', ten, names, text: ten ? hr.co_cau.bao_cao[ten] : '', den_ngay: hr.co_cau.den_ngay };
   }
+  const cdq = chucDanhAnswer(fq, hr);
+  if (cdq) return cdq;
   const cbq = cbqlAnswer(fq, hr);
   if (cbq) return cbq;
   const a = lifeAnswer(fq, ctx);
@@ -508,7 +539,7 @@ export const BOOK = [
   ['☀️ Hôm nay & lịch', [['hom_nay', 'hôm nay có gì', 'lịch, việc, quá hạn, văn bản sắp hạn'], ['lich', 'lịch ngày mai', 'hoặc: lịch tuần này, lịch thứ 6, lịch tháng 12'], ['hop', 'họp tuần này', 'chỉ các cuộc họp']]],
   ['✅ Việc', [['viec_qua_han', 'việc quá hạn', ''], ['viec_ngay', 'việc hôm nay', 'hoặc: việc ngày mai, việc thứ 2'], ['viec_tuan', 'việc tuần sau', ''], ['viec_gap', 'việc gấp', 'gấp hoặc quan trọng'], ['viec_cho', 'việc đang chờ', ''], ['viec_xong', 'việc đã xong tuần này', 'để tổng kết'], ['viec_linh_vuc', 'việc đào tạo', 'việc + tên lĩnh vực'], ['viec_khong_han', 'việc chưa có hạn', '']]],
   ['📄 Văn bản', [['vb_han', 'văn bản sắp hạn', 'hoặc: văn bản hạn tuần sau'], ['vb_qua_han', 'văn bản quá hạn', ''], ['vb_chu_tri', 'văn bản chủ trì', 'hoặc: văn bản phối hợp'], ['vb_ngay', 'văn bản tuần này', 'ban hành trong tuần'], ['dv_chua_gui', 'văn bản đơn vị chưa gửi', 'theo dõi 47 đơn vị']]],
-  ['👥 Nhân sự', [['dv_dinh_bien', 'định biên Cẩm Khê', 'thừa/thiếu so với định biên'], ['dv_gioi_tinh', 'tỷ lệ nữ Lâm Thao', ''], ['dv_trinh_do', 'trình độ phòng TCNS', 'viết tắt tên phòng được'], ['dv_tuoi', 'tuổi bình quân Hòa Bình', ''], ['dv_tong', 'Phù Ninh', 'gõ tên đơn vị = xem nhanh'], ['bien_dong', 'biến động tháng này', ''], ['cbql_tong', 'số lượng trưởng phó', '12 phòng, 31 Điện lực, XN, BQL, TT — không tính BGĐ, ĐU-CĐ'], ['lanh_dao', 'lãnh đạo phòng TCNS', 'hoặc: ban lãnh đạo Điện lực Cẩm Khê — trưởng là ai, các phó'], ['tieu_chuan', 'tiêu chuẩn tổ trưởng tổng hợp', 'hoặc: tiêu chuẩn phó trưởng điện lực, kế toán viên'], ['bao_cao_cc', 'tổng hợp cơ cấu công ty', 'hoặc: …Điện lực Cẩm Khê, Xí nghiệp, BQL, phòng TCNS — viết sẵn, bấm Sao chép'], ['qd_loai', 'điều động tháng 12', 'nghỉ hưu, bổ nhiệm, tuyển mới…'], ['qd_ten', 'Nguyễn Văn Hùng', 'tên người → quyết định'], ['qd_so', 'QĐ 3887', 'số quyết định'], ['td_loc', 'thẩm định trễ hạn', 'hoặc: hồ sơ KV2 chưa đăng ký DO'], ['td_ma', 'TD26-001', 'mã hồ sơ']]],
+  ['👥 Nhân sự', [['dv_dinh_bien', 'định biên Cẩm Khê', 'thừa/thiếu so với định biên'], ['dv_gioi_tinh', 'tỷ lệ nữ Lâm Thao', ''], ['dv_trinh_do', 'trình độ phòng TCNS', 'viết tắt tên phòng được'], ['dv_tuoi', 'tuổi bình quân Hòa Bình', ''], ['dv_tong', 'Phù Ninh', 'gõ tên đơn vị = xem nhanh'], ['bien_dong', 'biến động tháng này', ''], ['cbql_tong', 'số lượng trưởng phó', '12 phòng, 31 Điện lực, XN, BQL, TT — không tính BGĐ, ĐU-CĐ'], ['lanh_dao', 'lãnh đạo phòng TCNS', 'hoặc: ban lãnh đạo Điện lực Cẩm Khê — trưởng là ai, các phó'], ['chuc_danh', 'tổ trưởng tổ tổng hợp Đà Bắc', 'hoặc: tổ phó kinh doanh Yên Lập, các tổ trưởng Cẩm Khê'], ['tieu_chuan', 'tiêu chuẩn tổ trưởng tổng hợp', 'hoặc: tiêu chuẩn phó trưởng điện lực, kế toán viên'], ['bao_cao_cc', 'tổng hợp cơ cấu công ty', 'hoặc: …Điện lực Cẩm Khê, Xí nghiệp, BQL, phòng TCNS — viết sẵn, bấm Sao chép'], ['qd_loai', 'điều động tháng 12', 'nghỉ hưu, bổ nhiệm, tuyển mới…'], ['qd_ten', 'Nguyễn Văn Hùng', 'tên người → quyết định'], ['qd_so', 'QĐ 3887', 'số quyết định'], ['td_loc', 'thẩm định trễ hạn', 'hoặc: hồ sơ KV2 chưa đăng ký DO'], ['td_ma', 'TD26-001', 'mã hồ sơ']]],
   ['🗒 Ghi chú & dự án', [['gc_ve', 'ghi chú về BHXH', 'ghi chú + chủ đề'], ['gc_ghim', 'ghi chú ghim', ''], ['gc_ngay', 'ghi chú tuần này', ''], ['inbox', 'inbox chưa xử lý', ''], ['du_an', 'dự án đang làm', 'hoặc: dự án sắp hạn']]],
   ['🌱 Bản thân', [['sach_dang', 'đang đọc sách gì', 'hoặc: sách muốn đọc'], ['sach_nam', 'đọc được bao nhiêu sách năm nay', 'so với mục tiêu'], ['thoi_quen', 'thói quen hôm nay', 'kèm chuỗi ngày'], ['on_tieng_trung', 'câu tiếng Trung cần ôn', ''], ['buoi_hoc', 'buổi học tiếp theo', ''], ['tam_trang', 'tâm trạng tuần này', 'từ nhật ký ngày']]],
   ['📇 Danh bạ, nơi chốn, giá', [['sdt', 'số điện thoại Hùng', 'người hoặc đơn vị'], ['goi_y_quan', 'muốn ăn cá', 'hoặc: ăn sáng Việt Trì, đặc sản Hải Phòng, khách sạn Hòa Bình'], ['dia_diem', 'quán ăn ở Việt Trì', 'hoặc: cà phê muốn đến'], ['chuyen_di', 'chuyến đi sắp tới', ''], ['gia', 'giá vàng', 'USD, SJC, nhẫn']]]

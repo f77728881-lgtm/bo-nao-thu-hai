@@ -342,6 +342,10 @@ export function answerHtml(a) {
   const copyBox = (t) => html`<div class="bc-h"><span></span><button class="btn btn-primary" data-copy-report>Sao chép</button></div><pre class="bc-text" data-bc-text>${t}</pre>`;
   if (a.kind === 'cho_so_lieu') return html`<section class="ans"><div class="ans-h"><span>⏳ ${a.tieu_de}</span></div>
     <p class="hr-note">${loading ? 'Đang lấy số liệu nhân sự mới nhất từ máy chủ, vài giây nữa kết quả sẽ hiện ở đây.' : 'Máy chưa có phần số liệu này. Kiểm tra mạng rồi gõ lại, hoặc mở Thêm → Nhân sự để tải.'}</p></section>`;
+  if (a.kind === 'chuc_danh') return html`<section class="ans"><div class="ans-h"><span>👷 ${a.tieu_de}</span></div>
+    ${a.list.length ? copyBox(a.text) : html`<p class="empty">Không thấy ai giữ chức danh này${a.tieu_de.includes('·') ? ' theo đơn vị/tổ đã gõ' : ''}. Thử bỏ bớt chữ, vd “tổ trưởng Đà Bắc”.</p>`}
+    ${a.tong > a.list.length ? html`<p class="hint">Còn ${a.tong - a.list.length} người nữa: gõ thêm tên đơn vị để lọc.</p>` : ''}
+    ${a.loc ? html`<p class="hr-note">⚠️ Sheet DS chức danh đang lọc theo “${a.loc}”: danh sách có thể chưa đủ.</p>` : ''}${src}</section>`;
   if (a.kind === 'lanh_dao') return html`<section class="ans"><div class="ans-h"><span>👔 Lãnh đạo · ${a.ten}</span></div>${copyBox(a.text)}${src}</section>`;
   if (a.kind === 'cbql_tong') return html`<section class="ans"><div class="ans-h"><span>👔 Trưởng, phó các đơn vị</span></div>
     ${a.tom_tat && a.tom_tat.length ? html`<div class="hr-kpis">${a.tom_tat.map((x) => html`<div class="hr-kpi"><b>${x.tong}</b><small>${x.ten}: ${x.truong} trưởng · ${x.pho} phó</small></div>`)}</div>` : ''}

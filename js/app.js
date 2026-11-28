@@ -266,7 +266,9 @@ function openQuickAdd() {
     sheet.close();
     try {
       if (p.type === 'ghi_chu' && !p.data.nhan) p.data.nhan = ['#0_Inbox'];
-      await store.create(p.type, p.data);
+      // Inbox duy nhất = ghi chú nhãn #0_Inbox.
+      if (p.type === 'inbox') await store.create('ghi_chu', { noi_dung: p.data.noi_dung, nhan: ['#0_Inbox'] });
+      else await store.create(p.type, p.data);
       toast(`Đã thêm ${TYPE_LABEL[p.type].slice(2).toLowerCase()}: ${p.title || p.data.noi_dung}`, { kind: 'ok' });
     } catch (err) { errorToast(err); }
   }

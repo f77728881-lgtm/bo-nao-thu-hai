@@ -228,7 +228,12 @@ function lifeAnswer(fq, ctx) {
     if (/y tuong|de sau/.test(fq)) return L('du_an', 'Ý tưởng dự án', all('du_an').filter((d) => d.trang_thai === 'Ý tưởng'), { mau: 'du_an' });
   }
   // Ghi chú, inbox
-  if (/^inbox|inbox chua|chua xu ly inbox/.test(fq)) return L('inbox', 'Inbox chưa xử lý', all('inbox').filter((x) => !x.da_xu_ly), { mau: 'inbox' });
+  if (/^inbox|inbox chua|chua xu ly inbox|chua xep/.test(fq)) {
+    // Inbox = ghi chú chưa có nhãn chính (#1_Work, #2_Life, #3_Archive).
+    const MAIN = ['#1_work', '#2_life', '#3_archive'];
+    const chuaXep = (n) => { const l = (n.nhan || []).map((x) => String(x).trim().toLowerCase()); return !l.includes('#prompt') && !l.some((x) => MAIN.includes(x)) && n.loai !== 'Khối dựng sẵn' && n.loai !== 'Câu hỏi lớn'; };
+    return L('ghi_chu', 'Inbox (ghi chú chưa xếp)', all('ghi_chu').filter(chuaXep), { mau: 'inbox' });
+  }
   if (/^(ghi chu|note)\b/.test(fq)) {
     if (/ghim/.test(fq)) return L('ghi_chu', 'Ghi chú đã ghim', all('ghi_chu').filter((n) => n.ghim), { mau: 'gc_ghim' });
     if (/checklist|danh sach viec/.test(fq)) return L('ghi_chu', 'Checklist', all('ghi_chu').filter((n) => n.loai === 'Checklist'), { mau: 'gc_ve' });

@@ -5,6 +5,7 @@ import { html, raw, today, addDays, dayOf, whenLabel, fmtDate, weekdayName } fro
 import { openSheet, toast, errorToast } from './ui.js';
 import { icon } from './icons.js';
 import * as gcal from './extcal.js';
+import { isInboxNote } from './notes.js';
 
 /** Mã tuần ISO "YYYY-Www" của một ngày. */
 export function isoWeek(ymd) {
@@ -46,11 +47,11 @@ export function openWeekly() {
     const t = today();
     if (step === 0) {
       const inbox = store.all('inbox').filter((i) => !i.da_xu_ly);
-      const notes = store.all('ghi_chu').filter((n) => (n.nhan || [])[0] === '#0_Inbox' || !(n.nhan || []).length);
+      const notes = store.all('ghi_chu').filter(isInboxNote);
       return html`<h3>1. Thu gom về 0</h3><p class="hint">Mục tiêu: Inbox trống. Mỗi mục: thành việc, xếp vào dự án, lưu tra cứu, hoặc bỏ.</p>
         <ul class="list">
-          <li class="row"><div class="row-main"><div class="row-title">📥 Inbox chưa xử lý: <b>${inbox.length}</b></div></div><a class="btn btn-ghost" href="#/bang/inbox" data-close-weekly>Mở</a></li>
-          <li class="row"><div class="row-main"><div class="row-title">🗒 Ghi chú #0_Inbox: <b>${notes.length}</b></div><div class="row-meta">Gợi ý “Xếp vào 📁…” hiện ngay trên thẻ ghi chú</div></div><a class="btn btn-ghost" href="#/ghi-chu" data-close-weekly>Mở</a></li>
+          ${inbox.length ? html`<li class="row"><div class="row-main"><div class="row-title">📥 Mục Inbox cũ chưa xử lý: <b>${inbox.length}</b></div></div><a class="btn btn-ghost" href="#/bang/inbox" data-close-weekly>Mở</a></li>` : ''}
+          <li class="row"><div class="row-main"><div class="row-title">📥 Inbox (ghi chú chưa xếp): <b>${notes.length}</b></div><div class="row-meta">Gợi ý “Xếp vào 📁…” hiện ngay trên thẻ ghi chú</div></div><a class="btn btn-ghost" href="#/ghi-chu" data-open-inbox data-close-weekly>Mở</a></li>
         </ul>`;
     }
     if (step === 1) {

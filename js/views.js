@@ -9,6 +9,7 @@ import { marketChips } from './market.js';
 import { upcomingTripCard } from './travel.js';
 import { habitStrip, sessionRows } from './training.js';
 import { todayPriorities, closeDayCard } from './review.js';
+import { isInboxNote, inboxCount } from './notes.js';
 import * as gcal from './extcal.js';
 import { flashRow } from './flashcards.js';
 import { weeklyCta } from './weekly.js';
@@ -59,7 +60,7 @@ export function todayView() {
   const otherRows = items.filter((x) => !x.mine).map((x) => x.row);
 
   const docs = store.all('van_ban').filter((d) => todayTab !== 'ca_nhan' && d.trang_thai !== 'Xong' && d.vai_tro !== 'Xem để biết' && d.han_xu_ly && dayOf(d.han_xu_ly) <= in7).sort(byWhen('han_xu_ly'));
-  const inbox = store.all('inbox').filter((i) => !i.da_xu_ly);
+  const inbox = store.all('ghi_chu').filter(isInboxNote).sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
   const personal = todayTab !== 'doffice';
 
   const p = vnNow();
@@ -77,7 +78,7 @@ export function todayView() {
       ${section('Quá hạn', overdue.map((v) => taskRow(v)), { limit: 5 })}
       ${agendaSection}
       ${section('Văn bản sắp hạn (7 ngày)', docs.map(docRow), { limit: 5 })}
-      ${personal && inbox.length ? section('Inbox chưa xử lý', inbox.slice(0, 5).map((r) => genericRow('inbox', r)), { more: html`<a class="more-link" href="#/bang/inbox">Xem tất cả →</a>` }) : ''}`;
+      ${personal && inbox.length ? section('Inbox chưa xếp', inbox.slice(0, 5).map((r) => genericRow('ghi_chu', r)), { more: html`<a class="more-link" href="#/ghi-chu" data-open-inbox>Xem tất cả →</a>` }) : ''}`;
 
   return html`
     ${topCard(t)}
@@ -512,7 +513,7 @@ export function moreView() {
       ['#/tai-chinh', 'cash', 'Tài chính', financeSub()]]],
     ['Sắp xếp', [
       ['#/para', 'grid', 'Bản đồ PARA', `${activeP} dự án · ${n('linh_vuc')} lĩnh vực · chuyến đi`],
-      ['#/bang/inbox', 'inbox', 'Inbox', `${n('inbox', (r) => !r.da_xu_ly)} chưa xử lý`],
+      ['#/ghi-chu', 'inbox', 'Inbox', `${inboxCount()} chưa xếp · ghi chú #0_Inbox`],
       ['#/on-tuan', 'calendar', 'Ôn tuần', '15 phút chiều thứ 6']]],
     ['Bản thân', [
       ['#/tu-sach', 'book', 'Tủ sách', `${n('sach', (b) => b.trang_thai === 'Đã đọc' && String(b.xong_ngay || '').startsWith(today().slice(0, 4)))} cuốn năm nay`],
@@ -531,7 +532,7 @@ export function moreView() {
   const star = (href) => html`<button class="ghim-btn ${ghim.includes(href) ? 'on' : ''}" data-ghim="${href}" aria-label="${ghim.includes(href) ? 'Bỏ ghim' : 'Ghim lên đầu'}">${ghim.includes(href) ? '★' : '☆'}</button>`;
   const row = ([href, ic, label, sub]) => href === 'market'
     ? html`<li class="ghim-li"><button class="ios-row" data-market><span class="ios-ic">${icon(ic)}</span><span class="ios-t">${label}<small>${sub}</small></span><span class="ios-chev">›</span></button>${star(href)}</li>`
-    : html`<li class="ghim-li"><a class="ios-row" href="${href}"><span class="ios-ic">${icon(ic)}</span><span class="ios-t">${label}<small>${sub}</small></span><span class="ios-chev">›</span></a>${star(href)}</li>`;
+    : html`<li class="ghim-li"><a class="ios-row" href="${href}" ${label === 'Inbox' ? raw('data-open-inbox') : ''}><span class="ios-ic">${icon(ic)}</span><span class="ios-t">${label}<small>${sub}</small></span><span class="ios-chev">›</span></a>${star(href)}</li>`;
   return html`<header class="page-head"><h1>Thêm</h1></header>
     ${pinned.length ? html`<h4 class="ios-g">Hay dùng</h4><ul class="ios-list">${pinned.map(row)}</ul>` : html`<p class="hint">Chạm ☆ cạnh mục hay dùng để ghim lên đầu (tối đa ${GHIM_MAX} mục).</p>`}
     ${groups.map(([g, rows]) => html`<h4 class="ios-g">${g}</h4><ul class="ios-list">${rows.filter((r) => !ghim.includes(r[0])).map(row)}</ul>`)}

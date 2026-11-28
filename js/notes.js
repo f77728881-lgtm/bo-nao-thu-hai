@@ -614,4 +614,10 @@ export function dictate(btn, ta) {
 
 export const notesTab = () => tab;
 export const setNotesTab = (t) => { tab = t; query = ''; localStorage.setItem('bnth.noteTab', t); };
+/** Ghi chú đang nằm ở Inbox (chưa xếp): không có nhãn chính, không phải mẫu lệnh hay khối dựng sẵn/câu hỏi lớn. */
+export const isInboxNote = (n) => mainLabel(n) === INBOX && !(n.nhan || []).includes('#Prompt') && !isSpecial(n);
+/** Số mục Inbox: ghi chú chưa xếp + mục Inbox cũ chưa xử lý (nếu còn). */
+export const inboxCount = () => store.all('ghi_chu').filter(isInboxNote).length + store.all('inbox').filter((i) => !i.da_xu_ly).length;
+// Liên kết có data-open-inbox → mở Ghi chú ở tab Inbox.
+document.addEventListener('click', (e) => { if (e.target.closest?.('[data-open-inbox]')) setNotesTab(INBOX); }, true);
 export { esc };

@@ -489,6 +489,18 @@ export function tableView(table) {
     ${section(`${recs.length} mục`, recs.map((r) => (table === 'su_kien' ? eventRow(r) : genericRow(table, r))), { count: false, empty: 'Chưa có gì ở đây.' })}`;
 }
 
+const GHIM_KEY = 'bnth.ghim_them', GHIM_MAX = 4;
+const ghimList = () => { try { return JSON.parse(localStorage.getItem(GHIM_KEY) || '[]'); } catch { return []; } };
+/** Ghim / bỏ ghim một mục trong trang Thêm (lưu trên máy này). */
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-ghim]'); if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  let g = ghimList(); const h = b.dataset.ghim;
+  g = g.includes(h) ? g.filter((x) => x !== h) : [...g, h].slice(-GHIM_MAX);
+  localStorage.setItem(GHIM_KEY, JSON.stringify(g));
+  window.dispatchEvent(new HashChangeEvent('hashchange'));
+}, true);
+
 /** Mục Thêm: danh sách nhóm kiểu Cài đặt iPhone, mỗi thứ một lối vào (không trùng với PARA). */
 export function moreView() {
   const n = (t, f) => store.all(t).filter(f || (() => true)).length;
@@ -513,11 +525,16 @@ export function moreView() {
       ['#/danh-ba', 'user', 'Danh bạ', `${n('nguoi')} người · ${n('don_vi')} đơn vị`],
       ['#/cai-dat', 'settings', 'Cài đặt', 'giao diện, thông báo, D-Office']]]
   ];
+  const ghim = ghimList();
+  const all = groups.flatMap(([, rows]) => rows);
+  const pinned = ghim.map((h) => all.find((r) => r[0] === h)).filter(Boolean);
+  const star = (href) => html`<button class="ghim-btn ${ghim.includes(href) ? 'on' : ''}" data-ghim="${href}" aria-label="${ghim.includes(href) ? 'Bỏ ghim' : 'Ghim lên đầu'}">${ghim.includes(href) ? '★' : '☆'}</button>`;
   const row = ([href, ic, label, sub]) => href === 'market'
-    ? html`<li><button class="ios-row" data-market><span class="ios-ic">${icon(ic)}</span><span class="ios-t">${label}<small>${sub}</small></span><span class="ios-chev">›</span></button></li>`
-    : html`<li><a class="ios-row" href="${href}"><span class="ios-ic">${icon(ic)}</span><span class="ios-t">${label}<small>${sub}</small></span><span class="ios-chev">›</span></a></li>`;
+    ? html`<li class="ghim-li"><button class="ios-row" data-market><span class="ios-ic">${icon(ic)}</span><span class="ios-t">${label}<small>${sub}</small></span><span class="ios-chev">›</span></button>${star(href)}</li>`
+    : html`<li class="ghim-li"><a class="ios-row" href="${href}"><span class="ios-ic">${icon(ic)}</span><span class="ios-t">${label}<small>${sub}</small></span><span class="ios-chev">›</span></a>${star(href)}</li>`;
   return html`<header class="page-head"><h1>Thêm</h1></header>
-    ${groups.map(([g, rows]) => html`<h4 class="ios-g">${g}</h4><ul class="ios-list">${rows.map(row)}</ul>`)}
+    ${pinned.length ? html`<h4 class="ios-g">Hay dùng</h4><ul class="ios-list">${pinned.map(row)}</ul>` : html`<p class="hint">Chạm ☆ cạnh mục hay dùng để ghim lên đầu (tối đa ${GHIM_MAX} mục).</p>`}
+    ${groups.map(([g, rows]) => html`<h4 class="ios-g">${g}</h4><ul class="ios-list">${rows.filter((r) => !ghim.includes(r[0])).map(row)}</ul>`)}
     <p class="hint center">Dự án, lĩnh vực và chuyến đi nằm trong Bản đồ PARA; sự kiện nằm trong Lịch; địa điểm nằm trong Hành trình.</p>`;
 }
 

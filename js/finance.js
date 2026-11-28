@@ -74,19 +74,120 @@ const GOI_Y = [
   ['Thu', 'Thu khác', '➕', []]
 ];
 function openGoiY(rerender) {
-  const body = html`<p class="hint">Bộ gợi ý để bắt đầu. Hạn mức để trống: tháng đầu chỉ theo dõi, sau đó đặt theo số chi thật. Sửa, xóa (lưu trữ) hay thêm bớt từ khóa lúc nào cũng được.</p>
-    <ul class="ios-list hr-kv">${GOI_Y.map(([c, t, ic, k]) => html`<li><span>${ic} ${t}<small class="hr-d">${c}${k.length ? ' · ' + k.join(', ') : ''}</small></span></li>`)}</ul>
-    <div class="hr-acts" style="margin-top:12px"><button class="btn btn-primary" data-goiy-ok>Tạo ${GOI_Y.length} danh mục này</button><button class="btn btn-ghost" data-close-sheet>Để tôi tự thêm</button></div>`;
-  const sh = openSheet(body.__raw, { title: 'Bộ danh mục gợi ý' });
-  sh.body.querySelector('[data-close-sheet]').onclick = () => sh.close();
+  const have = new Set(DM().map((d) => fold(d.ten)));
+  const list = GOI_Y.filter(([, t]) => !have.has(fold(t)));
+  if (!list.length) return toast('Đã có đủ các danh mục gợi ý');
+  const body = html`<p class="hint">Bỏ tích mục nào không dùng. Hạn mức để trống: tháng đầu chỉ theo dõi. Tạo xong vẫn sửa, thêm, bớt được.</p>
+    <ul class="ios-list goiy">${list.map(([c, t, ic, k], i) => html`<li><label class="goiy-row"><input type="checkbox" data-gy="${i}" checked><span class="goiy-ic">${ic}</span><span class="tc-t"><b>${t}</b><small>${c}${k.length ? ' · tự xếp: ' + k.join(', ') : ''}</small></span></label></li>`)}</ul>
+    <div class="hr-acts" style="margin-top:12px"><button class="btn btn-primary" data-goiy-ok>Tạo các mục đã chọn</button></div>`;
+  const sh = openSheet(body.__raw, { title: 'Danh mục gợi ý' });
   sh.body.querySelector('[data-goiy-ok]').onclick = async () => {
+    const pick = [...sh.body.querySelectorAll('[data-gy]:checked')].map((x) => list[+x.dataset.gy]);
+    if (!pick.length) return toast('Chưa chọn mục nào');
     try {
-      const have = new Set(DM().map((d) => fold(d.ten)));
-      let i = 0;
-      for (const [chieu, ten, ic, kw] of GOI_Y) { i++; if (!have.has(fold(ten))) await store.create('danh_muc', { ten, chieu, bieu_tuong: ic, tu_khoa: kw.map((x) => x.trim()), thu_tu: i }); }
-      sh.close(); toast('Đã tạo danh mục', { kind: 'ok' }); rerender();
+      let n = DM().length;
+      for (const [chieu, ten, ic, kw] of pick) await store.create('danh_muc', { ten, chieu, bieu_tuong: ic, tu_khoa: kw.map((x) => x.trim()), thu_tu: ++n });
+      sh.close(); toast(`Đã tạo ${pick.length} danh mục`, { kind: 'ok' }); rerender();
     } catch (e) { errorToast(e); }
   };
+}
+
+// ---------------- Quản lý danh mục (thêm, sửa, lưu trữ) ----------------
+const ICONS = ['🍜', '🛒', '⛽', '💡', '🏠', '🛍', '🎒', '💊', '🎁', '🎬', '📚', '🏦', '☕', '🍺', '👕', '📱', '🚗', '✈️', '🐶', '💼', '🏆', '💰', '❤️', '•'];
+export function openQuanLyDM(rerender) {
+  const draw = () => {
+    const ds = DM();
+    const row = (d) => html`<li><button class="tc-g" data-dm-sua="${d.id}"><span class="tc-ic">${d.bieu_tuong || '•'}</span>
+      <span class="tc-t"><b>${d.ten}</b><small>${[d.chieu === 'Thu' ? 'Thu' : d.han_muc_thang ? 'hạn mức ' + tien(d.han_muc_thang) : 'chưa đặt hạn mức', (d.tu_khoa || []).length ? (d.tu_khoa || []).length + ' từ khóa tự xếp' : ''].filter(Boolean).join(' · ')}</small></span><span class="ios-chev">›</span></button></li>`;
+    return html`<div class="hr-acts"><button class="btn btn-primary" data-dm-moi>＋ Thêm danh mục</button>${GOI_Y.some(([, t]) => !ds.some((d) => fold(d.ten) === fold(t))) ? html`<button class="btn" data-dm-goiy>Thêm từ gợi ý</button>` : ''}</div>
+      <h5 class="hr-sub">Chi · ${ds.filter((d) => d.chieu !== 'Thu').length}</h5><ul class="ios-list">${ds.filter((d) => d.chieu !== 'Thu').map(row)}</ul>
+      <h5 class="hr-sub">Thu · ${ds.filter((d) => d.chieu === 'Thu').length}</h5><ul class="ios-list">${ds.filter((d) => d.chieu === 'Thu').map(row)}</ul>
+      <p class="hint">Chạm một danh mục để sửa tên, biểu tượng, hạn mức, từ khóa tự xếp, hoặc xóa.</p>`.__raw;
+  };
+  const sh = openSheet(draw(), { title: 'Danh mục thu chi' });
+  // Mở trang sửa sẽ thay trang này; lưu xong thì quay lại danh sách.
+  const back = () => { rerender(); openQuanLyDM(rerender); };
+  sh.body.querySelector('[data-dm-moi]').onclick = () => openDanhMuc(null, back);
+  sh.body.querySelector('[data-dm-goiy]')?.addEventListener('click', () => openGoiY(rerender));
+  sh.body.querySelectorAll('[data-dm-sua]').forEach((b) => (b.onclick = () => openDanhMuc(store.get('danh_muc', b.dataset.dmSua), back)));
+}
+
+/** Sửa / thêm một danh mục trong một màn: tên, thu/chi, biểu tượng, hạn mức, từ khóa (chạm × để bỏ). */
+export function openDanhMuc(d, done) {
+  let chieu = d?.chieu || 'Chi', ic = d?.bieu_tuong || '🍜', kw = [...(d?.tu_khoa || [])];
+  const used = d ? store.all('giao_dich').filter((g) => g.danh_muc_id === d.id).length : 0;
+  const box = document.createElement('div');
+  const draw = () => {
+    const ten = box.querySelector('[data-ten]')?.value ?? d?.ten ?? '';
+    const hm = box.querySelector('[data-hm]')?.value ?? (d?.han_muc_thang ?? '');
+    box.innerHTML = html`
+      <div class="field"><label>Tên danh mục</label><input data-ten value="${ten}" placeholder="vd: Ăn uống, Xăng xe, Học phí con"></div>
+      <div class="seg tc-loai" style="margin-top:10px">${['Chi', 'Thu'].map((c) => html`<button class="${chieu === c ? 'on' : ''}" data-ch="${c}">${c === 'Chi' ? 'Khoản chi' : 'Khoản thu'}</button>`)}</div>
+      <h5 class="hr-sub">Biểu tượng</h5><div class="ic-pick">${ICONS.map((x) => html`<button class="${x === ic ? 'on' : ''}" data-ic="${x}">${x}</button>`)}</div>
+      ${chieu === 'Chi' ? html`<div class="field" style="margin-top:10px"><label>Hạn mức mỗi tháng (để trống = chưa đặt)</label><input data-hm value="${hm}" placeholder="vd: 3tr, 500k" inputmode="text"><small class="hint" data-hm-xem>${docSoTien(String(hm)) ? tien(docSoTien(String(hm))) : ''}</small></div>` : ''}
+      <h5 class="hr-sub">Từ khóa tự xếp <small>giao dịch có chữ này sẽ tự vào danh mục</small></h5>
+      <div class="kw-chips">${kw.map((k, i) => html`<span class="kw">${k}<button data-kw-x="${i}" aria-label="Bỏ">×</button></span>`)}${!kw.length ? html`<small class="hint">Chưa có</small>` : ''}</div>
+      <div class="kw-add"><input data-kw-in placeholder="vd: grab, winmart, học phí" autocapitalize="off"><button class="btn" data-kw-them>Thêm</button></div>
+      <div class="hr-acts" style="margin-top:14px"><button class="btn btn-primary" data-luu>Lưu</button>${d ? html`<button class="btn btn-ghost tc-xoa" data-xoa>Xóa danh mục</button>` : ''}</div>
+      ${d && used ? html`<p class="hint">${used} giao dịch đang dùng danh mục này. Xóa thì các giao dịch đó trở về “chưa phân loại”.</p>` : ''}`.__raw;
+    box.querySelectorAll('[data-ch]').forEach((b) => (b.onclick = () => { chieu = b.dataset.ch; draw(); }));
+    box.querySelectorAll('[data-ic]').forEach((b) => (b.onclick = () => { ic = b.dataset.ic; draw(); }));
+    box.querySelectorAll('[data-kw-x]').forEach((b) => (b.onclick = () => { kw.splice(+b.dataset.kwX, 1); draw(); }));
+    const add = () => { const v = box.querySelector('[data-kw-in]').value.trim().toLowerCase(); if (v.length >= 2 && !kw.includes(v)) kw.push(v); draw(); box.querySelector('[data-kw-in]').focus(); };
+    box.querySelector('[data-kw-them]').onclick = add;
+    box.querySelector('[data-kw-in]').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } };
+    const hmIn = box.querySelector('[data-hm]');
+    if (hmIn) hmIn.oninput = () => { const n = docSoTien(hmIn.value); box.querySelector('[data-hm-xem]').textContent = n ? tien(n) : ''; };
+    box.querySelector('[data-luu]').onclick = save;
+    box.querySelector('[data-xoa]')?.addEventListener('click', xoa);
+  };
+  async function save() {
+    const ten = box.querySelector('[data-ten]').value.trim();
+    if (!ten) { toast('Nhập tên danh mục'); return; }
+    if (DM().some((x) => x.id !== d?.id && fold(x.ten) === fold(ten))) { toast('Đã có danh mục tên này'); return; }
+    const hmv = box.querySelector('[data-hm]')?.value.trim();
+    const data = { ten, chieu, bieu_tuong: ic, tu_khoa: kw, han_muc_thang: chieu === 'Chi' && hmv ? docSoTien(hmv) : null };
+    try {
+      if (d) await store.update('danh_muc', d.id, data); else await store.create('danh_muc', { ...data, thu_tu: DM().length + 1 });
+      toast(d ? 'Đã lưu' : 'Đã thêm danh mục', { kind: 'ok' }); sh.close(); done?.();
+    } catch (e) { errorToast(e); }
+  }
+  async function xoa() {
+    if (!confirm(`Xóa danh mục “${d.ten}”?${used ? ` ${used} giao dịch sẽ thành chưa phân loại.` : ''}`)) return;
+    try {
+      for (const g of store.all('giao_dich').filter((x) => x.danh_muc_id === d.id)) await store.update('giao_dich', g.id, { danh_muc_id: '', trang_thai: 'Chờ duyệt' });
+      await store.archive('danh_muc', d.id); toast('Đã xóa danh mục'); sh.close(); done?.();
+    } catch (e) { errorToast(e); }
+  }
+  const sh = openSheet(box, { title: d ? 'Sửa danh mục' : 'Thêm danh mục' });
+  draw();
+}
+
+// ---------------- Nguồn tiền (ví, tài khoản, thẻ) ----------------
+const LOAI_TK = [['Ngân hàng', '🏦'], ['Thẻ tín dụng', '💳'], ['Tiền mặt', '💵'], ['Tiết kiệm', '🐷'], ['Ví điện tử', '📱'], ['Khác', '•']];
+export function openNguon(t, done) {
+  let loai = t?.loai || 'Ngân hàng';
+  const box = document.createElement('div');
+  const draw = () => {
+    const v = (k, def) => box.querySelector(`[data-${k}]`)?.value ?? def;
+    box.innerHTML = html`
+      <div class="field"><label>Tên</label><input data-ten value="${v('ten', t?.ten || '')}" placeholder="vd: Timo, BIDV lương, Thẻ Mastercard"></div>
+      <h5 class="hr-sub">Loại</h5><div class="tc-chips wrap">${LOAI_TK.map(([l, i]) => html`<button class="chip ${loai === l ? 'on' : ''}" data-lo="${l}">${i} ${l}</button>`)}</div>
+      <div class="field" style="margin-top:10px"><label>Ngân hàng (tên, không ghi số tài khoản)</label><input data-nh value="${v('nh', t?.ngan_hang || '')}" placeholder="vd: BIDV, Timo (Bản Việt)"></div>
+      <div class="field"><label>4 số cuối (để khớp tin báo; không bắt buộc)</label><input data-nd value="${v('nd', t?.nhan_dien || '')}" inputmode="numeric" maxlength="4" placeholder="vd: 1087"></div>
+      ${loai === 'Thẻ tín dụng' ? html`<p class="hr-note">💳 <b>Thẻ tín dụng:</b> mỗi lần quẹt thẻ ghi là <b>Chi</b> từ nguồn này. Khi trả nợ thẻ từ tài khoản ngân hàng, ghi là <b>Nội bộ</b> (từ ngân hàng → thẻ) để không tính chi hai lần.</p>` : ''}
+      <div class="hr-acts" style="margin-top:12px"><button class="btn btn-primary" data-luu>Lưu</button>${t ? html`<button class="btn btn-ghost tc-xoa" data-an>${t.dang_dung === false ? 'Dùng lại' : 'Ngừng dùng'}</button>` : ''}</div>`.__raw;
+    box.querySelectorAll('[data-lo]').forEach((b) => (b.onclick = () => { loai = b.dataset.lo; draw(); }));
+    box.querySelector('[data-luu]').onclick = async () => {
+      const ten = box.querySelector('[data-ten]').value.trim(); if (!ten) return toast('Nhập tên');
+      const nd = box.querySelector('[data-nd]').value.replace(/\D/g, '').slice(-4);
+      const data = { ten, loai, ngan_hang: box.querySelector('[data-nh]').value.trim(), nhan_dien: nd };
+      try { if (t) await store.update('tai_khoan', t.id, data); else await store.create('tai_khoan', { ...data, dang_dung: true }); sh.close(); toast('Đã lưu', { kind: 'ok' }); done?.(); } catch (e) { errorToast(e); }
+    };
+    box.querySelector('[data-an]')?.addEventListener('click', async () => { try { await store.update('tai_khoan', t.id, { dang_dung: t.dang_dung === false }); sh.close(); done?.(); } catch (e) { errorToast(e); } });
+  };
+  const sh = openSheet(box, { title: t ? 'Sửa nguồn tiền' : 'Thêm nguồn tiền' });
+  draw();
 }
 
 // ---------------- Nhập nhanh ----------------
@@ -217,9 +318,9 @@ function nganSach(s) {
     <h4 class="ios-g">Danh mục chi · chạm để đặt hạn mức</h4>
     ${chi.length ? html`<ul class="ios-list">${chi.map(bar)}</ul>` : ''}
     ${thu.length ? html`<h4 class="ios-g">Danh mục thu</h4><ul class="ios-list hr-kv">${thu.map((d) => html`<li><span>${d.bieu_tuong || ''} ${d.ten}</span><b class="up">${tien(d.da)}</b></li>`)}</ul>` : ''}
-    <div class="hr-acts" style="margin-top:12px"><button class="btn" data-new-dm>＋ Danh mục</button><button class="btn btn-ghost" data-sua-dm>Sửa danh mục, từ khóa</button></div>
+    <div class="hr-acts" style="margin-top:12px"><button class="btn btn-primary" data-ql-dm>🏷 Quản lý danh mục</button></div>
     <h4 class="ios-g">Nguồn tiền</h4>
-    ${TK().length ? html`<ul class="ios-list hr-kv">${store.all('tai_khoan').map((t) => html`<li><span><button class="link" data-tk-sua="${t.id}">${t.ten}</button><small class="hr-d">${[t.loai, t.ngan_hang, t.nhan_dien ? '…' + t.nhan_dien : ''].filter(Boolean).join(' · ')}</small></span></li>`)}</ul>` : html`<p class="hint">Chưa có nguồn tiền (ví, tài khoản lương…). Không bắt buộc ở giai đoạn này.</p>`}
+    ${store.all('tai_khoan').length ? html`<ul class="ios-list">${store.all('tai_khoan').map((t) => html`<li><button class="tc-g" data-tk-sua="${t.id}"><span class="tc-ic">${(LOAI_TK.find(([l]) => l === t.loai) || ['', '•'])[1]}</span><span class="tc-t"><b>${t.ten}${t.dang_dung === false ? ' (ngừng dùng)' : ''}</b><small>${[t.loai, t.ngan_hang, t.nhan_dien ? '…' + t.nhan_dien : ''].filter(Boolean).join(' · ')}</small></span><span class="ios-chev">›</span></button></li>`)}</ul>` : html`<p class="hint">Chưa có nguồn tiền. Thêm từng tài khoản, thẻ, ví anh dùng (Timo, BIDV, thẻ Mastercard, tiền mặt) để biết tiền đi ra từ đâu.</p>`}
     <div class="hr-acts"><button class="btn" data-new-tk>＋ Nguồn tiền</button></div>
     <p class="hr-src">Không ghi số tài khoản, số thẻ hay số dư. “Nhận diện” chỉ cần tối đa 4 số cuối để khớp tin báo ngân hàng.</p>
     <h4 class="ios-g">Nhận tự động từ email Timo</h4>
@@ -278,10 +379,10 @@ export function bindFinance(main, rerender) {
   main.querySelectorAll('[data-thang]').forEach((b) => b.addEventListener('click', () => { const d = +b.dataset.thang; thang = d ? doiThang(thang, d) : today().slice(0, 7); rerender(); }));
   main.querySelector('[data-tc-them]')?.addEventListener('click', () => openThem(rerender));
   main.querySelector('[data-goiy]')?.addEventListener('click', () => openGoiY(rerender));
-  main.querySelectorAll('[data-new-dm]').forEach((b) => b.addEventListener('click', () => openRecord('danh_muc', null, { chieu: 'Chi' })));
-  main.querySelector('[data-sua-dm]')?.addEventListener('click', () => { const d = DM()[0]; if (d) openRecord('danh_muc', d.id); });
-  main.querySelector('[data-new-tk]')?.addEventListener('click', () => openRecord('tai_khoan', null, { loai: 'Ngân hàng', dang_dung: true }));
-  main.querySelectorAll('[data-tk-sua]').forEach((b) => b.addEventListener('click', () => openRecord('tai_khoan', b.dataset.tkSua)));
+  main.querySelectorAll('[data-new-dm]').forEach((b) => b.addEventListener('click', () => openDanhMuc(null, rerender)));
+  main.querySelector('[data-ql-dm]')?.addEventListener('click', () => openQuanLyDM(rerender));
+  main.querySelector('[data-new-tk]')?.addEventListener('click', () => openNguon(null, rerender));
+  main.querySelectorAll('[data-tk-sua]').forEach((b) => b.addEventListener('click', () => openNguon(store.get('tai_khoan', b.dataset.tkSua), rerender)));
   main.querySelectorAll('[data-hm-dm]').forEach((b) => b.addEventListener('click', () => { const d = store.get('danh_muc', b.dataset.hmDm); if (d) openHanMuc(d, rerender); }));
   main.querySelectorAll('[data-gd]').forEach((b) => b.addEventListener('click', () => openRecord('giao_dich', b.dataset.gd)));
   main.querySelectorAll('[data-loc]').forEach((s) => s.addEventListener('change', () => { loc[s.dataset.loc] = s.value; rerender(); }));

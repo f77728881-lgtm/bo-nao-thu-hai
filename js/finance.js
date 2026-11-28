@@ -7,7 +7,6 @@ import { openSheet, closeSheet, toast, errorToast } from './ui.js';
 import { openRecord } from './form.js';
 import { call, isDemo } from './api.js';
 
-const DIEM_NHAN = 'https://bnth-mcp.f77728881.workers.dev/tc/nhan';
 let nhan = null; // trạng thái điểm nhận tự động (tải khi mở tab Ngân sách)
 
 let tab = localStorage.getItem('bnth.tcTab') || 'tong_quan';
@@ -223,34 +222,25 @@ function nganSach(s) {
     ${TK().length ? html`<ul class="ios-list hr-kv">${store.all('tai_khoan').map((t) => html`<li><span><button class="link" data-tk-sua="${t.id}">${t.ten}</button><small class="hr-d">${[t.loai, t.ngan_hang, t.nhan_dien ? '…' + t.nhan_dien : ''].filter(Boolean).join(' · ')}</small></span></li>`)}</ul>` : html`<p class="hint">Chưa có nguồn tiền (ví, tài khoản lương…). Không bắt buộc ở giai đoạn này.</p>`}
     <div class="hr-acts"><button class="btn" data-new-tk>＋ Nguồn tiền</button></div>
     <p class="hr-src">Không ghi số tài khoản, số thẻ hay số dư. “Nhận diện” chỉ cần tối đa 4 số cuối để khớp tin báo ngân hàng.</p>
-    <h4 class="ios-g">Nhận tự động từ ngân hàng</h4>
-    <div class="ans tc-nhan">${nhan === null ? html`<p class="hint">Đang tải trạng thái…</p>` : nhan.co_khoa
-      ? html`<p>✅ Đang bật${nhan.tin_luc ? html` · tin gần nhất ${new Date(nhan.tin_luc).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}` : ' · chưa nhận tin nào'} · ${nhan.so_tin} giao dịch đã nhận${nhan.bo_qua || nhan.khong_doc ? html`<br><small class="hint">Tin nhận được nhưng không phải biến động: ${nhan.bo_qua}${nhan.khong_doc ? ` · không đọc được định dạng: ${nhan.khong_doc}` : ''}</small>` : ''}${nhan.thu_luc ? html`<br><small class="hint">Thử kết nối thành công lúc ${new Date(nhan.thu_luc).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}</small>` : ''}</p>
-        <div class="hr-acts"><button class="btn" data-khoa-tao>Tạo khóa mới</button><button class="btn btn-ghost" data-khoa-tat>Tắt nhận tự động</button></div>`
-      : html`<p class="hint">Điện thoại (MacroDroid) gửi thông báo biến động của Timo về đây. Tạo khóa rồi làm theo hướng dẫn cài macro.</p>
-        <div class="hr-acts"><button class="btn btn-primary" data-khoa-tao>Tạo khóa nhận tự động</button></div>`}</div>`;
+    <h4 class="ios-g">Nhận tự động từ email Timo</h4>
+    <div class="ans tc-nhan">${nhan === null ? html`<p class="hint">Đang tải trạng thái…</p>` : html`
+      <p>${nhan.mail_loi ? html`⚠️ ${nhan.mail_loi}` : nhan.mail_luc ? html`✅ Đang chạy · kiểm tra Gmail gần nhất ${hhmm(nhan.mail_luc)}` : '⏳ Chưa kiểm tra lần nào'}
+        <br><small class="hint">${nhan.so_tin} giao dịch tự động${nhan.tin_luc ? ` · giao dịch gần nhất ${hhmm(nhan.tin_luc)}` : ''}${nhan.bo_qua ? ` · ${nhan.bo_qua} thư không phải biến động` : ''}</small></p>
+      <div class="hr-acts"><button class="btn" data-mail-ngay>Kiểm tra email ngay</button></div>
+      <p class="hint">Máy chủ tự đọc email từ support@timo.vn mỗi 5 phút (6:00–23:30), chỉ đọc, không sửa gì trong Gmail. Số dư và số tài khoản bị bỏ ngay khi đọc.</p>`}</div>`;
 }
 
 async function loadNhan(rerender) {
   try { nhan = isDemo() ? { co_khoa: false, so_tin: 0 } : await call('tc_nhan_trang_thai'); } catch (e) { nhan = { co_khoa: false, so_tin: 0, loi: true }; }
   rerender();
 }
-async function taoKhoa(rerender) {
-  if (nhan?.co_khoa && !confirm('Tạo khóa mới thì khóa cũ trong MacroDroid hết hiệu lực. Tiếp tục?')) return;
-  if (isDemo()) return toast('Bản thử không tạo khóa thật');
-  try {
-    const r = await call('tc_khoa_tao');
-    const body = html`<p><b>Khóa chỉ hiện một lần.</b> Chép vào MacroDroid ngay; máy chủ chỉ giữ bản băm nên không xem lại được.</p>
-      <h5 class="hr-sub">Địa chỉ nhận (URL)</h5><pre class="bc-text" data-copy-src>${DIEM_NHAN}</pre><button class="btn" data-copy-this>Sao chép địa chỉ</button>
-      <h5 class="hr-sub">Header X-BNTH-Khoa</h5><pre class="bc-text" data-copy-src>${r.khoa}</pre><button class="btn btn-primary" data-copy-this>Sao chép khóa</button>
-      <p class="hint">Không gửi khóa này cho ai, kể cả Claude. Lộ khóa thì bấm “Tạo khóa mới”.</p>`;
-    const sh = openSheet(body.__raw, { title: 'Khóa nhận tự động' });
-    sh.body.querySelectorAll('[data-copy-this]').forEach((b) => (b.onclick = async () => {
-      const t = b.previousElementSibling.textContent;
-      try { await navigator.clipboard.writeText(t); toast('Đã sao chép'); } catch (e) { const rg = document.createRange(); rg.selectNodeContents(b.previousElementSibling); const s = getSelection(); s.removeAllRanges(); s.addRange(rg); toast('Đã bôi đen — giữ ngón tay → Sao chép'); }
-    }));
-    nhan = null; loadNhan(rerender);
-  } catch (e) { errorToast(e); }
+const hhmm = (iso) => new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+async function mailNgay(rerender, btn) {
+  if (isDemo()) return toast('Bản thử không đọc email');
+  btn.disabled = true; btn.textContent = 'Đang đọc Gmail…';
+  try { const r = await call('tc_mail_ngay'); toast(r.da_ghi ? `Đã ghi ${r.da_ghi} giao dịch mới` : 'Không có giao dịch mới', { kind: 'ok' }); }
+  catch (e) { errorToast(e); }
+  nhan = null; loadNhan(rerender);
 }
 
 /** Sau khi phân loại một giao dịch tự động: đề xuất quy tắc "lần sau tự xếp" (anh đồng ý mới lưu). */
@@ -302,11 +292,7 @@ export function bindFinance(main, rerender) {
     try { await store.update('giao_dich', gid, { danh_muc_id: did, trang_thai: 'Đã duyệt' }); toast('Đã phân loại: ' + name('danh_muc', did), { kind: 'ok' }); rerender(); deXuatQuyTac(g, did); } catch (err) { errorToast(err); }
   }));
   if (tab === 'ngan_sach' && nhan === null) loadNhan(rerender);
-  main.querySelector('[data-khoa-tao]')?.addEventListener('click', () => taoKhoa(rerender));
-  main.querySelector('[data-khoa-tat]')?.addEventListener('click', async () => {
-    if (!confirm('Tắt nhận tự động? MacroDroid sẽ bị từ chối cho tới khi tạo khóa mới.')) return;
-    try { await call('tc_khoa_tat'); nhan = null; loadNhan(rerender); } catch (e) { errorToast(e); }
-  });
+  main.querySelector('[data-mail-ngay]')?.addEventListener('click', (e) => mailNgay(rerender, e.currentTarget));
 }
 
 /** Dòng gọn cho ô Tìm: "chi tiêu tháng này". */

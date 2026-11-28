@@ -1,6 +1,8 @@
 // Tùy chỉnh giao diện: sáng/tối, cỡ chữ, màu nhấn. Lưu trên máy (localStorage).
+import { lockOn, hasFaceId, faceIdSupported, setupPin, setupFaceId, tatKhoa, tatFaceId, khoaNgay } from './lock.js';
 import * as gcal from './extcal.js';
 import { html } from './util.js';
+import { toast } from './ui.js';
 import * as store from './store.js';
 import { Auth, isDemo } from './api.js';
 import { icon } from './icons.js';
@@ -126,6 +128,13 @@ export function settingsView() {
         <div class="opts swatches">${ACCENTS.map(([k, label, c]) => html`<button class="opt accent ${p.accent === k ? 'on' : ''}" data-pref="accent:${k}" title="${label}"><i style="background:${c}"></i>${label}</button>`)}</div>
       </section>
       <section class="card settings">
+        <h3 class="card-title">🔒 Khóa Tài chính & Nhân sự</h3>
+        ${lockOn() ? html`<p class="hint">Đang bật trên máy này${hasFaceId() ? ' · có Face ID' : ''}. Mở khóa giữ 5 phút; rời app quá 1 phút thì khóa lại.</p>
+          <div class="opts">${faceIdSupported() ? html`<button class="opt" data-lock="${hasFaceId() ? 'tat-face' : 'face'}">${hasFaceId() ? 'Tắt Face ID' : 'Bật Face ID'}</button>` : ''}<button class="opt" data-lock="pin">Đổi PIN</button><button class="opt" data-lock="khoa">Khóa ngay</button><button class="opt" data-lock="tat">Tắt khóa</button></div>`
+        : html`<p class="hint">Chặn người cầm máy mở xem thu chi và số liệu nhân sự. Đặt mã PIN, rồi bật thêm Face ID nếu muốn. Mỗi máy đặt riêng.</p>
+          <div class="opts"><button class="opt" data-lock="pin">Đặt mã PIN</button></div>`}
+      </section>
+      <section class="card settings">
         <h3 class="card-title">${icon('refresh')} Đồng bộ</h3>
         <p class="row-meta">${isDemo() ? 'Bản demo (dữ liệu mẫu).' : Auth.email ? `Đăng nhập: ${Auth.email}` : 'Chưa đăng nhập.'}</p>
         <p class="row-meta">Lần đồng bộ cuối: ${s.lastSync ? new Date(s.lastSync).toLocaleString('vi-VN') : 'chưa có'}${s.outbox.length ? ` · ${s.outbox.length} thay đổi chờ gửi` : ''}</p>
@@ -152,6 +161,14 @@ export function settingsView() {
 }
 
 export function bindSettings(root, rerender) {
+  root.querySelectorAll('[data-lock]').forEach((b) => b.addEventListener('click', async () => {
+    const k = b.dataset.lock;
+    if (k === 'pin') setupPin(rerender);
+    else if (k === 'face') { if (await setupFaceId()) rerender(); }
+    else if (k === 'tat-face') tatFaceId(rerender);
+    else if (k === 'khoa') { khoaNgay(); toast('Đã khóa'); }
+    else if (k === 'tat') tatKhoa(rerender);
+  }));
   root.querySelectorAll('[data-pref]').forEach((b) => b.addEventListener('click', () => {
     const [k, v] = b.dataset.pref.split(':'); setPref(k, v); rerender();
   }));

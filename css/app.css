@@ -1353,3 +1353,13 @@ body.demo .brand-name[hidden] { display: inline; }
 .nk-lines { margin: 6px 0 0; padding-left: 18px; font-size: .9rem; } .nk-lines li + li { margin-top: 3px; }
 .seg a { text-decoration: none; text-align: center; padding: 6px 12px; border-radius: 8px; font-size: 0.8125rem; color: var(--muted); }
 .seg a.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); font-weight: 600; }
+
+/* Cảnh báo nguồn tự động */
+.health-warn { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
+.hw-row { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: rgba(255, 159, 10, .14); color: var(--text); text-decoration: none; font-size: .9rem; line-height: 1.35; }
+.hw-row.loi { background: rgba(255, 59, 48, .14); }
+
+/* Khóa riêng tư */
+.lock-screen { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 60px 20px; }
+.lock-ic { font-size: 3rem; }
+.pin-in { letter-spacing: .4em; font-size: 1.3rem !important; text-align: center; }

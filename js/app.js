@@ -1,4 +1,5 @@
 // Khung app: điều hướng, thanh tab, nhập nhanh, đồng bộ định kỳ.
+import { isLocked, lockView, bindLock } from './lock.js';
 import { CONFIG } from './config.js';
 import { Auth, isDemo } from './api.js';
 import * as store from './store.js';
@@ -73,6 +74,13 @@ function render() {
   if (focusId === 'search-input') searchQ = document.activeElement.value;
   const keepFocus = !!focusId;
   const caret = keepFocus ? document.activeElement.selectionStart : 0;
+  // Tài chính, Nhân sự: khóa riêng tư (PIN / Face ID) nếu anh đã bật.
+  const LOCKED = { 'tai-chinh': 'Tài chính', 'nhan-su': 'Nhân sự' };
+  if (LOCKED[route] && isLocked()) {
+    main.innerHTML = lockView(LOCKED[route]).__raw;
+    document.querySelectorAll('.nav a').forEach((a) => a.classList.toggle('on', a.dataset.route === 'them'));
+    bindLock(main, render); renderStatus(); return;
+  }
   main.innerHTML = view(arg).__raw;
   document.querySelectorAll('.nav a').forEach((a) => a.classList.toggle('on', a.dataset.route === route || (route === 'bang' && a.dataset.route === 'them')));
   if (route === 'ghi-chu') bindNotes(main, render);

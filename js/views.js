@@ -10,6 +10,8 @@ import { upcomingTripCard } from './travel.js';
 import { habitStrip, sessionRows } from './training.js';
 import { todayPriorities, closeDayCard } from './review.js';
 import { isInboxNote, inboxCount } from './notes.js';
+import { healthCard } from './health.js';
+import { isLocked } from './lock.js';
 import * as gcal from './extcal.js';
 import { flashRow } from './flashcards.js';
 import { weeklyCta } from './weekly.js';
@@ -89,6 +91,7 @@ export function todayView() {
       ${stat('homnay', todayCount, 'hôm nay')}
       ${stat('daxong', doneToday.length, 'đã xong', 'stat-green')}
     </div>
+    ${!statFilter ? healthCard() : ''}
     ${statFilter ? html`<p class="hint filter-hint">Đang lọc. Chạm lại ô số để xem đầy đủ.</p>` : ''}
     ${!statFilter ? askTipCard() : ''}
     ${personal && !statFilter ? html`${focusCard()}${upcomingTripCard()}${habitStrip()}` : ''}
@@ -447,16 +450,18 @@ export function searchView(q, rerender) {
 /** Phần kết quả (cập nhật riêng khi gõ, không vẽ lại ô gõ để bộ gõ tiếng Việt không bị ngắt). */
 export function searchResults(q, rerender) {
   q = String(q || '').trim();
-  const hr = hrForSearch(rerender);
-  const ans = q ? understand(q, { hr, now: today(), all: (t) => store.all(t) }) : null;
+  const locked = isLocked();
+  const hr = locked ? null : hrForSearch(rerender);
+  let ans = q ? understand(q, { hr, now: today(), all: (t) => store.all(t) }) : null;
   if (ans) markUsed(ans.mau);
   const hits = ans && ans.kind === 'goi_y_quan' ? [] : store.search(q); // gợi ý quán: không chen kết quả tìm thường
   const groups = {};
   hits.forEach((h) => (groups[h.table] = groups[h.table] || []).push(h.rec));
   const HR_KINDS = ['don_vi', 'quyet_dinh', 'tong_quan', 'ho_so', 'bao_cao_cc', 'lanh_dao', 'cbql_tong', 'tieu_chuan', 'cho_so_lieu'];
-  const hh = q && (!ans || (!HR_KINDS.includes(ans.kind) && ans.kind !== 'goi_y_quan')) ? hrHits(q, hr) : { qd: [], don_vi: [], ho_so: [] };
+  const hrLocked = locked && ans && HR_KINDS.includes(ans.kind);
+  const hh = !locked && q && (!ans || (!HR_KINDS.includes(ans.kind) && ans.kind !== 'goi_y_quan')) ? hrHits(q, hr) : { qd: [], don_vi: [], ho_so: [] };
   const hrN = hh.qd.length + hh.don_vi.length + hh.ho_so.length;
-  const card = !ans ? '' : HR_KINDS.includes(ans.kind) ? answerHtml(ans) : lifeCard(ans);
+  const card = !ans ? '' : hrLocked ? html`<section class="ans"><p>🔒 Số liệu Nhân sự đang khóa. <a href="#/nhan-su">Mở khóa</a> rồi tìm lại.</p></section>` : HR_KINDS.includes(ans.kind) ? answerHtml(ans) : lifeCard(ans);
   return html`${card}
     ${q ? (hits.length || hrN ? html`${hrN ? hrHitsHtml(hh) : ''}<div class="grid">${Object.entries(groups).map(([t, recs]) => section(TABLE_META[t].plural, recs.map((r) => (t === 'viec' ? taskRow(r) : t === 'van_ban' ? docRow(r) : t === 'su_kien' ? eventRow(r) : genericRow(t, r)))))}</div>`
       : ans ? '' : html`<p class="empty big">Không thấy trong app kết quả cho “${q}”.</p>`)
@@ -511,9 +516,9 @@ export function moreView() {
   const activeP = n('du_an', (d) => d.trang_thai === 'Đang làm' || d.trang_thai === 'Tạm dừng');
   const groups = [
     ['Công việc', [
-      ['#/nhan-su', 'people', 'Nhân sự', hrSubtitle()]]],
+      ['#/nhan-su', 'people', 'Nhân sự', isLocked() ? '🔒 đang khóa' : hrSubtitle()]]],
     ['Tài chính', [
-      ['#/tai-chinh', 'cash', 'Tài chính', financeSub()]]],
+      ['#/tai-chinh', 'cash', 'Tài chính', isLocked() ? '🔒 đang khóa' : financeSub()]]],
     ['Sắp xếp', [
       ['#/para', 'grid', 'Bản đồ PARA', `${activeP} dự án · ${n('linh_vuc')} lĩnh vực · chuyến đi`],
       ['#/ghi-chu', 'inbox', 'Inbox', `${inboxCount()} chưa xếp · ghi chú #0_Inbox`],
